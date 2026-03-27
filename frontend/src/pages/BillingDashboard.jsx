@@ -1,31 +1,33 @@
-﻿import { useState, useEffect } from 'react';
-import api from '../services/api';
-import ClearanceReport from '../components/ClearanceReport';
-import AuditTrail from '../components/AuditTrail';
+﻿import { useState, useEffect } from "react";
+import api from "../services/api";
+import ClearanceReport from "../components/ClearanceReport";
+import AuditTrail from "../components/AuditTrail";
+import PhClock from "../components/PhClock";
+import SearchBar from "../components/SearchBar";
 
 const STEP_LABEL = {
-  no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
-  awaiting_nurse:       { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
-  awaiting_billing:     { label: 'May Go Home',  style: 'bg-blue-100 text-blue-600'       },
-  cost_center_clearing: { label: 'In Clearance', style: 'bg-amber-100 text-amber-600'     },
-  discharged:           { label: 'Discharged',   style: 'bg-emerald-100 text-emerald-700' },
+  no_request:           { label: "Admitted",     style: "bg-gray-100 text-gray-500"       },
+  awaiting_nurse:       { label: "Admitted",     style: "bg-gray-100 text-gray-500"       },
+  awaiting_billing:     { label: "May Go Home",  style: "bg-blue-100 text-blue-600"       },
+  cost_center_clearing: { label: "In Clearance", style: "bg-amber-100 text-amber-600"     },
+  discharged:           { label: "Discharged",   style: "bg-emerald-100 text-emerald-700" },
 };
 
 export default function BillingDashboard({ user, onLogout }) {
-  const [tab, setTab]               = useState('patients');
+  const [tab, setTab]               = useState("patients");
   const [patients, setPatients]     = useState([]);
-  const [search, setSearch]         = useState('');
+  const [search, setSearch]         = useState("");
   const [loading, setLoading]       = useState(false);
   const [actionId, setActionId]     = useState(null);
   const [remarksId, setRemarksId]   = useState(null);
-  const [remarks, setRemarks]       = useState('');
+  const [remarks, setRemarks]       = useState("");
   const [reportPatient, setReport]  = useState(null);
   const [ccProgress, setCcProgress] = useState({});
 
   const fetchPatients = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/get_patients.php?role=Billing');
+      const res = await api.get("/get_patients.php?role=Billing");
       setPatients(res.data);
     } catch { }
     finally { setLoading(false); }
@@ -33,9 +35,9 @@ export default function BillingDashboard({ user, onLogout }) {
 
   const fetchProgress = async (patient_id) => {
     try {
-      const res = await api.get(`/get_clearance_report.php?patient_id=${patient_id}`);
+      const res = await api.get("/get_clearance_report.php?patient_id=" + patient_id);
       if (res.data.success) {
-        const cleared = res.data.clearances.filter(c => c.status === 'cleared').length;
+        const cleared = res.data.clearances.filter(c => c.status === "cleared").length;
         const total   = res.data.clearances.length;
         setCcProgress(prev => ({ ...prev, [patient_id]: { cleared, total } }));
       }
@@ -45,25 +47,25 @@ export default function BillingDashboard({ user, onLogout }) {
   useEffect(() => { fetchPatients(); }, []);
   useEffect(() => {
     patients.forEach(p => {
-      if (p.clearance_step === 'cost_center_clearing') fetchProgress(p.id);
+      if (p.clearance_step === "cost_center_clearing") fetchProgress(p.id);
     });
   }, [patients]);
 
   const sendForClearance = async (patient_id) => {
     setActionId(patient_id);
     try {
-      const res = await api.post('/update_clearance.php', { action: 'for_clearance', patient_id, actor: user.costCenter });
+      const res = await api.post("/update_clearance.php", { action: "for_clearance", patient_id, actor: user.costCenter });
       if (res.data.success) fetchPatients();
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
 
   const discharge = async (patient_id) => {
-    if (!remarks.trim()) { alert('Please enter final remarks before discharging.'); return; }
+    if (!remarks.trim()) { alert("Please enter final remarks before discharging."); return; }
     setActionId(patient_id);
     try {
-      const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id, actor: user.costCenter, remarks });
-      if (res.data.success) { setRemarksId(null); setRemarks(''); fetchPatients(); }
+      const res = await api.post("/update_clearance.php", { action: "discharge", patient_id, actor: user.costCenter, remarks });
+      if (res.data.success) { setRemarksId(null); setRemarks(""); fetchPatients(); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
@@ -75,6 +77,7 @@ export default function BillingDashboard({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -84,15 +87,20 @@ export default function BillingDashboard({ user, onLogout }) {
               <p className="text-white font-semibold text-sm">{user.costCenter}</p>
             </div>
           </div>
-          <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">Logout</button>
+          <div className="flex items-center gap-3">
+            <PhClock />
+            <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[['patients','Patients'],['audit','Audit Trail']].map(([key, label]) => (
+          {[["patients","Patients"],["audit","Audit Trail"]].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+              className={"px-4 py-3 text-sm font-semibold border-b-2 transition-colors " + (tab === key ? "border-emerald-600 text-emerald-700" : "border-transparent text-gray-400 hover:text-gray-600")}>
               {label}
             </button>
           ))}
@@ -100,29 +108,24 @@ export default function BillingDashboard({ user, onLogout }) {
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-col gap-5">
-        {tab === 'audit' && <AuditTrail role={user.costCenter} />}
-        {tab === 'patients' && (
+
+        {tab === "audit" && <AuditTrail role={user.costCenter} />}
+
+        {tab === "patients" && (
           <>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Billing Dashboard</h1>
               <p className="text-sm text-gray-400 mt-0.5">Manage patient clearance and discharge</p>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-4">
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-                </svg>
-                <input type="text" placeholder="Search by name or patient ID" value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition" />
-              </div>
-            </div>
+
+            <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
+
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Ward','Admit Date','Status','Progress','Action'].map(h => (
+                      {["Patient ID","Name","Ward","Admit Date","Status","Progress","Action"].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -133,7 +136,7 @@ export default function BillingDashboard({ user, onLogout }) {
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
                     ) : filtered.map(p => {
-                      const step = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
+                      const step = STEP_LABEL[p.clearance_step] || STEP_LABEL["no_request"];
                       const prog = ccProgress[p.id];
                       return (
                         <>
@@ -143,13 +146,13 @@ export default function BillingDashboard({ user, onLogout }) {
                             <td className="px-5 py-4 text-gray-500">{p.ward}</td>
                             <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
                             <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
+                              <span className={"px-2.5 py-1 rounded-full text-xs font-semibold " + step.style}>{step.label}</span>
                             </td>
                             <td className="px-5 py-4">
                               {prog ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(prog.cleared / prog.total) * 100}%` }} />
+                                    <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: (prog.cleared / prog.total * 100) + "%" }} />
                                   </div>
                                   <span className="text-xs text-gray-400">{prog.cleared}/{prog.total}</span>
                                 </div>
@@ -157,14 +160,14 @@ export default function BillingDashboard({ user, onLogout }) {
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-2 flex-wrap">
-                                {p.clearance_step === 'awaiting_billing' && (
+                                {p.clearance_step === "awaiting_billing" && (
                                   <button onClick={() => sendForClearance(p.id)} disabled={actionId === p.id}
                                     className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                    {actionId === p.id ? 'Sending' : 'For Clearance'}
+                                    {actionId === p.id ? "Sending" : "For Clearance"}
                                   </button>
                                 )}
-                                {p.clearance_step === 'cost_center_clearing' && prog && prog.cleared === prog.total && prog.total > 0 && (
-                                  <button onClick={() => { setRemarksId(p.id); setRemarks(''); }}
+                                {p.clearance_step === "cost_center_clearing" && prog && prog.cleared === prog.total && prog.total > 0 && (
+                                  <button onClick={() => { setRemarksId(p.id); setRemarks(""); }}
                                     className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                     Discharge
                                   </button>
@@ -179,7 +182,7 @@ export default function BillingDashboard({ user, onLogout }) {
                             </td>
                           </tr>
                           {remarksId === p.id && (
-                            <tr key={`r-${p.id}`} className="bg-emerald-50">
+                            <tr key={"r-" + p.id} className="bg-emerald-50">
                               <td colSpan={7} className="px-5 py-4">
                                 <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                                   <textarea value={remarks} onChange={e => setRemarks(e.target.value)}
@@ -188,7 +191,7 @@ export default function BillingDashboard({ user, onLogout }) {
                                   <div className="flex gap-2 shrink-0">
                                     <button onClick={() => discharge(p.id)} disabled={actionId === p.id}
                                       className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
-                                      {actionId === p.id ? 'Discharging' : 'Confirm Discharge'}
+                                      {actionId === p.id ? "Discharging" : "Confirm Discharge"}
                                     </button>
                                     <button onClick={() => setRemarksId(null)}
                                       className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
@@ -211,11 +214,13 @@ export default function BillingDashboard({ user, onLogout }) {
             </div>
           </>
         )}
+
       </main>
 
       {reportPatient && (
         <ClearanceReport patientId={reportPatient.id} onClose={() => setReport(null)} />
       )}
+
     </div>
   );
 }
