@@ -42,10 +42,17 @@ function log_audit($conn, $patient_id, $patient, $action_label, $actor, $remarks
 }
 
 $COST_CENTERS = [
-    'Laboratory','Ward','Radiology','Radio Therapy','Procedure',
-    'Physical Therapy','Pharmacy','Out Patient Department','Parenatal',
-    'Opthalmology','Operating Room','Nuclear Medicine','Neurology',
-    'Emergency Room','Dermatology','Dental','Central Supply Room','Delivery Room'
+    'Operating Room/Delivery Room',
+    'Pulmonary Department (MSA)',
+    'Hemodialysis Unit',
+    'Newborn Screening',
+    'Newborn Hearing Test',
+    'Radiology',
+    'Laboratory',
+    'Bloodbank',
+    'Pharmacy',
+    'Benefits',
+    'Billing'
 ];
 
 $patient = get_patient($conn, $patient_id);

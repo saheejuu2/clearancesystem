@@ -7,10 +7,16 @@ import IdleLockScreen from './components/IdleLockScreen';
 import useIdleTimeout from './hooks/useIdleTimeout';
 
 const COST_CENTERS = [
-  'Laboratory','Ward','Radiology','Radio Therapy','Procedure',
-  'Physical Therapy','Pharmacy','Out Patient Department','Parenatal',
-  'Opthalmology','Operating Room','Nuclear Medicine','Neurology',
-  'Emergency Room','Dermatology','Dental','Central Supply Room','Delivery Room',
+  'Operating Room/Delivery Room',
+  'Pulmonary Department (MSA)',
+  'Hemodialysis Unit',
+  'Newborn Screening',
+  'Newborn Hearing Test',
+  'Radiology',
+  'Laboratory',
+  'Bloodbank',
+  'Pharmacy',
+  'Benefits',
 ];
 
 function AppContent({ user, onLogout }) {
