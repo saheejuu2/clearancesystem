@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
+import SearchBar from '../components/SearchBar';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
@@ -13,7 +14,9 @@ const STEP_LABEL = {
 
 export default function NurseDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState('patients');
+  const [auditKey, setAuditKey] = useState(0);
   const [patients, setPatients] = useState([]);
+  const [allPatients, setAllPatients] = useState([]);
   const [search, setSearch]     = useState('');
   const [loading, setLoading]   = useState(false);
   const [actionId, setActionId] = useState(null);
@@ -26,8 +29,14 @@ export default function NurseDashboard({ user, onLogout }) {
   const fetchPatients = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/get_patients.php?role=Nurse');
-      setPatients(res.data);
+      const [listRes, allRes] = await Promise.all([
+        api.get('/get_patients.php?role=Nurse'),
+        api.get('/get_patients.php?role=Billing'), // get all in-progress for cancel
+      ]);
+      setPatients(listRes.data);
+      setAllPatients(allRes.data.filter(p =>
+        ['awaiting_billing', 'cost_center_clearing'].includes(p.clearance_step)
+      ));
     } catch { /* silent */ }
     finally { setLoading(false); }
   };
@@ -51,7 +60,7 @@ export default function NurseDashboard({ user, onLogout }) {
         actor:      confirmForm.nurseName.trim(),
         remarks:    confirmForm.remarks.trim(),
       });
-      if (res.data.success) { setConfirmForm(null); fetchPatients(); }
+      if (res.data.success) { setConfirmForm(null); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
@@ -66,7 +75,7 @@ export default function NurseDashboard({ user, onLogout }) {
         actor:      cancelForm.nurseName.trim(),
         remarks:    cancelForm.remarks.trim() || 'Discharge cancelled by nurse',
       });
-      if (res.data.success) { setCancelForm(null); fetchPatients(); }
+      if (res.data.success) { setCancelForm(null); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setCancelling(false); }
   };
@@ -97,7 +106,7 @@ export default function NurseDashboard({ user, onLogout }) {
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
           {[['patients','Patients'],['audit','Audit Trail']].map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)}
+            <button key={key} onClick={() => { setTab(key); if (key === 'audit') { fetchPatients(); setAuditKey(k => k + 1); } }}
               className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               {label}
             </button>
@@ -106,22 +115,14 @@ export default function NurseDashboard({ user, onLogout }) {
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
-        {tab === 'audit' ? <AuditTrail role={user.costCenter} patients={patients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} /> : (
+        {tab === 'audit' ? <AuditTrail key={auditKey} role={user.costCenter} patients={allPatients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} /> : (
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Patient List</h1>
               <p className="text-sm text-gray-400 mt-0.5">Click "May Go Home" to initiate discharge clearance</p>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm p-4">
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-                </svg>
-                <input type="text" placeholder="Search by name or patient ID…" value={search} onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition" />
-              </div>
-            </div>
+            <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">

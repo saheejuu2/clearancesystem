@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
+import SearchBar from '../components/SearchBar';
 
 export default function CostCenterDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState('patients');
@@ -111,17 +112,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         </div>
 
         {/* Search */}
-        <div className="bg-white rounded-2xl shadow-sm p-4">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-            </svg>
-            <input type="text" placeholder="Search by name or patient ID…" value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition"
-            />
-          </div>
-        </div>
+        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
