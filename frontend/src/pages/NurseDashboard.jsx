@@ -20,6 +20,8 @@ export default function NurseDashboard({ user, onLogout }) {
 
   // inline confirm form state: { patientId, nurseName, remarks }
   const [confirmForm, setConfirmForm] = useState(null);
+  const [cancelForm, setCancelForm]   = useState(null);
+  const [cancelling, setCancelling]   = useState(false);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -52,6 +54,21 @@ export default function NurseDashboard({ user, onLogout }) {
       if (res.data.success) { setConfirmForm(null); fetchPatients(); }
       else alert(res.data.message);
     } finally { setActionId(null); }
+  };
+
+  const submitCancel = async () => {
+    if (!cancelForm.nurseName.trim()) { alert('Please enter your name before cancelling.'); return; }
+    setCancelling(true);
+    try {
+      const res = await api.post('/update_clearance.php', {
+        action:     'cancel_discharge',
+        patient_id: cancelForm.patientId,
+        actor:      cancelForm.nurseName.trim(),
+        remarks:    cancelForm.remarks.trim() || 'Discharge cancelled by nurse',
+      });
+      if (res.data.success) { setCancelForm(null); fetchPatients(); }
+      else alert(res.data.message);
+    } finally { setCancelling(false); }
   };
 
   const filtered = patients.filter(p =>
@@ -89,7 +106,7 @@ export default function NurseDashboard({ user, onLogout }) {
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
-        {tab === 'audit' ? <AuditTrail role={user.costCenter} /> : (
+        {tab === 'audit' ? <AuditTrail role={user.costCenter} patients={patients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} /> : (
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Patient List</h1>
@@ -202,6 +219,53 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
         )}
       </main>
+
+      {/* Cancel discharge confirmation modal */}
+      {cancelForm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Cancel Discharge Process</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              You are about to cancel the discharge process for{' '}
+              <span className="font-semibold text-gray-800">{cancelForm.patientName}</span>.
+              All clearance progress will be removed and the patient will restart from the beginning.
+            </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input type="text" placeholder="Enter your full name"
+                  value={cancelForm.nurseName}
+                  onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value }))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Reason <span className="text-gray-400">(optional)</span>
+                </label>
+                <textarea placeholder="Reason for cancellation…"
+                  value={cancelForm.remarks}
+                  onChange={e => setCancelForm(f => ({ ...f, remarks: e.target.value }))}
+                  rows={2}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitCancel} disabled={cancelling}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {cancelling ? 'Cancelling…' : 'Confirm Cancellation'}
+              </button>
+              <button onClick={() => setCancelForm(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
