@@ -117,7 +117,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
-        {tab === 'audit' ? <AuditTrail key={auditKey} role={user.costCenter} /> : (
+        {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} />}
+        {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
           <h1 className="text-xl font-bold text-gray-800">{user.costCenter} — Clearance</h1>

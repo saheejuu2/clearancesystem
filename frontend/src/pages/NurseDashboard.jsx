@@ -117,7 +117,8 @@ export default function NurseDashboard({ user, onLogout }) {
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
-        {tab === 'audit' ? <AuditTrail key={auditKey} role={user.costCenter} patients={allPatients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} /> : (
+        {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} patients={allPatients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} />}
+        {tab === 'patients' && (
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Patient List</h1>
