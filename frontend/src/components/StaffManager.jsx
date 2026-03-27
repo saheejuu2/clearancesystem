@@ -1,14 +1,32 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 
-const EMPTY_FORM = { username: '', full_name: '', password: '' };
+const EMPTY_FORM = { username: '', full_name: '', password: '', confirmPassword: '' };
+
+const EyeIcon = ({ show, onClick }) => (
+  <button type="button" onClick={onClick}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+    {show ? (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+    )}
+  </button>
+);
 
 export default function StaffManager({ costCenter }) {
-  const [staff, setStaff]       = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [form, setForm]         = useState(null);   // null | { mode:'create'|'edit', data }
-  const [saving, setSaving]     = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
+  const [staff, setStaff]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [form, setForm]           = useState(null);
+  const [saving, setSaving]       = useState(false);
+  const [deleteId, setDeleteId]   = useState(null);
+  const [showPass, setShowPass]   = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const fetchStaff = () => {
     setLoading(true);
@@ -19,8 +37,8 @@ export default function StaffManager({ costCenter }) {
 
   useEffect(() => { fetchStaff(); }, [costCenter]);
 
-  const openCreate = () => setForm({ mode: 'create', data: { ...EMPTY_FORM } });
-  const openEdit   = (s) => setForm({ mode: 'edit',   data: { id: s.id, username: s.username, full_name: s.full_name, password: '' } });
+  const openCreate = () => { setShowPass(false); setShowConfirm(false); setForm({ mode: 'create', data: { ...EMPTY_FORM } }); };
+  const openEdit   = (s) => { setShowPass(false); setShowConfirm(false); setForm({ mode: 'edit', data: { id: s.id, username: s.username, full_name: s.full_name, password: '', confirmPassword: '' } }); };
 
   const handleSave = async () => {
     if (!form.data.username.trim() || !form.data.full_name.trim()) {
@@ -29,6 +47,10 @@ export default function StaffManager({ costCenter }) {
     }
     if (form.mode === 'create' && !form.data.password.trim()) {
       alert('Password is required for new accounts.');
+      return;
+    }
+    if (form.data.password && form.data.password !== form.data.confirmPassword) {
+      alert('Passwords do not match.');
       return;
     }
     setSaving(true);
@@ -53,6 +75,7 @@ export default function StaffManager({ costCenter }) {
   };
 
   const staffOnly = staff.filter(s => s.role === 'staff');
+  const set = (key, val) => setForm(f => ({ ...f, data: { ...f.data, [key]: val } }));
 
   return (
     <div className="flex flex-col gap-5">
@@ -120,28 +143,52 @@ export default function StaffManager({ costCenter }) {
               {form.mode === 'create' ? 'Add Staff Account' : 'Edit Staff Account'}
             </h3>
             <div className="flex flex-col gap-4">
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Full Name <span className="text-red-500">*</span></label>
                 <input type="text" placeholder="Enter full name" value={form.data.full_name}
-                  onChange={e => setForm(f => ({ ...f, data: { ...f.data, full_name: e.target.value } }))}
+                  onChange={e => set('full_name', e.target.value)}
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
                 <input type="text" placeholder="Enter username" value={form.data.username}
-                  onChange={e => setForm(f => ({ ...f, data: { ...f.data, username: e.target.value } }))}
+                  onChange={e => set('username', e.target.value)}
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Password {form.mode === 'edit' && <span className="text-gray-400 normal-case font-normal">(leave blank to keep current)</span>}
-                  {form.mode === 'create' && <span className="text-red-500">*</span>}
+                  Password {form.mode === 'create' ? <span className="text-red-500">*</span> : <span className="text-gray-400 normal-case font-normal">(leave blank to keep current)</span>}
                 </label>
-                <input type="password" placeholder={form.mode === 'edit' ? 'Leave blank to keep current' : 'Enter password'}
-                  value={form.data.password}
-                  onChange={e => setForm(f => ({ ...f, data: { ...f.data, password: e.target.value } }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <div className="relative">
+                  <input type={showPass ? 'text' : 'password'}
+                    placeholder={form.mode === 'edit' ? 'Leave blank to keep current' : 'Enter password'}
+                    value={form.data.password}
+                    onChange={e => set('password', e.target.value)}
+                    className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                  <EyeIcon show={showPass} onClick={() => setShowPass(v => !v)} />
+                </div>
               </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Confirm Password {form.mode === 'create' ? <span className="text-red-500">*</span> : <span className="text-gray-400 normal-case font-normal">(leave blank to keep current)</span>}
+                </label>
+                <div className="relative">
+                  <input type={showConfirm ? 'text' : 'password'}
+                    placeholder="Re-enter password"
+                    value={form.data.confirmPassword}
+                    onChange={e => set('confirmPassword', e.target.value)}
+                    className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                  <EyeIcon show={showConfirm} onClick={() => setShowConfirm(v => !v)} />
+                </div>
+                {form.data.password && form.data.confirmPassword && form.data.password !== form.data.confirmPassword && (
+                  <p className="text-xs text-red-500 mt-0.5">Passwords do not match.</p>
+                )}
+              </div>
+
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={handleSave} disabled={saving}
