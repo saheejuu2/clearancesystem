@@ -20,6 +20,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [loading, setLoading]       = useState(false);
   const [actionId, setActionId]     = useState(null);
   const [remarksId, setRemarksId]   = useState(null);
+  const [dischargerName, setDischargerName] = useState("");
   const [remarks, setRemarks]       = useState("");
   const [reportPatient, setReport]  = useState(null);
   const [ccProgress, setCcProgress] = useState({});
@@ -65,7 +66,7 @@ export default function BillingDashboard({ user, onLogout }) {
     setActionId(patient_id);
     try {
       const res = await api.post("/update_clearance.php", { action: "discharge", patient_id, actor: user.costCenter, remarks });
-      if (res.data.success) { setRemarksId(null); setRemarks(""); fetchPatients(); }
+      if (res.data.success) { setRemarksId(null); setRemarks(""); setDischargerName(""); fetchPatients(); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
@@ -184,17 +185,22 @@ export default function BillingDashboard({ user, onLogout }) {
                           {remarksId === p.id && (
                             <tr key={"r-" + p.id} className="bg-emerald-50">
                               <td colSpan={7} className="px-5 py-4">
-                                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                                  <textarea value={remarks} onChange={e => setRemarks(e.target.value)}
-                                    placeholder="Enter final remarks before discharge" rows={2}
-                                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
-                                  <div className="flex gap-2 shrink-0">
-                                    <button onClick={() => discharge(p.id)} disabled={actionId === p.id}
-                                      className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
+                                <div className="flex flex-col gap-3">
+                                  <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="flex flex-col gap-1 flex-1">
+                                      <label className="text-xs font-semibold text-gray-600">Your Name <span className="text-red-500">*</span></label>
+                                      <input type="text" placeholder="Enter your full name" value={dischargerName} onChange={e => setDischargerName(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 flex-1">
+                                      <label className="text-xs font-semibold text-gray-600">Final Remarks <span className="text-red-500">*</span></label>
+                                      <input type="text" placeholder="Enter final remarks" value={remarks} onChange={e => setRemarks(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button onClick={() => discharge(p.id)} disabled={actionId === p.id} className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
                                       {actionId === p.id ? "Discharging" : "Confirm Discharge"}
                                     </button>
-                                    <button onClick={() => setRemarksId(null)}
-                                      className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
+                                    <button onClick={() => { setRemarksId(null); setRemarks(""); setDischargerName(""); }} className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
                                       Cancel
                                     </button>
                                   </div>
