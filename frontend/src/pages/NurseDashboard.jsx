@@ -4,19 +4,22 @@ import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 
 const STEP_LABEL = {
-  no_request:           { label: 'Admitted',    style: 'bg-gray-100 text-gray-500'       },
-  awaiting_nurse:       { label: 'Admitted',    style: 'bg-gray-100 text-gray-500'       },
-  awaiting_billing:     { label: 'May Go Home', style: 'bg-blue-100 text-blue-600'       },
-  cost_center_clearing: { label: 'In Clearance',style: 'bg-amber-100 text-amber-600'     },
-  discharged:           { label: 'Discharged',  style: 'bg-emerald-100 text-emerald-700' },
+  no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
+  awaiting_nurse:       { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
+  awaiting_billing:     { label: 'May Go Home',  style: 'bg-blue-100 text-blue-600'       },
+  cost_center_clearing: { label: 'In Clearance', style: 'bg-amber-100 text-amber-600'     },
+  discharged:           { label: 'Discharged',   style: 'bg-emerald-100 text-emerald-700' },
 };
 
 export default function NurseDashboard({ user, onLogout }) {
-  const [tab, setTab]         = useState('patients');
+  const [tab, setTab]           = useState('patients');
   const [patients, setPatients] = useState([]);
-  const [search, setSearch]   = useState('');
-  const [loading, setLoading] = useState(false);
+  const [search, setSearch]     = useState('');
+  const [loading, setLoading]   = useState(false);
   const [actionId, setActionId] = useState(null);
+
+  // inline confirm form state: { patientId, nurseName, remarks }
+  const [confirmForm, setConfirmForm] = useState(null);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -29,11 +32,24 @@ export default function NurseDashboard({ user, onLogout }) {
 
   useEffect(() => { fetchPatients(); }, []);
 
-  const markMayGoHome = async (patient_id) => {
-    setActionId(patient_id);
+  const openForm = (patient_id) => {
+    setConfirmForm({ patientId: patient_id, nurseName: '', remarks: '' });
+  };
+
+  const submitMayGoHome = async () => {
+    if (!confirmForm.nurseName.trim()) {
+      alert('Please enter your name before confirming.');
+      return;
+    }
+    setActionId(confirmForm.patientId);
     try {
-      const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id, actor: user.costCenter });
-      if (res.data.success) fetchPatients();
+      const res = await api.post('/update_clearance.php', {
+        action:     'may_go_home',
+        patient_id: confirmForm.patientId,
+        actor:      confirmForm.nurseName.trim(),
+        remarks:    confirmForm.remarks.trim(),
+      });
+      if (res.data.success) { setConfirmForm(null); fetchPatients(); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
@@ -61,7 +77,6 @@ export default function NurseDashboard({ user, onLogout }) {
         </div>
       </header>
 
-      {/* Tabs */}
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
           {[['patients','Patients'],['audit','Audit Trail']].map(([key, label]) => (
@@ -92,12 +107,12 @@ export default function NurseDashboard({ user, onLogout }) {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="hidden md:block overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Patient ID','Name','Age','Ward','Admit Date','Status','Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</th>
+                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -107,57 +122,77 @@ export default function NurseDashboard({ user, onLogout }) {
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
                     ) : filtered.map(p => {
-                      const step = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
+                      const step   = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
                       const canAct = p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse';
+                      const isOpen = confirmForm?.patientId === p.id;
                       return (
-                        <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                          <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                          <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
-                          <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                          <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                          <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
-                          <td className="px-5 py-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
-                          </td>
-                          <td className="px-5 py-4">
-                            {canAct ? (
-                              <button onClick={() => markMayGoHome(p.id)} disabled={actionId === p.id}
-                                className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors">
-                                {actionId === p.id ? 'Saving…' : 'May Go Home'}
-                              </button>
-                            ) : <span className="text-xs text-gray-300">—</span>}
-                          </td>
-                        </tr>
+                        <>
+                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                            <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
+                            <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
+                            <td className="px-5 py-4 text-gray-500">{p.age}</td>
+                            <td className="px-5 py-4 text-gray-500">{p.ward}</td>
+                            <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                            <td className="px-5 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
+                            </td>
+                            <td className="px-5 py-4">
+                              {canAct ? (
+                                <button onClick={() => openForm(p.id)}
+                                  className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                                  May Go Home
+                                </button>
+                              ) : <span className="text-xs text-gray-300">—</span>}
+                            </td>
+                          </tr>
+
+                          {/* Inline confirmation form */}
+                          {isOpen && (
+                            <tr key={`form-${p.id}`} className="bg-blue-50">
+                              <td colSpan={7} className="px-5 py-4">
+                                <p className="text-xs font-semibold text-blue-700 mb-3 uppercase tracking-wide">
+                                  Confirm: {p.full_name} — May Go Home
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                                  <div className="flex flex-col gap-1 flex-1">
+                                    <label className="text-xs font-semibold text-gray-600">Nurse Name <span className="text-red-500">*</span></label>
+                                    <input
+                                      type="text"
+                                      placeholder="Enter your full name"
+                                      value={confirmForm.nurseName}
+                                      onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value }))}
+                                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1 flex-1">
+                                    <label className="text-xs font-semibold text-gray-600">Remarks <span className="text-gray-400">(optional)</span></label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. Physician ordered discharge"
+                                      value={confirmForm.remarks}
+                                      onChange={e => setConfirmForm(f => ({ ...f, remarks: e.target.value }))}
+                                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    />
+                                  </div>
+                                  <div className="flex gap-2 shrink-0">
+                                    <button onClick={submitMayGoHome} disabled={actionId === p.id}
+                                      className="text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+                                      {actionId === p.id ? 'Saving…' : 'Confirm'}
+                                    </button>
+                                    <button onClick={() => setConfirmForm(null)}
+                                      className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       );
                     })}
                   </tbody>
                 </table>
-              </div>
-
-              {/* Mobile */}
-              <div className="md:hidden divide-y divide-gray-100">
-                {filtered.map(p => {
-                  const step = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
-                  const canAct = p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse';
-                  return (
-                    <div key={p.id} className="p-4 flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-gray-800">{p.full_name}</p>
-                        <p className="text-xs text-gray-400 font-mono">{p.patient_no}</p>
-                        <p className="text-xs text-gray-500 mt-1">{p.ward} · Age {p.age} · {p.admit_date}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
-                        {canAct && (
-                          <button onClick={() => markMayGoHome(p.id)} disabled={actionId === p.id}
-                            className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors">
-                            {actionId === p.id ? 'Saving…' : 'May Go Home'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
 
               <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">

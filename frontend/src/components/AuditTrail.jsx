@@ -31,9 +31,19 @@ export default function AuditTrail({ role }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-bold text-gray-800">Audit Trail</h1>
-        <p className="text-sm text-gray-400 mt-0.5">All clearance actions performed</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800">Audit Trail</h1>
+          <p className="text-sm text-gray-400 mt-0.5">All clearance actions performed</p>
+        </div>
+        <button onClick={() => {
+          setLoading(true);
+          api.get(`/get_audit_logs.php?role=${encodeURIComponent(role)}`)
+            .then(res => setLogs(res.data))
+            .finally(() => setLoading(false));
+        }} className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+          Refresh
+        </button>
       </div>
 
       {/* Search */}
