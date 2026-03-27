@@ -2,6 +2,7 @@
 import api from "../services/api";
 import ClearanceReport from "../components/ClearanceReport";
 import AuditTrail from "../components/AuditTrail";
+import StaffManager from "../components/StaffManager";
 import PhClock from "../components/PhClock";
 import SearchBar from "../components/SearchBar";
 
@@ -100,7 +101,7 @@ export default function BillingDashboard({ user, onLogout }) {
 
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[["patients","Patients"],["discharged","Discharged"],["audit","Audit Trail"]].map(([key, label]) => (
+          {[["patients","Patients"],["discharged","Discharged"],["audit","Audit Trail"], ...(user.role === "admin" ? [["staff","Staff"]] : [])].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
               className={"px-4 py-3 text-sm font-semibold border-b-2 transition-colors " + (tab === key ? "border-emerald-600 text-emerald-700" : "border-transparent text-gray-400 hover:text-gray-600")}>
               {label}
@@ -111,6 +112,7 @@ export default function BillingDashboard({ user, onLogout }) {
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-col gap-5">
 
+        {tab === "staff" && <StaffManager costCenter={user.costCenter} />}
         {tab === "audit" && <AuditTrail role={user.costCenter} />}
 
 

@@ -1,45 +1,20 @@
 import { useState } from 'react';
 import api from '../services/api';
 
-const COST_CENTERS = [
-  'Laboratory', 'Ward', 'Radiology', 'Radio Therapy', 'Procedure',
-  'Physical Therapy', 'Pharmacy', 'Out Patient Department', 'Parenatal',
-  'Opthalmology', 'Operating Room', 'Nuclear Medicine', 'Neurology',
-  'Emergency Room', 'Dermatology', 'Dental', 'Central Supply Room', 'Delivery Room',
-];
-
-const OTHER_ROLES = ['Billing', 'Nurse'];
-
 export default function Login({ onLogin }) {
-  const [loginType, setLoginType] = useState('cost-center'); // 'cost-center' | 'other'
-  const [costCenter, setCostCenter] = useState('');
-  const [role, setRole]             = useState('');
-  const [password, setPassword]     = useState('');
-  const [error, setError]           = useState('');
-  const [loading, setLoading]       = useState(false);
-
-  const handleTypeSwitch = (type) => {
-    setLoginType(type);
-    setCostCenter('');
-    setRole('');
-    setError('');
-  };
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    const department = loginType === 'cost-center' ? costCenter : role;
-    if (!department) {
-      setError(loginType === 'cost-center' ? 'Please select a cost center.' : 'Please select a role.');
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await api.post('/login.php', { cost_center: department, password });
+      const res = await api.post('/login.php', { username, password });
       if (res.data.success) {
-        onLogin({ costCenter: res.data.cost_center });
+        onLogin({ costCenter: res.data.cost_center, username: res.data.username, fullName: res.data.full_name, role: res.data.role });
       } else {
         setError(res.data.message || 'Invalid credentials.');
       }
@@ -53,7 +28,7 @@ export default function Login({ onLogin }) {
   return (
     <div className="min-h-screen w-full flex bg-emerald-900">
 
-      {/* ── Left branding panel ── */}
+      {/* Left branding panel */}
       <div className="hidden lg:flex flex-col items-center justify-center flex-[1.4] px-16 gap-8">
         <div className="w-48 h-48 rounded-2xl flex items-center justify-center">
           <img src="/GEAMH LOGO.png" alt="GEAMH Logo" className="w-full h-full object-contain" />
@@ -68,10 +43,10 @@ export default function Login({ onLogin }) {
         </div>
       </div>
 
-      {/* ── Divider ── */}
+      {/* Divider */}
       <div className="hidden lg:block w-px bg-white/10 my-12" />
 
-      {/* ── Right form panel ── */}
+      {/* Right form panel */}
       <div className="flex flex-1 items-center justify-center p-6 bg-black/20">
         <div className="w-full max-w-sm">
 
@@ -82,78 +57,27 @@ export default function Login({ onLogin }) {
           </div>
 
           <div className="bg-white rounded-2xl shadow-2xl p-8">
-            <div className="mb-6">
+            <div className="mb-7">
               <h2 className="text-xl font-bold text-gray-900">Sign In</h2>
-              <p className="text-sm text-gray-500 mt-1">Select your department to continue</p>
-            </div>
-
-            {/* Toggle tabs */}
-            <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
-              <button
-                type="button"
-                onClick={() => handleTypeSwitch('cost-center')}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  loginType === 'cost-center'
-                    ? 'bg-white text-emerald-700 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                Cost Center
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTypeSwitch('other')}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  loginType === 'other'
-                    ? 'bg-white text-emerald-700 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                Billing / Nurse
-              </button>
+              <p className="text-sm text-gray-500 mt-1">Enter your credentials to continue</p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="username" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Username
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="Enter your username"
+                  required
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                />
+              </div>
 
-              {/* Cost center dropdown */}
-              {loginType === 'cost-center' && (
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="costCenter" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                    Cost Center
-                  </label>
-                  <select
-                    id="costCenter"
-                    value={costCenter}
-                    onChange={e => setCostCenter(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  >
-                    <option value="">-- Select Cost Center --</option>
-                    {COST_CENTERS.map(cc => <option key={cc} value={cc}>{cc}</option>)}
-                  </select>
-                </div>
-              )}
-
-              {/* Billing / Nurse dropdown */}
-              {loginType === 'other' && (
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="role" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                    Role
-                  </label>
-                  <select
-                    id="role"
-                    value={role}
-                    onChange={e => setRole(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  >
-                    <option value="">-- Select Role --</option>
-                    {OTHER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-              )}
-
-              {/* Password */}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="password" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Password

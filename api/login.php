@@ -11,35 +11,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 include 'db_config.php';
 
-$data = json_decode(file_get_contents("php://input"), true);
-$cost_center = isset($data['cost_center']) ? trim($data['cost_center']) : '';
-$password    = isset($data['password'])    ? trim($data['password'])    : '';
+$data     = json_decode(file_get_contents("php://input"), true);
+$username = isset($data['username']) ? trim($data['username']) : '';
+$password = isset($data['password']) ? trim($data['password'])  : '';
 
-if (empty($cost_center) || empty($password)) {
-    echo json_encode(["success" => false, "message" => "Cost center and password are required."]);
+if (empty($username) || empty($password)) {
+    echo json_encode(["success" => false, "message" => "Username and password are required."]);
     exit();
 }
 
-$stmt = $conn->prepare("SELECT id, cost_center, password_hash FROM cost_center_accounts WHERE cost_center = ?");
-$stmt->bind_param("s", $cost_center);
+$stmt = $conn->prepare("SELECT id, username, full_name, cost_center, role, password_hash FROM users WHERE username = ?");
+$stmt->bind_param("s", $username);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    echo json_encode(["success" => false, "message" => "Invalid cost center or password."]);
+    echo json_encode(["success" => false, "message" => "Invalid username or password."]);
     exit();
 }
 
 $row = $result->fetch_assoc();
 
 if (!password_verify($password, $row['password_hash'])) {
-    echo json_encode(["success" => false, "message" => "Invalid cost center or password."]);
+    echo json_encode(["success" => false, "message" => "Invalid username or password."]);
     exit();
 }
 
 echo json_encode([
     "success"     => true,
     "cost_center" => $row['cost_center'],
+    "username"    => $row['username'],
+    "full_name"   => $row['full_name'],
+    "role"        => $row['role'],
 ]);
 
 $stmt->close();

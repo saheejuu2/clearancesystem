@@ -3,6 +3,7 @@ import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
+import StaffManager from '../components/StaffManager';
 
 export default function CostCenterDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState('patients');
@@ -105,7 +106,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
       {/* Tabs */}
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[['patients','Patients'],['audit','Audit Trail']].map(([key, label]) => (
+          {[['patients','Patients'],['audit','Audit Trail'], ...(user.role === 'admin' ? [['staff','Staff']] : [])].map(([key, label]) => (
             <button key={key} onClick={() => { setTab(key); if (key === 'audit') setAuditKey(k => k + 1); }}
               className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               {label}
@@ -115,6 +116,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
+        {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
         {tab === 'audit' ? <AuditTrail key={auditKey} role={user.costCenter} /> : (
         <div className="flex flex-col gap-5">
         <div>
