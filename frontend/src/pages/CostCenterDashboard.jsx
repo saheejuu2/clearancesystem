@@ -64,6 +64,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
         remarks: remarksMap[patient_id] || '',
       });
       if (res.data.success) {
+        // Remove patient from list immediately, then sync with server
+        setPatients(prev => prev.filter(p => p.id !== patient_id));
         fetchPatients();
         setCcStatuses(prev => ({ ...prev, [patient_id]: { status: 'cleared' } }));
         setNameMap(prev => { const n = {...prev}; delete n[patient_id]; return n; });
