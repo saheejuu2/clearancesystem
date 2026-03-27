@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
+import PhClock from '../components/PhClock';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',    style: 'bg-gray-100 text-gray-500'       },
@@ -53,7 +54,10 @@ export default function NurseDashboard({ user, onLogout }) {
               <p className="text-white font-semibold text-sm">{user.costCenter}</p>
             </div>
           </div>
-          <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">Logout</button>
+          <div className="flex items-center gap-3">
+            <PhClock />
+            <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">Logout</button>
+          </div>
         </div>
       </header>
 
