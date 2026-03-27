@@ -72,8 +72,9 @@ export default function BillingDashboard({ user, onLogout }) {
   };
 
   const filtered = patients.filter(p =>
-    p.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    p.patient_no.toLowerCase().includes(search.toLowerCase())
+    p.clearance_step !== "discharged" &&
+    (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
