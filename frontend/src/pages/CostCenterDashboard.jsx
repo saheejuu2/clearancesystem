@@ -6,6 +6,7 @@ import SearchBar from '../components/SearchBar';
 
 export default function CostCenterDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState('patients');
+  const [auditKey, setAuditKey] = useState(0);
   const [patients, setPatients] = useState([]);
   const [search, setSearch]     = useState('');
   const [loading, setLoading]   = useState(false);
@@ -67,6 +68,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         setCcStatuses(prev => ({ ...prev, [patient_id]: { status: 'cleared' } }));
         setNameMap(prev => { const n = {...prev}; delete n[patient_id]; return n; });
         setRemarksMap(prev => { const n = {...prev}; delete n[patient_id]; return n; });
+        setAuditKey(k => k + 1);
       } else {
         alert(res.data.message);
       }
@@ -102,7 +104,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
           {[['patients','Patients'],['audit','Audit Trail']].map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)}
+            <button key={key} onClick={() => { setTab(key); if (key === 'audit') setAuditKey(k => k + 1); }}
               className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               {label}
             </button>
@@ -111,7 +113,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
-        {tab === 'audit' ? <AuditTrail role={user.costCenter} /> : (
+        {tab === 'audit' ? <AuditTrail key={auditKey} role={user.costCenter} /> : (
         <div className="flex flex-col gap-5">
         <div>
           <h1 className="text-xl font-bold text-gray-800">{user.costCenter} — Clearance</h1>
