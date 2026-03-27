@@ -11,6 +11,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [loading, setLoading]   = useState(false);
   const [actionId, setActionId] = useState(null);
   const [remarksMap, setRemarksMap] = useState({});
+  const [nameMap, setNameMap]       = useState({});
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -48,18 +49,24 @@ export default function CostCenterDashboard({ user, onLogout }) {
   }, [patients]);
 
   const clearPatient = async (patient_id) => {
+    if (!nameMap[patient_id]?.trim()) {
+      alert('Please enter your name before confirming.');
+      return;
+    }
     setActionId(patient_id);
     try {
       const res = await api.post('/update_clearance.php', {
         action: 'cost_center_clear',
         patient_id,
         cost_center: user.costCenter,
-        actor: user.costCenter,
+        actor: nameMap[patient_id].trim(),
         remarks: remarksMap[patient_id] || '',
       });
       if (res.data.success) {
         fetchPatients();
         setCcStatuses(prev => ({ ...prev, [patient_id]: { status: 'cleared' } }));
+        setNameMap(prev => { const n = {...prev}; delete n[patient_id]; return n; });
+        setRemarksMap(prev => { const n = {...prev}; delete n[patient_id]; return n; });
       } else {
         alert(res.data.message);
       }
@@ -162,24 +169,41 @@ export default function CostCenterDashboard({ user, onLogout }) {
                         </td>
                       </tr>
 
-                      {/* Inline remarks + confirm */}
                       {!isCleared && remarksMap.hasOwnProperty(p.id) && (
                         <tr key={`r-${p.id}`} className="bg-emerald-50">
                           <td colSpan={7} className="px-5 py-4">
-                            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                              <textarea
-                                value={remarksMap[p.id]}
-                                onChange={e => setRemarksMap(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                placeholder="Optional remarks (e.g. no outstanding balance)…"
-                                rows={2}
-                                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
-                              />
-                              <div className="flex gap-2 shrink-0">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex flex-col sm:flex-row gap-3">
+                                <div className="flex flex-col gap-1 flex-1">
+                                  <label className="text-xs font-semibold text-gray-600">Your Name <span className="text-red-500">*</span></label>
+                                  <input
+                                    type="text"
+                                    placeholder="Enter your full name"
+                                    value={nameMap[p.id] || ''}
+                                    onChange={e => setNameMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 flex-1">
+                                  <label className="text-xs font-semibold text-gray-600">Remarks <span className="text-gray-400">(optional)</span></label>
+                                  <textarea
+                                    value={remarksMap[p.id]}
+                                    onChange={e => setRemarksMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                    placeholder="e.g. no outstanding balance"
+                                    rows={1}
+                                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
                                 <button onClick={() => clearPatient(p.id)} disabled={actionId === p.id}
                                   className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
                                   {actionId === p.id ? 'Clearing…' : 'Confirm Cleared'}
                                 </button>
-                                <button onClick={() => setRemarksMap(prev => { const n = {...prev}; delete n[p.id]; return n; })}
+                                <button onClick={() => {
+                                  setRemarksMap(prev => { const n = {...prev}; delete n[p.id]; return n; });
+                                  setNameMap(prev => { const n = {...prev}; delete n[p.id]; return n; });
+                                }}
                                   className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
                                   Cancel
                                 </button>
