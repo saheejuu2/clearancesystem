@@ -99,7 +99,7 @@ export default function BillingDashboard({ user, onLogout }) {
 
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[["patients","Patients"],["audit","Audit Trail"]].map(([key, label]) => (
+          {[["patients","Patients"],["discharged","Discharged"],["audit","Audit Trail"]].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
               className={"px-4 py-3 text-sm font-semibold border-b-2 transition-colors " + (tab === key ? "border-emerald-600 text-emerald-700" : "border-transparent text-gray-400 hover:text-gray-600")}>
               {label}
@@ -112,7 +112,50 @@ export default function BillingDashboard({ user, onLogout }) {
 
         {tab === "audit" && <AuditTrail role={user.costCenter} />}
 
-        {tab === "patients" && (
+
+        {tab === "discharged" && (
+          <>
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Discharged Patients</h1>
+              <p className="text-sm text-gray-400 mt-0.5">All patients who have completed the clearance process</p>
+            </div>
+            <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                      {["Patient ID","Name","Ward","Admit Date","Discharged At","Action"].map(h => (
+                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {patients.filter(p => p.clearance_step === "discharged" && (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))).length === 0 ? (
+                      <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No discharged patients.</td></tr>
+                    ) : patients.filter(p => p.clearance_step === "discharged" && (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))).map(p => (
+                      <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                        <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
+                        <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
+                        <td className="px-5 py-4 text-gray-500">{p.ward}</td>
+                        <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                        <td className="px-5 py-4 text-gray-500 text-xs">{p.discharged_at ? new Date(p.discharged_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }) : "-"}</td>
+                        <td className="px-5 py-4">
+                          <button onClick={() => setReport(p)} className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                            Report
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+                {patients.filter(p => p.clearance_step === "discharged").length} discharged patient(s)
+              </div>
+            </div>
+          </>
+        )}        {tab === "patients" && (
           <>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Billing Dashboard</h1>
