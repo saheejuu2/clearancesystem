@@ -109,7 +109,7 @@ export default function NurseDashboard({ user, onLogout }) {
 
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[['patients','Patients'],['audit','Audit Trail'], ...(user.role === 'admin' ? [['staff','Staff']] : [])].map(([key, label]) => (
+          {[['patients','Patients'],['audit','Audit Trail']].map(([key, label]) => (
             <button key={key} onClick={() => { setTab(key); if (key === 'audit') { fetchPatients(); setAuditKey(k => k + 1); } }}
               className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               {label}

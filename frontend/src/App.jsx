@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import NurseDashboard from './pages/NurseDashboard';
 import BillingDashboard from './pages/BillingDashboard';
 import CostCenterDashboard from './pages/CostCenterDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import IdleLockScreen from './components/IdleLockScreen';
 import useIdleTimeout from './hooks/useIdleTimeout';
 
@@ -26,6 +27,7 @@ function AppContent({ user, onLogout }) {
   useIdleTimeout(handleIdle, 2 * 60 * 1000);
 
   const dashboard = () => {
+    if (user.role === 'admin')         return <AdminDashboard   user={user} onLogout={onLogout} />;
     if (user.costCenter === 'Nurse')   return <NurseDashboard   user={user} onLogout={onLogout} />;
     if (user.costCenter === 'Billing') return <BillingDashboard user={user} onLogout={onLogout} />;
     if (COST_CENTERS.includes(user.costCenter)) return <CostCenterDashboard user={user} onLogout={onLogout} />;
