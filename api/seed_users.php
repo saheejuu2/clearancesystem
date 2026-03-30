@@ -5,18 +5,18 @@ include 'db_config.php';
 $hash = password_hash('costcenter123', PASSWORD_DEFAULT);
 
 $users = [
-    ['or_dr_admin',   'OR/DR Admin',              'Operating Room/Delivery Room', 'admin'],
-    ['pulmo_admin',   'Pulmonary Admin',           'Pulmonary Department (MSA)',   'admin'],
-    ['hemo_admin',    'Hemodialysis Admin',        'Hemodialysis Unit',            'admin'],
-    ['nbs_admin',     'Newborn Screening Admin',   'Newborn Screening',            'admin'],
-    ['nht_admin',     'Newborn Hearing Admin',     'Newborn Hearing Test',         'admin'],
-    ['rad_admin',     'Radiology Admin',           'Radiology',                    'admin'],
-    ['lab_admin',     'Laboratory Admin',          'Laboratory',                   'admin'],
-    ['bb_admin',      'Bloodbank Admin',           'Bloodbank',                    'admin'],
-    ['pharma_admin',  'Pharmacy Admin',            'Pharmacy',                     'admin'],
-    ['benefits_admin','Benefits Admin',            'Benefits',                     'admin'],
-    ['billing_admin', 'Billing Admin',             'Billing',                      'admin'],
-    ['nurse_admin',   'Nurse Admin',               'Nurse',                        'admin'],
+    ['or_dr',     'OR/DR Staff',              'Operating Room/Delivery Room', 'admin'],
+    ['pulmo',     'Pulmonary Staff',           'Pulmonary Department (MSA)',   'admin'],
+    ['hemo',      'Hemodialysis Staff',        'Hemodialysis Unit',            'admin'],
+    ['nbs',       'Newborn Screening Staff',   'Newborn Screening',            'admin'],
+    ['nht',       'Newborn Hearing Staff',     'Newborn Hearing Test',         'admin'],
+    ['radiology', 'Radiology Staff',           'Radiology',                    'admin'],
+    ['laboratory','Laboratory Staff',          'Laboratory',                   'admin'],
+    ['bloodbank', 'Bloodbank Staff',           'Bloodbank',                    'admin'],
+    ['pharmacy',  'Pharmacy Staff',            'Pharmacy',                     'admin'],
+    ['benefits',  'Benefits Staff',            'Benefits',                     'admin'],
+    ['billing',   'Billing Staff',             'Billing',                      'admin'],
+    ['nurse',     'Nurse Staff',               'Nurse',                        'admin'],
 ];
 
 $stmt = $conn->prepare("INSERT IGNORE INTO users (username, password_hash, full_name, cost_center, role) VALUES (?, ?, ?, ?, ?)");

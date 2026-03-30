@@ -92,18 +92,23 @@ if ($action === 'for_clearance') {
         exit();
     }
 
+    // Use selected cost centers if provided, otherwise fall back to all
+    $selected = isset($data['cost_centers']) && is_array($data['cost_centers']) && count($data['cost_centers']) > 0
+        ? $data['cost_centers']
+        : $COST_CENTERS;
+
     $stmt = $conn->prepare("UPDATE clearance_requests SET billing_status='for_clearance', billing_sent_at=?, billing_sent_by=? WHERE id=?");
     $stmt->bind_param("ssi", $now, $actor, $req['id']);
     $stmt->execute();
 
     $stmt2 = $conn->prepare("INSERT IGNORE INTO cost_center_clearances (clearance_request_id, cost_center) VALUES (?, ?)");
-    foreach ($COST_CENTERS as $cc) {
+    foreach ($selected as $cc) {
         $stmt2->bind_param("is", $req['id'], $cc);
         $stmt2->execute();
     }
 
     log_audit($conn, $patient_id, $patient, 'Billing — Sent for Clearance', $actor);
-    echo json_encode(["success" => true, "message" => "Sent to all cost centers for clearance."]);
+    echo json_encode(["success" => true, "message" => "Sent to selected cost centers for clearance."]);
     exit();
 }
 

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import api from "../services/api";
 import ClearanceReport from "../components/ClearanceReport";
 import AuditTrail from "../components/AuditTrail";
@@ -21,6 +21,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [loading, setLoading]       = useState(false);
   const [actionId, setActionId]     = useState(null);
   const [remarksId, setRemarksId]   = useState(null);
+  const [clearanceForm, setClearanceForm] = useState(null); // { patientId, selected: [] }
   const [dischargerName, setDischargerName] = useState("");
   const [remarks, setRemarks]       = useState("");
   const [reportPatient, setReport]  = useState(null);
@@ -53,11 +54,37 @@ export default function BillingDashboard({ user, onLogout }) {
     });
   }, [patients]);
 
-  const sendForClearance = async (patient_id) => {
-    setActionId(patient_id);
+  const DEPT_LIST = [
+    "Operating Room/Delivery Room",
+    "Pulmonary Department (MSA)",
+    "Hemodialysis Unit",
+    "Newborn Screening",
+    "Newborn Hearing Test",
+    "Radiology",
+    "Laboratory",
+    "Bloodbank",
+    "Pharmacy",
+    "Benefits",
+  ];
+
+  const openClearanceForm = (patient_id) => {
+    setClearanceForm({ patientId: patient_id, selected: [...DEPT_LIST] });
+  };
+
+  const sendForClearance = async () => {
+    if (!clearanceForm || clearanceForm.selected.length === 0) {
+      alert("Please select at least one cost center.");
+      return;
+    }
+    setActionId(clearanceForm.patientId);
     try {
-      const res = await api.post("/update_clearance.php", { action: "for_clearance", patient_id, actor: user.costCenter });
-      if (res.data.success) fetchPatients();
+      const res = await api.post("/update_clearance.php", {
+        action: "for_clearance",
+        patient_id: clearanceForm.patientId,
+        actor: user.costCenter,
+        cost_centers: clearanceForm.selected,
+      });
+      if (res.data.success) { setClearanceForm(null); fetchPatients(); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
@@ -186,8 +213,8 @@ export default function BillingDashboard({ user, onLogout }) {
                       const step = STEP_LABEL[p.clearance_step] || STEP_LABEL["no_request"];
                       const prog = ccProgress[p.id];
                       return (
-                        <>
-                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                        <React.Fragment key={p.id}>
+                          <tr className="hover:bg-gray-50/70 transition-colors">
                             <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
                             <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
                             <td className="px-5 py-4 text-gray-500">{p.ward}</td>
@@ -208,9 +235,9 @@ export default function BillingDashboard({ user, onLogout }) {
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {p.clearance_step === "awaiting_billing" && (
-                                  <button onClick={() => sendForClearance(p.id)} disabled={actionId === p.id}
+                                  <button onClick={() => openClearanceForm(p.id)} disabled={actionId === p.id}
                                     className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                    {actionId === p.id ? "Sending" : "For Clearance"}
+                                    For Clearance
                                   </button>
                                 )}
                                 {p.clearance_step === "cost_center_clearing" && prog && prog.cleared === prog.total && prog.total > 0 && (
@@ -254,7 +281,7 @@ export default function BillingDashboard({ user, onLogout }) {
                               </td>
                             </tr>
                           )}
-                        </>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
