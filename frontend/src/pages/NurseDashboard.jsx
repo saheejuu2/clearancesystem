@@ -202,7 +202,7 @@ export default function NurseDashboard({ user, onLogout }) {
                                       type="text"
                                       placeholder="Enter your full name"
                                       value={confirmForm.nurseName}
-                                      onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value }))}
+                                      onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value.replace(/[0-9]/g, '') }))}
                                       className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     />
                                   </div>
@@ -264,7 +264,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 </label>
                 <input type="text" placeholder="Enter your full name"
                   value={cancelForm.nurseName}
-                  onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value }))}
+                  onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value.replace(/[0-9]/g, '') }))}
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
                 />
               </div>

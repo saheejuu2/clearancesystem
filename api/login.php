@@ -39,6 +39,7 @@ if (!password_verify($password, $row['password_hash'])) {
 
 echo json_encode([
     "success"     => true,
+    "id"          => $row['id'],
     "cost_center" => $row['cost_center'],
     "username"    => $row['username'],
     "full_name"   => $row['full_name'],

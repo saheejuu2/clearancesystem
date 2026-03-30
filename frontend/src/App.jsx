@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import Login from './pages/Login';
 import NurseDashboard from './pages/NurseDashboard';
 import BillingDashboard from './pages/BillingDashboard';
-import BenefitsDashboard from './pages/BenefitsDashboard';
 import CostCenterDashboard from './pages/CostCenterDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import IdleLockScreen from './components/IdleLockScreen';
@@ -35,7 +34,6 @@ function AppContent({ user, onLogout }) {
     if (user.role === 'admin')           return <AdminDashboard    user={user} onLogout={onLogout} />;
     if (user.costCenter === 'Nurse')     return <NurseDashboard    user={user} onLogout={onLogout} />;
     if (user.costCenter === 'Billing')   return <BillingDashboard  user={user} onLogout={onLogout} />;
-    if (user.costCenter === 'Benefits')  return <BenefitsDashboard user={user} onLogout={onLogout} />;
     if (COST_CENTERS.includes(user.costCenter)) return <CostCenterDashboard user={user} onLogout={onLogout} />;
     return <div className="p-8 text-gray-500">Unknown role: {user.costCenter}</div>;
   };

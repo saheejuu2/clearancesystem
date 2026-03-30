@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import PhClock from '../components/PhClock';
 import AuditTrail from '../components/AuditTrail';
@@ -53,6 +53,14 @@ export default function AdminDashboard({ user, onLogout }) {
   const [showPass, setShowPass]   = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [ccOpen, setCcOpen]       = useState(false);
+  const ccRef = useRef(null);
+
+  // Profile settings state
+  const [profile, setProfile]         = useState({ full_name: user.fullName, username: user.username, password: '', confirmPassword: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg]   = useState(null);
+  const [showProfilePass, setShowProfilePass]       = useState(false);
+  const [showProfileConfirm, setShowProfileConfirm] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
@@ -65,7 +73,9 @@ export default function AdminDashboard({ user, onLogout }) {
 
   useEffect(() => {
     if (!ccOpen) return;
-    const close = () => setCcOpen(false);
+    const close = (e) => {
+      if (ccRef.current && !ccRef.current.contains(e.target)) setCcOpen(false);
+    };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [ccOpen]);
@@ -119,12 +129,34 @@ export default function AdminDashboard({ user, onLogout }) {
     } finally { setSaving(false); }
   };
 
+  const handleProfileSave = async () => {
+    if (!profile.username.trim() || !profile.full_name.trim()) {
+      setProfileMsg({ ok: false, text: 'Username and full name are required.' });
+      return;
+    }
+    if (profile.password && profile.password !== profile.confirmPassword) {
+      setProfileMsg({ ok: false, text: 'Passwords do not match.' });
+      return;
+    }
+    setProfileSaving(true);
+    setProfileMsg(null);
+    try {
+      const res = await api.post('/update_profile.php', { id: user.id, ...profile });
+      if (res.data.success) {
+        setProfileMsg({ ok: true, text: 'Profile updated successfully.' });
+        setProfile(p => ({ ...p, password: '', confirmPassword: '' }));
+      } else {
+        setProfileMsg({ ok: false, text: res.data.message });
+      }
+    } finally { setProfileSaving(false); }
+  };
+
   const tabs = ['All', ...COST_CENTERS];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
 
-      {/* Header — matches staff dashboard */}
+      {/* Header â€” matches staff dashboard */}
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -136,6 +168,13 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
           <div className="flex items-center gap-3">
             <PhClock />
+            <button onClick={() => setTab('profile')}
+              title="Profile Settings"
+              className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-lg transition-all">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
             <button onClick={onLogout}
               className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">
               Logout
@@ -145,6 +184,7 @@ export default function AdminDashboard({ user, onLogout }) {
       </header>
 
       {/* Tabs */}
+      {tab !== 'profile' && (
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
           {[['staff', 'Staff Accounts'], ['audit', 'Audit Trail']].map(([key, label]) => (
@@ -157,10 +197,102 @@ export default function AdminDashboard({ user, onLogout }) {
           ))}
         </div>
       </div>
+      )}
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
 
         {tab === 'audit' && <AuditTrail key={auditKey} role="admin" />}
+
+        {tab === 'profile' && (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-2xl font-bold select-none">
+                  {profile.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-800">{profile.full_name}</h1>
+                  <p className="text-sm text-gray-400">@{profile.username}</p>
+                  <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Admin</span>
+                </div>
+              </div>
+              <button onClick={() => { setTab('staff'); setProfileMsg(null); }}
+                className="text-gray-400 hover:text-gray-600 transition-colors" title="Close">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="text-base font-bold text-gray-800 mb-5">Account Details</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Full Name <span className="text-red-500">*</span></label>
+                  <input type="text" value={profile.full_name}
+                    onChange={e => setProfile(p => ({ ...p, full_name: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                  <input type="text" value={profile.username}
+                    onChange={e => setProfile(p => ({ ...p, username: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    New Password <span className="text-gray-400 normal-case font-normal">(leave blank to keep current)</span>
+                  </label>
+                  <div className="relative">
+                    <input type={showProfilePass ? 'text' : 'password'}
+                      placeholder="Enter new password"
+                      value={profile.password}
+                      onChange={e => setProfile(p => ({ ...p, password: e.target.value }))}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <EyeIcon show={showProfilePass} onClick={() => setShowProfilePass(v => !v)} />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    Confirm Password <span className="text-gray-400 normal-case font-normal">(leave blank to keep current)</span>
+                  </label>
+                  <div className="relative">
+                    <input type={showProfileConfirm ? 'text' : 'password'}
+                      placeholder="Re-enter new password"
+                      value={profile.confirmPassword}
+                      onChange={e => setProfile(p => ({ ...p, confirmPassword: e.target.value }))}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <EyeIcon show={showProfileConfirm} onClick={() => setShowProfileConfirm(v => !v)} />
+                  </div>
+                  {profile.password && profile.confirmPassword && profile.password !== profile.confirmPassword && (
+                    <p className="text-xs text-red-500 mt-0.5">Passwords do not match.</p>
+                  )}
+                </div>
+              </div>
+
+              {profileMsg && (
+                <p className={`text-sm font-medium mt-4 ${profileMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {profileMsg.text}
+                </p>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                <button onClick={handleProfileSave} disabled={profileSaving}
+                  className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                  {profileSaving ? 'Saving…' : 'Save Changes'}
+                </button>
+                <button onClick={() => { setTab('staff'); setProfileMsg(null); }}
+                  className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {tab === 'staff' && (
           <div className="flex flex-col gap-5">
@@ -170,49 +302,41 @@ export default function AdminDashboard({ user, onLogout }) {
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+            <div className="flex gap-3 items-center">
               <input
                 type="text"
-                placeholder="Search by name, username, or cost center…"
+                placeholder="Search by name, username, or cost center..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full sm:w-80 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
               />
+              <div className="relative w-64 shrink-0" ref={ccRef}>
+                <button onClick={() => setCcOpen(v => !v)}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                  <span className="truncate">{activeCC === 'All' ? `All Cost Centers (${allStaff.length})` : activeCC}</span>
+                  <svg className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${ccOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {ccOpen && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
+                    {tabs.map(cc => (
+                      <button key={cc} onClick={() => { setActiveCC(cc); setCcOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${activeCC === cc ? 'bg-emerald-700 text-white font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}>
+                        {cc === 'All' ? `All Cost Centers (${allStaff.length})` : cc}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button onClick={openCreate}
-                className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap">
+                className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap shrink-0">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Add Staff
               </button>
             </div>
-
-            {/* Cost center filter dropdown */}
-            <div className="relative w-full sm:w-72">
-              <button onClick={() => setCcOpen(v => !v)}
-                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-                <span>{activeCC === 'All' ? `All Cost Centers (${allStaff.length})` : activeCC}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${ccOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {ccOpen && (
-                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                  {tabs.map(cc => (
-                    <button key={cc} onClick={() => { setActiveCC(cc); setCcOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                        activeCC === cc
-                          ? 'bg-emerald-700 text-white font-semibold'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}>
-                      {cc === 'All' ? `All Cost Centers (${allStaff.length})` : cc}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Table */}
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -225,7 +349,7 @@ export default function AdminDashboard({ user, onLogout }) {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {loading ? (
-                      <tr><td colSpan={5} className="text-center py-12 text-gray-300 text-sm">Loading…</td></tr>
+                      <tr><td colSpan={5} className="text-center py-12 text-gray-300 text-sm">Loadingâ€¦</td></tr>
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={5} className="text-center py-12 text-gray-300 text-sm">No staff accounts found.</td></tr>
                     ) : filtered.map(s => (
@@ -292,7 +416,7 @@ export default function AdminDashboard({ user, onLogout }) {
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cost Center <span className="text-red-500">*</span></label>
                 <select value={form.data.cost_center} onChange={e => set('cost_center', e.target.value)}
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-                  <option value="">Select cost center…</option>
+                  <option value="">Select cost centerâ€¦</option>
                   {COST_CENTERS.map(cc => <option key={cc} value={cc}>{cc}</option>)}
                 </select>
               </div>
@@ -332,7 +456,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <div className="flex gap-2 mt-5">
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
-                {saving ? 'Saving…' : form.mode === 'create' ? 'Create Account' : 'Save Changes'}
+                {saving ? 'Savingâ€¦' : form.mode === 'create' ? 'Create Account' : 'Save Changes'}
               </button>
               <button onClick={() => setForm(null)}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
@@ -352,7 +476,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <div className="flex gap-2">
               <button onClick={() => handleDelete(deleteId)} disabled={saving}
                 className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
-                {saving ? 'Deleting…' : 'Delete'}
+                {saving ? 'Deletingâ€¦' : 'Delete'}
               </button>
               <button onClick={() => setDeleteId(null)}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">

@@ -203,7 +203,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                                     type="text"
                                     placeholder="Enter your full name"
                                     value={nameMap[p.id] || ''}
-                                    onChange={e => setNameMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                    onChange={e => setNameMap(prev => ({ ...prev, [p.id]: e.target.value.replace(/[0-9]/g, '') }))}
                                     className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                                   />
                                 </div>
