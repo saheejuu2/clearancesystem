@@ -14,18 +14,25 @@ echo "Inserted: admin (System Administrator)<br>";
 
 // Seed / reset cost center accounts as staff
 $users = [
-    ['or_dr',     'OR/DR Staff',              'Operating Room/Delivery Room', 'staff'],
-    ['pulmo',     'Pulmonary Staff',           'Pulmonary Department (MSA)',   'staff'],
-    ['hemo',      'Hemodialysis Staff',        'Hemodialysis Unit',            'staff'],
-    ['nbs',       'Newborn Screening Staff',   'Newborn Screening',            'staff'],
-    ['nht',       'Newborn Hearing Staff',     'Newborn Hearing Test',         'staff'],
-    ['radiology', 'Radiology Staff',           'Radiology',                    'staff'],
-    ['laboratory','Laboratory Staff',          'Laboratory',                   'staff'],
-    ['bloodbank', 'Bloodbank Staff',           'Bloodbank',                    'staff'],
-    ['pharmacy',  'Pharmacy Staff',            'Pharmacy',                     'staff'],
-    ['benefits',  'Benefits Staff',            'Benefits',                     'staff'],
-    ['billing',   'Billing Staff',             'Billing',                      'staff'],
-    ['nurse',     'Nurse Staff',               'Nurse',                        'staff'],
+    ['or_dr',       'OR/DR Staff',              'Operating Room/Delivery Room', 'staff'],
+    ['pulmo',       'Pulmonary Staff',           'Pulmonary Department (MSA)',   'staff'],
+    ['hemo',        'Hemodialysis Staff',        'Hemodialysis Unit',            'staff'],
+    ['nbs',         'Newborn Screening Staff',   'Newborn Screening',            'staff'],
+    ['nht',         'Newborn Hearing Staff',     'Newborn Hearing Test',         'staff'],
+    ['radiology',   'Radiology Staff',           'Radiology',                    'staff'],
+    ['laboratory',  'Laboratory Staff',          'Laboratory',                   'staff'],
+    ['bloodbank',   'Bloodbank Staff',           'Bloodbank',                    'staff'],
+    ['pharmacy',    'Pharmacy Staff',            'Pharmacy',                     'staff'],
+    // Billing windows
+    ['billing_w1',  'Billing Window 1 Staff',    'Billing - Window 1',           'staff'],
+    ['billing_w2',  'Billing Window 2 Staff',    'Billing - Window 2',           'staff'],
+    // Benefits windows
+    ['benefits_3a', 'Benefits Window 3A Staff',  'Benefits - Window 3A',         'staff'],
+    ['benefits_3b', 'Benefits Window 3B Staff',  'Benefits - Window 3B',         'staff'],
+    ['benefits_6',  'Benefits Window 6 Staff',   'Benefits - Window 6',          'staff'],
+    // Keep legacy accounts
+    ['billing',     'Billing Staff',             'Billing',                      'staff'],
+    ['nurse',       'Nurse Staff',               'Nurse',                        'staff'],
 ];
 
 foreach ($users as [$username, $full_name, $cost_center, $role]) {

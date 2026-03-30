@@ -13,7 +13,11 @@ const COST_CENTERS = [
   'Laboratory',
   'Bloodbank',
   'Pharmacy',
-  'Benefits',
+  'Billing - Window 1',
+  'Billing - Window 2',
+  'Benefits - Window 3A',
+  'Benefits - Window 3B',
+  'Benefits - Window 6',
   'Billing',
   'Nurse',
 ];

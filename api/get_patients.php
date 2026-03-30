@@ -7,7 +7,7 @@ $role = isset($_GET['role']) ? $_GET['role'] : '';
 
 $sql = "
     SELECT 
-        p.id, p.patient_no, p.full_name, p.age, p.ward, p.admit_date,
+        p.id, p.patient_no, p.full_name, p.age, p.ward, p.admit_date, p.patient_type,
         cr.id AS request_id,
         cr.nurse_status,
         cr.billing_status,
@@ -42,7 +42,16 @@ if ($role && !in_array($role, ['Nurse', 'Billing'])) {
     }
 }
 
-$filtered = array_filter($all, function($p) use ($role, $already_cleared) {
+// Window-to-patient-type mapping
+$window_map = [
+    'Billing - Window 1' => 'er',
+    'Billing - Window 2' => 'in-patient',
+    'Benefits - Window 3A' => 'in-patient',
+    'Benefits - Window 3B' => 'er',
+    'Benefits - Window 6'  => 'er',
+];
+
+$filtered = array_filter($all, function($p) use ($role, $already_cleared, $window_map) {
     $step = $p['clearance_step'];
 
     switch ($role) {
@@ -53,8 +62,13 @@ $filtered = array_filter($all, function($p) use ($role, $already_cleared) {
             return in_array($step, ['awaiting_billing', 'cost_center_clearing', 'discharged']);
 
         default:
-            // Cost centers only see patients in clearance that they haven't cleared yet
-            return $step === 'cost_center_clearing' && !in_array((int)$p['id'], $already_cleared);
+            if ($step !== 'cost_center_clearing') return false;
+            if (in_array((int)$p['id'], $already_cleared)) return false;
+            // Window accounts only see their patient type
+            if (isset($window_map[$role])) {
+                return $p['patient_type'] === $window_map[$role];
+            }
+            return true;
     }
 });
 

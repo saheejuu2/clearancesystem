@@ -41,7 +41,7 @@ function log_audit($conn, $patient_id, $patient, $action_label, $actor, $remarks
     $stmt->execute();
 }
 
-$COST_CENTERS = [
+$COST_CENTERS_INPATIENT = [
     'Operating Room/Delivery Room',
     'Pulmonary Department (MSA)',
     'Hemodialysis Unit',
@@ -51,9 +51,27 @@ $COST_CENTERS = [
     'Laboratory',
     'Bloodbank',
     'Pharmacy',
-    'Benefits',
-    'Billing'
+    'Benefits - Window 3A',
+    'Billing - Window 2',
 ];
+
+$COST_CENTERS_ER = [
+    'Operating Room/Delivery Room',
+    'Pulmonary Department (MSA)',
+    'Hemodialysis Unit',
+    'Newborn Screening',
+    'Newborn Hearing Test',
+    'Radiology',
+    'Laboratory',
+    'Bloodbank',
+    'Pharmacy',
+    'Benefits - Window 3B',
+    'Benefits - Window 6',
+    'Billing - Window 1',
+];
+
+// Legacy fallback (all)
+$COST_CENTERS = array_unique(array_merge($COST_CENTERS_INPATIENT, $COST_CENTERS_ER));
 
 $patient = get_patient($conn, $patient_id);
 
@@ -92,10 +110,18 @@ if ($action === 'for_clearance') {
         exit();
     }
 
-    // Use selected cost centers if provided, otherwise fall back to all
-    $selected = isset($data['cost_centers']) && is_array($data['cost_centers']) && count($data['cost_centers']) > 0
-        ? $data['cost_centers']
-        : $COST_CENTERS;
+    // Auto-route by patient type if no manual selection
+    if (isset($data['cost_centers']) && is_array($data['cost_centers']) && count($data['cost_centers']) > 0) {
+        $selected = $data['cost_centers'];
+    } else {
+        // Get patient type to determine correct windows
+        $pt_stmt = $conn->prepare("SELECT patient_type FROM patients WHERE id = ?");
+        $pt_stmt->bind_param("i", $patient_id);
+        $pt_stmt->execute();
+        $pt_row = $pt_stmt->get_result()->fetch_assoc();
+        $patient_type = $pt_row['patient_type'] ?? 'in-patient';
+        $selected = $patient_type === 'er' ? $COST_CENTERS_ER : $COST_CENTERS_INPATIENT;
+    }
 
     $stmt = $conn->prepare("UPDATE clearance_requests SET billing_status='for_clearance', billing_sent_at=?, billing_sent_by=? WHERE id=?");
     $stmt->bind_param("ssi", $now, $actor, $req['id']);

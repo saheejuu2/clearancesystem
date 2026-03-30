@@ -135,16 +135,16 @@ export default function NurseDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Status','Action',''].map(h => (
+                      {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Action',''].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {loading ? (
-                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading…</td></tr>
+                      <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading…</td></tr>
                     ) : filtered.length === 0 ? (
-                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
+                      <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
                     ) : filtered.map(p => {
                       const step   = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
                       const canAct = p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse';
@@ -157,6 +157,11 @@ export default function NurseDashboard({ user, onLogout }) {
                             <td className="px-5 py-4 text-gray-500">{p.age}</td>
                             <td className="px-5 py-4 text-gray-500">{p.ward}</td>
                             <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                            <td className="px-5 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                              </span>
+                            </td>
                             <td className="px-5 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
                             </td>
@@ -186,7 +191,7 @@ export default function NurseDashboard({ user, onLogout }) {
                           {/* Inline confirmation form */}
                           {isOpen && (
                             <tr key={`form-${p.id}`} className="bg-blue-50">
-                              <td colSpan={7} className="px-5 py-4">
+                              <td colSpan={8} className="px-5 py-4">
                                 <p className="text-xs font-semibold text-blue-700 mb-3 uppercase tracking-wide">
                                   Confirm: {p.full_name} — May Go Home
                                 </p>

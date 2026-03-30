@@ -7,6 +7,7 @@ export default function PatientInfoModal({ patient, clearances, onClose }) {
     ['Age',          patient.age],
     ['Ward',         patient.ward],
     ['Admit Date',   patient.admit_date],
+    ['Patient Type', patient.patient_type === 'er' ? 'ER' : 'In-Patient'],
   ];
 
   return (
