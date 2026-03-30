@@ -10,15 +10,27 @@ include 'db_config.php';
 
 $action = $_GET['action'] ?? '';
 
-// ── GET: list staff under a cost center ──────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
-    $cost_center = $_GET['cost_center'] ?? '';
-    $stmt = $conn->prepare("SELECT id, username, full_name, role, created_at FROM users WHERE cost_center = ? ORDER BY role DESC, full_name ASC");
-    $stmt->bind_param("s", $cost_center);
-    $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    echo json_encode($rows);
-    exit();
+// ── GET: list staff ───────────────────────────────────────────────────────────
+// ?action=list&cost_center=X  → staff under that cost center
+// ?action=list_all            → all non-admin users (admin dashboard)
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if ($action === 'list_all') {
+        $stmt = $conn->prepare("SELECT id, username, full_name, cost_center, role, created_at FROM users WHERE role != 'admin' ORDER BY cost_center ASC, role DESC, full_name ASC");
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        echo json_encode($rows);
+        exit();
+    }
+
+    if ($action === 'list') {
+        $cost_center = $_GET['cost_center'] ?? '';
+        $stmt = $conn->prepare("SELECT id, username, full_name, role, created_at FROM users WHERE cost_center = ? ORDER BY role DESC, full_name ASC");
+        $stmt->bind_param("s", $cost_center);
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        echo json_encode($rows);
+        exit();
+    }
 }
 
 $data = json_decode(file_get_contents("php://input"), true);
@@ -49,10 +61,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
 
 // ── POST: edit staff ──────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'edit') {
-    $id        = (int)($data['id']        ?? 0);
-    $full_name = trim($data['full_name']  ?? '');
-    $username  = trim($data['username']   ?? '');
-    $password  = trim($data['password']   ?? '');
+    $id          = (int)($data['id']          ?? 0);
+    $full_name   = trim($data['full_name']    ?? '');
+    $username    = trim($data['username']     ?? '');
+    $password    = trim($data['password']     ?? '');
+    $cost_center = trim($data['cost_center']  ?? '');
 
     if (!$id || !$full_name || !$username) {
         echo json_encode(["success" => false, "message" => "ID, username and full name are required."]);
@@ -61,11 +74,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'edit') {
 
     if ($password) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("UPDATE users SET full_name=?, username=?, password_hash=? WHERE id=? AND role='staff'");
-        $stmt->bind_param("sssi", $full_name, $username, $hash, $id);
+        if ($cost_center) {
+            $stmt = $conn->prepare("UPDATE users SET full_name=?, username=?, password_hash=?, cost_center=? WHERE id=? AND role='staff'");
+            $stmt->bind_param("ssssi", $full_name, $username, $hash, $cost_center, $id);
+        } else {
+            $stmt = $conn->prepare("UPDATE users SET full_name=?, username=?, password_hash=? WHERE id=? AND role='staff'");
+            $stmt->bind_param("sssi", $full_name, $username, $hash, $id);
+        }
     } else {
-        $stmt = $conn->prepare("UPDATE users SET full_name=?, username=? WHERE id=? AND role='staff'");
-        $stmt->bind_param("ssi", $full_name, $username, $id);
+        if ($cost_center) {
+            $stmt = $conn->prepare("UPDATE users SET full_name=?, username=?, cost_center=? WHERE id=? AND role='staff'");
+            $stmt->bind_param("sssi", $full_name, $username, $cost_center, $id);
+        } else {
+            $stmt = $conn->prepare("UPDATE users SET full_name=?, username=? WHERE id=? AND role='staff'");
+            $stmt->bind_param("ssi", $full_name, $username, $id);
+        }
     }
 
     $stmt->execute();

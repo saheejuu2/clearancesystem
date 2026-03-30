@@ -48,6 +48,7 @@ export default function AdminDashboard({ user, onLogout }) {
   const [deleteId, setDeleteId]   = useState(null);
   const [showPass, setShowPass]   = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [ccOpen, setCcOpen]       = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
@@ -57,6 +58,13 @@ export default function AdminDashboard({ user, onLogout }) {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  useEffect(() => {
+    if (!ccOpen) return;
+    const close = () => setCcOpen(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [ccOpen]);
 
   const filtered = allStaff.filter(s => {
     const matchCC = activeCC === 'All' || s.cost_center === activeCC;
@@ -175,18 +183,29 @@ export default function AdminDashboard({ user, onLogout }) {
               </button>
             </div>
 
-            {/* Cost center filter tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {tabs.map(cc => (
-                <button key={cc} onClick={() => setActiveCC(cc)}
-                  className={`whitespace-nowrap text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                    activeCC === cc
-                      ? 'bg-emerald-700 text-white'
-                      : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
-                  }`}>
-                  {cc === 'All' ? `All (${allStaff.length})` : cc}
-                </button>
-              ))}
+            {/* Cost center filter dropdown */}
+            <div className="relative w-full sm:w-72">
+              <button onClick={() => setCcOpen(v => !v)}
+                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                <span>{activeCC === 'All' ? `All Cost Centers (${allStaff.length})` : activeCC}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${ccOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {ccOpen && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                  {tabs.map(cc => (
+                    <button key={cc} onClick={() => { setActiveCC(cc); setCcOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                        activeCC === cc
+                          ? 'bg-emerald-700 text-white font-semibold'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}>
+                      {cc === 'All' ? `All Cost Centers (${allStaff.length})` : cc}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Table */}
