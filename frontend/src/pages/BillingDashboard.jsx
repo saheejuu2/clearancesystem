@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
+import PatientInfoModal from "../components/PatientInfoModal";
 import api from "../services/api";
 import ClearanceReport from "../components/ClearanceReport";
 import AuditTrail from "../components/AuditTrail";
@@ -26,6 +27,8 @@ export default function BillingDashboard({ user, onLogout }) {
   const [remarks, setRemarks]       = useState("");
   const [reportPatient, setReport]  = useState(null);
   const [ccProgress, setCcProgress] = useState({});
+  const [viewPatient, setViewPatient] = useState(null);
+  const [viewClearances, setViewClearances] = useState([]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -252,6 +255,17 @@ export default function BillingDashboard({ user, onLogout }) {
                                     Report
                                   </button>
                                 )}
+                                <button onClick={async () => {
+                                  setViewPatient(p);
+                                  try {
+                                    const r = await api.get("/get_clearance_report.php?patient_id=" + p.id);
+                                    if (r.data.success) setViewClearances(r.data.clearances);
+                                    else setViewClearances([]);
+                                  } catch { setViewClearances([]); }
+                                }}
+                                  className="text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors">
+                                  View
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -295,6 +309,57 @@ export default function BillingDashboard({ user, onLogout }) {
         )}
 
       </main>
+
+
+      {/* For Clearance — cost center selection modal */}
+      {clearanceForm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
+            <p className="text-sm text-gray-500 mb-4">Select the cost centers this patient needs to clear:</p>
+            <div className="flex flex-col gap-2 mb-4 max-h-72 overflow-y-auto">
+              {[
+                "Operating Room/Delivery Room",
+                "Pulmonary Department (MSA)",
+                "Hemodialysis Unit",
+                "Newborn Screening",
+                "Newborn Hearing Test",
+                "Radiology",
+                "Laboratory",
+                "Bloodbank",
+                "Pharmacy",
+                "Benefits",
+              ].map(cc => (
+                <label key={cc} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <input type="checkbox"
+                    checked={clearanceForm.selected.includes(cc)}
+                    onChange={e => setClearanceForm(f => ({
+                      ...f,
+                      selected: e.target.checked ? [...f.selected, cc] : f.selected.filter(s => s !== cc)
+                    }))}
+                    className="w-4 h-4 accent-emerald-600"
+                  />
+                  <span className="text-sm text-gray-700">{cc}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={() => setClearanceForm(f => ({ ...f, selected: ["Operating Room/Delivery Room","Pulmonary Department (MSA)","Hemodialysis Unit","Newborn Screening","Newborn Hearing Test","Radiology","Laboratory","Bloodbank","Pharmacy","Benefits"] }))}
+                className="text-xs text-emerald-600 hover:text-emerald-800 font-medium">Select All</button>
+              <button onClick={() => setClearanceForm(f => ({ ...f, selected: [] }))}
+                className="text-xs text-gray-400 hover:text-gray-600 font-medium">Clear All</button>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={sendForClearance} disabled={actionId === clearanceForm.patientId || clearanceForm.selected.length === 0}
+                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {actionId === clearanceForm.patientId ? "Sending..." : "Send to " + clearanceForm.selected.length + " Department" + (clearanceForm.selected.length !== 1 ? "s" : "")}
+              </button>
+              <button onClick={() => setClearanceForm(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
 
       {reportPatient && (
         <ClearanceReport patientId={reportPatient.id} onClose={() => setReport(null)} />

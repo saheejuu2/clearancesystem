@@ -4,6 +4,7 @@ import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
 import StaffManager from '../components/StaffManager';
+import PatientInfoModal from '../components/PatientInfoModal';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
@@ -26,6 +27,8 @@ export default function NurseDashboard({ user, onLogout }) {
   const [confirmForm, setConfirmForm] = useState(null);
   const [cancelForm, setCancelForm]   = useState(null);
   const [cancelling, setCancelling]   = useState(false);
+  const [viewPatient, setViewPatient] = useState(null);
+  const [viewClearances, setViewClearances] = useState([]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -132,7 +135,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Status','Action'].map(h => (
+                      {['Patient ID','Name','Age','Ward','Admit Date','Status','Action',''].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -164,6 +167,19 @@ export default function NurseDashboard({ user, onLogout }) {
                                   May Go Home
                                 </button>
                               ) : <span className="text-xs text-gray-300">—</span>}
+                            </td>
+                            <td className="px-5 py-4">
+                              <button onClick={async () => {
+                                setViewPatient(p);
+                                try {
+                                  const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
+                                  if (r.data.success) setViewClearances(r.data.clearances);
+                                  else setViewClearances([]);
+                                } catch { setViewClearances([]); }
+                              }}
+                                className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                                View
+                              </button>
                             </td>
                           </tr>
 
@@ -223,6 +239,8 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
         )}
       </main>
+
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
 
       {/* Cancel discharge confirmation modal */}
       {cancelForm && (
