@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -94,7 +94,7 @@ export default function NurseDashboard({ user, onLogout }) {
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/GEAMH LOGO.png" alt="logo" className="w-7 h-7 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}GEAMH LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
               <p className="text-white font-semibold text-sm">{user.costCenter}</p>
@@ -128,7 +128,7 @@ export default function NurseDashboard({ user, onLogout }) {
               <p className="text-sm text-gray-400 mt-0.5">Click "May Go Home" to initiate discharge clearance</p>
             </div>
 
-            <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
+            <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient IDâ€¦" />
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -142,7 +142,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {loading ? (
-                      <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading…</td></tr>
+                      <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loadingâ€¦</td></tr>
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
                     ) : filtered.map(p => {
@@ -171,7 +171,7 @@ export default function NurseDashboard({ user, onLogout }) {
                                   className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
                                   May Go Home
                                 </button>
-                              ) : <span className="text-xs text-gray-300">—</span>}
+                              ) : <span className="text-xs text-gray-300">â€”</span>}
                             </td>
                             <td className="px-5 py-4">
                               <button onClick={async () => {
@@ -193,7 +193,7 @@ export default function NurseDashboard({ user, onLogout }) {
                             <tr key={`form-${p.id}`} className="bg-blue-50">
                               <td colSpan={8} className="px-5 py-4">
                                 <p className="text-xs font-semibold text-blue-700 mb-3 uppercase tracking-wide">
-                                  Confirm: {p.full_name} — May Go Home
+                                  Confirm: {p.full_name} â€” May Go Home
                                 </p>
                                 <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
                                   <div className="flex flex-col gap-1 flex-1">
@@ -219,7 +219,7 @@ export default function NurseDashboard({ user, onLogout }) {
                                   <div className="flex gap-2 shrink-0">
                                     <button onClick={submitMayGoHome} disabled={actionId === p.id}
                                       className="text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
-                                      {actionId === p.id ? 'Saving…' : 'Confirm'}
+                                      {actionId === p.id ? 'Savingâ€¦' : 'Confirm'}
                                     </button>
                                     <button onClick={() => setConfirmForm(null)}
                                       className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
@@ -272,7 +272,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Reason <span className="text-gray-400">(optional)</span>
                 </label>
-                <textarea placeholder="Reason for cancellation…"
+                <textarea placeholder="Reason for cancellationâ€¦"
                   value={cancelForm.remarks}
                   onChange={e => setCancelForm(f => ({ ...f, remarks: e.target.value }))}
                   rows={2}
@@ -283,7 +283,7 @@ export default function NurseDashboard({ user, onLogout }) {
             <div className="flex gap-2 mt-5">
               <button onClick={submitCancel} disabled={cancelling}
                 className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
-                {cancelling ? 'Cancelling…' : 'Confirm Cancellation'}
+                {cancelling ? 'Cancellingâ€¦' : 'Confirm Cancellation'}
               </button>
               <button onClick={() => setCancelForm(null)}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
@@ -296,3 +296,6 @@ export default function NurseDashboard({ user, onLogout }) {
     </div>
   );
 }
+
+
+

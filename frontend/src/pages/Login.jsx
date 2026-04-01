@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import api from '../services/api';
 
 export default function Login({ onLogin }) {
@@ -32,7 +32,7 @@ export default function Login({ onLogin }) {
       {/* Left branding panel */}
       <div className="hidden lg:flex flex-col items-center justify-center flex-[1.4] px-16 gap-8">
         <div className="w-48 h-48 rounded-2xl flex items-center justify-center">
-          <img src="/GEAMH LOGO.png" alt="GEAMH Logo" className="w-full h-full object-contain" />
+          <img src={`${import.meta.env.BASE_URL}GEAMH LOGO.png`} alt="GEAMH Logo" className="w-full h-full object-contain" />
         </div>
         <div className="text-center">
           <h1 className="text-4xl font-bold text-white leading-snug">
@@ -53,7 +53,7 @@ export default function Login({ onLogin }) {
 
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
-            <img src="/GEAMH LOGO.png" alt="GEAMH Logo" className="w-10 h-10 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}GEAMH LOGO.png`} alt="GEAMH Logo" className="w-10 h-10 object-contain" />
             <span className="text-white font-semibold text-lg">Hospital Clearance System</span>
           </div>
 
@@ -123,7 +123,7 @@ export default function Login({ onLogin }) {
                 disabled={loading}
                 className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition-all mt-1"
               >
-                {loading ? 'Signing in…' : 'Sign In'}
+                {loading ? 'Signing inâ€¦' : 'Sign In'}
               </button>
             </form>
           </div>
@@ -132,3 +132,6 @@ export default function Login({ onLogin }) {
     </div>
   );
 }
+
+
+

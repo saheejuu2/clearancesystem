@@ -160,7 +160,7 @@ export default function AdminDashboard({ user, onLogout }) {
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/GEAMH LOGO.png" alt="logo" className="w-7 h-7 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}GEAMH LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
               <p className="text-white font-semibold text-sm">Admin Panel</p>
@@ -489,3 +489,6 @@ export default function AdminDashboard({ user, onLogout }) {
     </div>
   );
 }
+
+
+

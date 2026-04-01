@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -91,7 +91,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/GEAMH LOGO.png" alt="logo" className="w-7 h-7 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}GEAMH LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
               <p className="text-white font-semibold text-sm">{user.costCenter}</p>
@@ -124,12 +124,12 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} — Clearance</h1>
+          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} â€” Clearance</h1>
           <p className="text-sm text-gray-400 mt-0.5">Review and clear patients assigned to your department</p>
         </div>
 
         {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
+        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient IDâ€¦" />
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -144,7 +144,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading…</td></tr>
+                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loadingâ€¦</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients pending clearance.</td></tr>
                 ) : filtered.map(p => {
@@ -174,7 +174,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                               Clear Patient
                             </button>
                           ) : (
-                            <span className="text-xs text-gray-300">—</span>
+                            <span className="text-xs text-gray-300">â€”</span>
                           )}
                         </td>
                         <td className="px-5 py-4">
@@ -221,7 +221,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                               <div className="flex gap-2">
                                 <button onClick={() => clearPatient(p.id)} disabled={actionId === p.id}
                                   className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
-                                  {actionId === p.id ? 'Clearing…' : 'Confirm Cleared'}
+                                  {actionId === p.id ? 'Clearingâ€¦' : 'Confirm Cleared'}
                                 </button>
                                 <button onClick={() => {
                                   setRemarksMap(prev => { const n = {...prev}; delete n[p.id]; return n; });
@@ -252,3 +252,6 @@ export default function CostCenterDashboard({ user, onLogout }) {
     </div>
   );
 }
+
+
+
