@@ -1,4 +1,6 @@
-<?php
+﻿<?php
+error_reporting(0);
+ini_set('display_errors', 0);
 // Get the origin from the request or hardcode your dev name
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : 'http://hesed-pc';
 
@@ -53,3 +55,4 @@ echo json_encode([
 $stmt->close();
 $conn->close();
 ?>
+

@@ -1,4 +1,6 @@
-<?php
+﻿<?php
+error_reporting(0);
+ini_set('display_errors', 0);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -37,7 +39,15 @@ function get_patient($conn, $patient_id) {
 
 function log_audit($conn, $patient_id, $patient, $action_label, $actor, $remarks = '') {
     $stmt = $conn->prepare("INSERT INTO audit_logs (patient_id, patient_no, patient_name, action, performed_by, remarks) VALUES (?, ?, ?, ?, ?, ?)");
+    if (!$stmt) return;
     $stmt->bind_param("isssss", $patient_id, $patient['patient_no'], $patient['full_name'], $action_label, $actor, $remarks);
+    $stmt->execute();
+}
+
+function notify($conn, $recipient, $patient_id, $patient, $message) {
+    $stmt = $conn->prepare("INSERT INTO notifications (recipient, patient_id, patient_no, patient_name, message) VALUES (?, ?, ?, ?, ?)");
+    if (!$stmt) return; // Table doesn't exist yet — fail silently
+    $stmt->bind_param("sisss", $recipient, $patient_id, $patient['patient_no'], $patient['full_name'], $message);
     $stmt->execute();
 }
 
@@ -75,7 +85,7 @@ $COST_CENTERS = array_unique(array_merge($COST_CENTERS_INPATIENT, $COST_CENTERS_
 
 $patient = get_patient($conn, $patient_id);
 
-// ── STEP 1: Nurse — May Go Home ──────────────────────────────────────────────
+// â”€â”€ STEP 1: Nurse â€” May Go Home â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if ($action === 'may_go_home') {
     $req = get_request($conn, $patient_id);
 
@@ -92,12 +102,13 @@ if ($action === 'may_go_home') {
         $stmt->bind_param("ssi", $now, $actor, $req['id']);
     }
     $stmt->execute();
-    log_audit($conn, $patient_id, $patient, 'Nurse — May Go Home', $actor);
+    log_audit($conn, $patient_id, $patient, 'Nurse â€” May Go Home', $actor);
+    notify($conn, "Billing", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") is ready for billing review.");
     echo json_encode(["success" => true, "message" => "Patient marked as may go home."]);
     exit();
 }
 
-// ── STEP 2: Billing — For Clearance ─────────────────────────────────────────
+// â”€â”€ STEP 2: Billing â€” For Clearance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if ($action === 'for_clearance') {
     $req = get_request($conn, $patient_id);
 
@@ -129,16 +140,17 @@ if ($action === 'for_clearance') {
 
     $stmt2 = $conn->prepare("INSERT IGNORE INTO cost_center_clearances (clearance_request_id, cost_center) VALUES (?, ?)");
     foreach ($selected as $cc) {
-        $stmt2->bind_param("is", $req['id'], $cc);
+        $stmt2->bind_param("is", $req["id"], $cc);
         $stmt2->execute();
+        notify($conn, $cc, $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") needs clearance from your department.");
     }
 
-    log_audit($conn, $patient_id, $patient, 'Billing — Sent for Clearance', $actor);
+    log_audit($conn, $patient_id, $patient, 'Billing â€” Sent for Clearance', $actor);
     echo json_encode(["success" => true, "message" => "Sent to selected cost centers for clearance."]);
     exit();
 }
 
-// ── STEP 3: Cost Center — Cleared ───────────────────────────────────────────
+// â”€â”€ STEP 3: Cost Center â€” Cleared â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if ($action === 'cost_center_clear') {
     $cost_center = $data['cost_center'] ?? '';
     if (!$cost_center) {
@@ -162,7 +174,7 @@ if ($action === 'cost_center_clear') {
         exit();
     }
 
-    log_audit($conn, $patient_id, $patient, "$cost_center — Cleared", $actor, $remarks);
+    log_audit($conn, $patient_id, $patient, "$cost_center â€” Cleared", $actor, $remarks);
 
     $stmt2 = $conn->prepare("SELECT COUNT(*) as total, SUM(status='cleared') as cleared FROM cost_center_clearances WHERE clearance_request_id=?");
     $stmt2->bind_param("i", $req['id']);
@@ -180,7 +192,7 @@ if ($action === 'cost_center_clear') {
     exit();
 }
 
-// ── STEP 4: Billing — Discharge ─────────────────────────────────────────────
+// â”€â”€ STEP 4: Billing â€” Discharge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if ($action === 'discharge') {
     $req = get_request($conn, $patient_id);
 
@@ -204,12 +216,12 @@ if ($action === 'discharge') {
     $stmt2->bind_param("sssi", $remarks, $now, $actor, $req['id']);
     $stmt2->execute();
 
-    log_audit($conn, $patient_id, $patient, 'Billing — Patient Discharged', $actor, $remarks);
+    log_audit($conn, $patient_id, $patient, 'Billing â€” Patient Discharged', $actor, $remarks);
     echo json_encode(["success" => true, "message" => "Patient successfully discharged."]);
     exit();
 }
 
-// ── CANCEL: Nurse — Cancel Discharge Process ─────────────────────────────────
+// â”€â”€ CANCEL: Nurse â€” Cancel Discharge Process â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if ($action === 'cancel_discharge') {
     $req = get_request($conn, $patient_id);
 
@@ -229,12 +241,12 @@ if ($action === 'cancel_discharge') {
     $stmt->bind_param("i", $request_id);
     $stmt->execute();
 
-    // Delete the clearance request entirely — patient resets to fresh state
+    // Delete the clearance request entirely â€” patient resets to fresh state
     $stmt2 = $conn->prepare("DELETE FROM clearance_requests WHERE id = ?");
     $stmt2->bind_param("i", $request_id);
     $stmt2->execute();
 
-    log_audit($conn, $patient_id, $patient, 'Nurse — Discharge Cancelled', $actor, $remarks);
+    log_audit($conn, $patient_id, $patient, 'Nurse â€” Discharge Cancelled', $actor, $remarks);
 
     echo json_encode(["success" => true, "message" => "Discharge process cancelled. Patient reset to admitted."]);
     exit();
@@ -242,4 +254,5 @@ if ($action === 'cancel_discharge') {
 
 echo json_encode(["success" => false, "message" => "Unknown action."]);
 ?>
+
 

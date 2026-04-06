@@ -4,6 +4,7 @@ import ClearanceReport from "../components/ClearanceReport";
 import AuditTrail from "../components/AuditTrail";
 import PhClock from "../components/PhClock";
 import SearchBar from "../components/SearchBar";
+import NotificationBell from "../components/NotificationBell";
 
 function DischargedList() {
   const [patients, setPatients] = useState([]);
@@ -185,6 +186,7 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
           <div className="flex items-center gap-3">
             <PhClock />
+            <NotificationBell recipient={user.costCenter} />
             <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">Logout</button>
           </div>
         </div>
@@ -357,6 +359,7 @@ export default function BillingDashboard({ user, onLogout }) {
     </div>
   );
 }
+
 
 
 
