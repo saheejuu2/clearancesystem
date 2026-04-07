@@ -2,6 +2,7 @@
 import api from '../services/api';
 import PhClock from '../components/PhClock';
 import AuditTrail from '../components/AuditTrail';
+import NotificationBell from '../components/NotificationBell';
 
 const COST_CENTERS = [
   'Operating Room/Delivery Room',
@@ -168,6 +169,7 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
           <div className="flex items-center gap-3">
             <PhClock />
+            <NotificationBell recipient="Admin" />
             <button onClick={() => setTab('profile')}
               title="Profile Settings"
               className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-lg transition-all">
@@ -489,6 +491,8 @@ export default function AdminDashboard({ user, onLogout }) {
     </div>
   );
 }
+
+
 
 
 
