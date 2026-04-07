@@ -5,6 +5,7 @@ import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
 import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
+import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 
 const STEP_LABEL = {
@@ -30,6 +31,7 @@ export default function NurseDashboard({ user, onLogout }) {
   const [cancelling, setCancelling]   = useState(false);
   const [viewPatient, setViewPatient] = useState(null);
   const [viewClearances, setViewClearances] = useState([]);
+  const [notifReport, setNotifReport] = useState(null);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -103,7 +105,7 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
           <div className="flex items-center gap-3">
             <PhClock />
-            <NotificationBell recipient={user.costCenter} />
+            <NotificationBell recipient={user.costCenter} onNotificationClick={n => setNotifReport({ id: n.patient_id })} />
             <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">Logout</button>
           </div>
         </div>
@@ -247,6 +249,7 @@ export default function NurseDashboard({ user, onLogout }) {
         )}
       </main>
 
+      {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} />}
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
 
       {/* Cancel discharge confirmation modal */}
@@ -298,6 +301,11 @@ export default function NurseDashboard({ user, onLogout }) {
     </div>
   );
 }
+
+
+
+
+
 
 
 

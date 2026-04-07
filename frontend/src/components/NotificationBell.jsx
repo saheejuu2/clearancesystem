@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../services/api";
 
-export default function NotificationBell({ recipient }) {
+export default function NotificationBell({ recipient, onNotificationClick }) {
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -65,7 +65,11 @@ export default function NotificationBell({ recipient }) {
             {notifications.length === 0 ? (
               <p className="text-center py-8 text-gray-300 text-sm">No notifications</p>
             ) : notifications.map(n => (
-              <div key={n.id} onClick={() => { if (!n.is_read) markRead(n.id); }}
+              <div key={n.id} onClick={async () => {
+                setOpen(false);
+                await markRead(n.id);
+                if (onNotificationClick) onNotificationClick(n);
+              }}
                 className={"px-4 py-3 cursor-pointer transition-colors " + (n.is_read ? "bg-white hover:bg-gray-50" : "bg-blue-50 hover:bg-blue-100")}>
                 <p className={"text-sm " + (n.is_read ? "text-gray-600" : "text-gray-800 font-medium")}>{n.message}</p>
                 <p className="text-xs text-gray-400 mt-1">

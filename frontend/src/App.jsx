@@ -47,8 +47,23 @@ function AppContent({ user, onLogout }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
-  if (!user) return <Login onLogin={setUser} />;
-  return <AppContent user={user} onLogout={() => setUser(null)} />;
+  const handleLogin = (userData) => {
+    sessionStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('user');
+    setUser(null);
+  };
+
+  if (!user) return <Login onLogin={handleLogin} />;
+  return <AppContent user={user} onLogout={handleLogout} />;
 }
