@@ -157,7 +157,7 @@ export default function AdminDashboard({ user, onLogout }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
 
-      {/* Header â€” matches staff dashboard */}
+      {/* Header” matches staff dashboard */}
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">

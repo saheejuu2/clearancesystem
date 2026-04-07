@@ -85,7 +85,7 @@ $COST_CENTERS = array_unique(array_merge($COST_CENTERS_INPATIENT, $COST_CENTERS_
 
 $patient = get_patient($conn, $patient_id);
 
-// â”€â”€ STEP 1: Nurse â€” May Go Home â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//STEP 1: Nurse â
 if ($action === 'may_go_home') {
     $req = get_request($conn, $patient_id);
 
@@ -102,13 +102,13 @@ if ($action === 'may_go_home') {
         $stmt->bind_param("ssi", $now, $actor, $req['id']);
     }
     $stmt->execute();
-    log_audit($conn, $patient_id, $patient, 'Nurse â€” May Go Home', $actor);
+    log_audit($conn, $patient_id, $patient, 'Nurse May Go Home', $actor);
     notify($conn, "Billing", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") is ready for billing review.");
     echo json_encode(["success" => true, "message" => "Patient marked as may go home."]);
     exit();
 }
 
-// â”€â”€ STEP 2: Billing â€” For Clearance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// STEP 2: Billing For Clearance
 if ($action === 'for_clearance') {
     $req = get_request($conn, $patient_id);
 
@@ -145,12 +145,12 @@ if ($action === 'for_clearance') {
         notify($conn, $cc, $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") needs clearance from your department.");
     }
 
-    log_audit($conn, $patient_id, $patient, 'Billing â€” Sent for Clearance', $actor);
+    log_audit($conn, $patient_id, $patient, 'Billing Sent for Clearance', $actor);
     echo json_encode(["success" => true, "message" => "Sent to selected cost centers for clearance."]);
     exit();
 }
 
-// â”€â”€ STEP 3: Cost Center â€” Cleared â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// STEP 3: Cost Center Cleared
 if ($action === 'cost_center_clear') {
     $cost_center = $data['cost_center'] ?? '';
     if (!$cost_center) {
@@ -174,7 +174,7 @@ if ($action === 'cost_center_clear') {
         exit();
     }
 
-    log_audit($conn, $patient_id, $patient, "$cost_center â€” Cleared", $actor, $remarks);
+    log_audit($conn, $patient_id, $patient, "$cost_center” Cleared", $actor, $remarks);
 
     $stmt2 = $conn->prepare("SELECT COUNT(*) as total, SUM(status='cleared') as cleared FROM cost_center_clearances WHERE clearance_request_id=?");
     $stmt2->bind_param("i", $req['id']);
@@ -192,7 +192,7 @@ if ($action === 'cost_center_clear') {
     exit();
 }
 
-// â”€â”€ STEP 4: Billing â€” Discharge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// STEP 4: Billing Discharge 
 if ($action === 'discharge') {
     $req = get_request($conn, $patient_id);
 
@@ -216,12 +216,12 @@ if ($action === 'discharge') {
     $stmt2->bind_param("sssi", $remarks, $now, $actor, $req['id']);
     $stmt2->execute();
 
-    log_audit($conn, $patient_id, $patient, 'Billing â€” Patient Discharged', $actor, $remarks);
+    log_audit($conn, $patient_id, $patient, 'Billing Patient Discharged', $actor, $remarks);
     echo json_encode(["success" => true, "message" => "Patient successfully discharged."]);
     exit();
 }
 
-// â”€â”€ CANCEL: Nurse â€” Cancel Discharge Process â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// CANCEL: Nurse Cancel Discharge Process 
 if ($action === 'cancel_discharge') {
     $req = get_request($conn, $patient_id);
 
@@ -241,12 +241,12 @@ if ($action === 'cancel_discharge') {
     $stmt->bind_param("i", $request_id);
     $stmt->execute();
 
-    // Delete the clearance request entirely â€” patient resets to fresh state
+    // Delete the clearance request entirely patient resets to fresh state
     $stmt2 = $conn->prepare("DELETE FROM clearance_requests WHERE id = ?");
     $stmt2->bind_param("i", $request_id);
     $stmt2->execute();
 
-    log_audit($conn, $patient_id, $patient, 'Nurse â€” Discharge Cancelled', $actor, $remarks);
+    log_audit($conn, $patient_id, $patient, 'Nurse Discharge Cancelled', $actor, $remarks);
 
     echo json_encode(["success" => true, "message" => "Discharge process cancelled. Patient reset to admitted."]);
     exit();

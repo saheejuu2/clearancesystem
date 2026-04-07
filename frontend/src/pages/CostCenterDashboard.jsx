@@ -128,7 +128,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} â€” Clearance</h1>
+          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} Clearance</h1>
           <p className="text-sm text-gray-400 mt-0.5">Review and clear patients assigned to your department</p>
         </div>
 
