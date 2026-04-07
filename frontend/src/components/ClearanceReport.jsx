@@ -35,7 +35,7 @@ export default function ClearanceReport({ patientId, onClose }) {
     win.print();
   };
 
-  const fmt = (dt) => dt ? new Date(dt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'â€”';
+  const fmt = (dt) => dt ? new Date(dt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
@@ -60,7 +60,7 @@ export default function ClearanceReport({ patientId, onClose }) {
         {/* Modal body */}
         <div className="overflow-y-auto flex-1 px-6 py-5">
           {loading ? (
-            <p className="text-center text-gray-300 py-12">Loading reportâ€¦</p>
+            <p className="text-center text-gray-300 py-12">Loading report…</p>
           ) : !data ? (
             <p className="text-center text-gray-300 py-12">No data available.</p>
           ) : (
@@ -93,13 +93,13 @@ export default function ClearanceReport({ patientId, onClose }) {
                 <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Clearance Timeline</h3>
                 <div className="space-y-2">
                   {[
-                    { label: 'Nurse â€” May Go Home',    by: data.request?.nurse_cleared_by,   at: fmt(data.request?.nurse_cleared_at)   },
-                    { label: 'Billing â€” For Clearance', by: data.request?.billing_sent_by,    at: fmt(data.request?.billing_sent_at)    },
-                    { label: 'Billing â€” Discharged',    by: data.request?.discharged_by,      at: fmt(data.request?.discharged_at)      },
+                    { label: 'Nurse — May Go Home',    by: data.request?.nurse_cleared_by,   at: fmt(data.request?.nurse_cleared_at)   },
+                    { label: 'Billing — For Clearance', by: data.request?.billing_sent_by,    at: fmt(data.request?.billing_sent_at)    },
+                    { label: 'Billing — Discharged',    by: data.request?.discharged_by,      at: fmt(data.request?.discharged_at)      },
                   ].map(row => (
                     <div key={row.label} className="flex items-center justify-between py-2 border-b border-gray-100 text-sm">
                       <span className="text-gray-600 font-medium">{row.label}</span>
-                      <span className="text-gray-400 text-xs">{row.at} {row.by ? `Â· ${row.by}` : ''}</span>
+                      <span className="text-gray-400 text-xs">{row.at}{row.by ? " · " + row.by : ""}</span>
                     </div>
                   ))}
                 </div>
@@ -127,9 +127,9 @@ export default function ClearanceReport({ patientId, onClose }) {
                             {c.status === 'cleared' ? 'Cleared' : 'Pending'}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-gray-500 text-xs">{c.cleared_by || 'â€”'}</td>
+                        <td className='px-4 py-2.5 text-gray-500 text-xs'>{c.cleared_by || '-'}</td>
                         <td className="px-4 py-2.5 text-gray-500 text-xs">{fmt(c.cleared_at)}</td>
-                        <td className="px-4 py-2.5 text-gray-500 text-xs">{c.remarks || 'â€”'}</td>
+                        <td className='px-4 py-2.5 text-gray-500 text-xs'>{c.remarks || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -150,4 +150,3 @@ export default function ClearanceReport({ patientId, onClose }) {
     </div>
   );
 }
-

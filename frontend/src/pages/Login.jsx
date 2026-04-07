@@ -123,7 +123,7 @@ export default function Login({ onLogin }) {
                 disabled={loading}
                 className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition-all mt-1"
               >
-                {loading ? 'Signing inâ€¦' : 'Sign In'}
+                {loading ? 'Signing in…' : 'Sign In'}
               </button>
             </form>
           </div>

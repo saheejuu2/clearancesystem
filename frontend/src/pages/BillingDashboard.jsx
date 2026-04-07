@@ -305,7 +305,7 @@ export default function BillingDashboard({ user, onLogout }) {
                                   <div className="flex gap-2">
                                     <button onClick={() => discharge(p.id)} disabled={actionId === p.id}
                                       className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
-                                      {actionId === p.id ? 'Dischargingâ€¦' : 'Confirm Discharge'}
+                                      {actionId === p.id ? 'Discharging…' : 'Confirm Discharge'}
                                     </button>
                                     <button onClick={() => { setRemarksId(null); setRemarks(''); setDischargerName(''); }}
                                       className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
@@ -361,7 +361,7 @@ export default function BillingDashboard({ user, onLogout }) {
             <div className="flex gap-2">
               <button onClick={sendForClearance} disabled={actionId === clearanceForm.patientId || clearanceForm.selected.length === 0}
                 className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
-                {actionId === clearanceForm.patientId ? 'Sendingâ€¦' : `Send to ${clearanceForm.selected.length} dept${clearanceForm.selected.length !== 1 ? 's' : ''}`}
+                {actionId === clearanceForm.patientId ? 'Sending…' : `Send to ${clearanceForm.selected.length} dept${clearanceForm.selected.length !== 1 ? 's' : ''}`}
               </button>
               <button onClick={() => setClearanceForm(null)}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">

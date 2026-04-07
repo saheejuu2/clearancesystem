@@ -133,7 +133,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         </div>
 
         {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient IDâ€¦" />
+        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -148,7 +148,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loadingâ€¦</td></tr>
+                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading…</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients pending clearance.</td></tr>
                 ) : filtered.map(p => {
@@ -225,7 +225,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                               <div className="flex gap-2">
                                 <button onClick={() => clearPatient(p.id)} disabled={actionId === p.id}
                                   className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
-                                  {actionId === p.id ? 'Clearingâ€¦' : 'Confirm Cleared'}
+                                  {actionId === p.id ? 'Clearing…' : 'Confirm Cleared'}
                                 </button>
                                 <button onClick={() => {
                                   setRemarksMap(prev => { const n = {...prev}; delete n[p.id]; return n; });
