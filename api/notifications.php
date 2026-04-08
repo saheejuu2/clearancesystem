@@ -18,10 +18,17 @@ $recipient = $_GET['recipient'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && !$recipient) { echo json_encode([]); exit(); }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
-    $stmt = $conn->prepare("SELECT * FROM notifications WHERE recipient = ? ORDER BY created_at DESC LIMIT 30");
-    if (!$stmt) { echo json_encode([]); exit(); }
-    $stmt->bind_param("s", $recipient);
-    $stmt->execute();
+    if ($recipient === 'Admin') {
+        // Admin sees all notifications
+        $stmt = $conn->prepare("SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50");
+        if (!$stmt) { echo json_encode([]); exit(); }
+        $stmt->execute();
+    } else {
+        $stmt = $conn->prepare("SELECT * FROM notifications WHERE recipient = ? ORDER BY created_at DESC LIMIT 30");
+        if (!$stmt) { echo json_encode([]); exit(); }
+        $stmt->bind_param("s", $recipient);
+        $stmt->execute();
+    }
     echo json_encode($stmt->get_result()->fetch_all(MYSQLI_ASSOC));
     exit();
 }
@@ -39,8 +46,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'read') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'read_all') {
-    $stmt = $conn->prepare("UPDATE notifications SET is_read=1 WHERE recipient=?");
-    if ($stmt) { $stmt->bind_param("s", $recipient); $stmt->execute(); }
+    if ($recipient === 'Admin') {
+        $conn->query("UPDATE notifications SET is_read=1");
+    } else {
+        $stmt = $conn->prepare("UPDATE notifications SET is_read=1 WHERE recipient=?");
+        if ($stmt) { $stmt->bind_param("s", $recipient); $stmt->execute(); }
+    }
     echo json_encode(["success" => true]);
     exit();
 }

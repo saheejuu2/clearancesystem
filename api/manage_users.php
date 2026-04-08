@@ -12,9 +12,7 @@ include 'db_config.php';
 
 $action = $_GET['action'] ?? '';
 
-// â”€â”€ GET: list staff â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// ?action=list&cost_center=X  â†’ staff under that cost center
-// ?action=list_all            â†’ all non-admin users (admin dashboard)
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'list_all') {
         $stmt = $conn->prepare("SELECT id, username, full_name, cost_center, role, created_at FROM users WHERE role != 'admin' ORDER BY cost_center ASC, role DESC, full_name ASC");

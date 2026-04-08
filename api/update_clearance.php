@@ -102,7 +102,7 @@ if ($action === 'may_go_home') {
         $stmt->bind_param("ssi", $now, $actor, $req['id']);
     }
     $stmt->execute();
-    log_audit($conn, $patient_id, $patient, 'Nurse May Go Home', $actor);
+    log_audit($conn, $patient_id, $patient, "Nurse - May Go Home", $actor);
     notify($conn, "Billing", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") is ready for billing review.");
     echo json_encode(["success" => true, "message" => "Patient marked as may go home."]);
     exit();
@@ -146,7 +146,7 @@ if ($action === 'for_clearance') {
     }
 
     log_audit($conn, $patient_id, $patient, 'Billing Sent for Clearance', $actor);
-    echo json_encode(["success" => true, "message" => "Sent to selected cost centers for clearance."]);
+    log_audit($conn, $patient_id, $patient, "Billing - Sent for Clearance", $actor);
     exit();
 }
 
@@ -174,7 +174,7 @@ if ($action === 'cost_center_clear') {
         exit();
     }
 
-    log_audit($conn, $patient_id, $patient, "$cost_center” Cleared", $actor, $remarks);
+    log_audit($conn, $patient_id, $patient, $cost_center . " - Cleared", $actor, $remarks);
 
     $stmt2 = $conn->prepare("SELECT COUNT(*) as total, SUM(status='cleared') as cleared FROM cost_center_clearances WHERE clearance_request_id=?");
     $stmt2->bind_param("i", $req['id']);
@@ -217,7 +217,7 @@ if ($action === 'discharge') {
     $stmt2->execute();
 
     log_audit($conn, $patient_id, $patient, 'Billing Patient Discharged', $actor, $remarks);
-    echo json_encode(["success" => true, "message" => "Patient successfully discharged."]);
+    log_audit($conn, $patient_id, $patient, "Billing - Patient Discharged", $actor, $remarks);
     exit();
 }
 
@@ -247,12 +247,11 @@ if ($action === 'cancel_discharge') {
     $stmt2->execute();
 
     log_audit($conn, $patient_id, $patient, 'Nurse Discharge Cancelled', $actor, $remarks);
-
+    log_audit($conn, $patient_id, $patient, "Nurse - Discharge Cancelled", $actor, $remarks);
     echo json_encode(["success" => true, "message" => "Discharge process cancelled. Patient reset to admitted."]);
     exit();
 }
 
 echo json_encode(["success" => false, "message" => "Unknown action."]);
 ?>
-
 
