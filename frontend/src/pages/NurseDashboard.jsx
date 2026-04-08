@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -32,6 +32,21 @@ export default function NurseDashboard({ user, onLogout }) {
   const [viewPatient, setViewPatient] = useState(null);
   const [viewClearances, setViewClearances] = useState([]);
   const [notifReport, setNotifReport] = useState(null);
+
+  // Admission form
+  const [admitForm, setAdmitForm] = useState(null);
+  const [admitSaving, setAdmitSaving] = useState(false);
+
+  // Clearance progress tracker
+  const [trackPatient, setTrackPatient] = useState(null);
+  const [trackClearances, setTrackClearances] = useState([]);
+  const [trackLoading, setTrackLoading] = useState(false);
+
+  // Search filters
+  const [wardFilter, setWardFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -87,15 +102,43 @@ export default function NurseDashboard({ user, onLogout }) {
     } finally { setCancelling(false); }
   };
 
-  const filtered = patients.filter(p =>
-    p.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    p.patient_no.toLowerCase().includes(search.toLowerCase())
-  );
+  const submitAdmit = async () => {
+    if (!admitForm.patient_no || !admitForm.full_name || !admitForm.age || !admitForm.ward) {
+      alert('All fields are required.');
+      return;
+    }
+    setAdmitSaving(true);
+    try {
+      const res = await api.post('/add_patient.php', admitForm);
+      if (res.data.success) { setAdmitForm(null); fetchPatients(); }
+      else alert(res.data.message);
+    } finally { setAdmitSaving(false); }
+  };
+
+  const openTracker = async (p) => {
+    setTrackPatient(p);
+    setTrackLoading(true);
+    try {
+      const r = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
+      setTrackClearances(r.data.success ? r.data.clearances : []);
+    } catch { setTrackClearances([]); }
+    finally { setTrackLoading(false); }
+  };
+
+  const filtered = patients.filter(p => {
+    const q = search.toLowerCase();
+    const matchQ = !q || p.full_name.toLowerCase().includes(q) || p.patient_no.toLowerCase().includes(q);
+    const matchWard = !wardFilter || p.ward === wardFilter;
+    const matchStatus = !statusFilter || p.clearance_step === statusFilter;
+    const matchFrom = !dateFrom || p.admit_date >= dateFrom;
+    const matchTo = !dateTo || p.admit_date <= dateTo;
+    return matchQ && matchWard && matchStatus && matchFrom && matchTo;
+  });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="w-full px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={`${import.meta.env.BASE_URL}GEAMH-LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
@@ -106,23 +149,59 @@ export default function NurseDashboard({ user, onLogout }) {
           <div className="flex items-center gap-3">
             <PhClock />
             <NotificationBell recipient={user.costCenter} onNotificationClick={n => setNotifReport({ id: n.patient_id })} />
-            <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">Logout</button>
           </div>
         </div>
       </header>
 
-      <div className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[['patients','Patients'],['audit','Audit Trail']].map(([key, label]) => (
-            <button key={key} onClick={() => { setTab(key); if (key === 'audit') { fetchPatients(); setAuditKey(k => k + 1); } }}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              {label}
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar */}
+        <aside className="w-56 shrink-0 bg-white border-r border-gray-100 flex flex-col">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Patient Management</p>
+            <p className="text-sm font-bold text-gray-800 mt-0.5">Nurse Station</p>
+          </div>
+          <nav className="flex flex-col gap-1 p-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Patients</p>
+            <button onClick={() => { setTab("patients"); setStatusFilter(""); }}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "patients" && !statusFilter ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              All Patients
             </button>
-          ))}
-        </div>
-      </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Filter by Status</p>
+            {[
+              { value: "no_request",          label: "Admitted",     dot: "bg-gray-400" },
+              { value: "awaiting_billing",     label: "May Go Home",  dot: "bg-blue-500" },
+              { value: "cost_center_clearing", label: "In Clearance", dot: "bg-amber-500" },
+            ].map(s => (
+              <button key={s.value}
+                onClick={() => { setTab("patients"); setStatusFilter(statusFilter === s.value ? "" : s.value); }}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors text-left w-full ${statusFilter === s.value ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${statusFilter === s.value ? "bg-white" : s.dot}`} />
+                {s.label}
+              </button>
+            ))}
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
+            <button onClick={() => { setTab("audit"); fetchPatients(); setAuditKey(k => k + 1); }}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "audit" ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Audit Trail
+            </button>
+          </nav>
+          <div className="p-3 border-t border-gray-100 mt-auto">
+            <button onClick={onLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors w-full">
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
+          </div>
+        </aside>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
+        <main className="flex-1 overflow-y-auto px-6 py-6">
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
         {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} patients={allPatients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} />}
         {tab === 'patients' && (
@@ -132,7 +211,40 @@ export default function NurseDashboard({ user, onLogout }) {
               <p className="text-sm text-gray-400 mt-0.5">Click "May Go Home" to initiate discharge clearance</p>
             </div>
 
-            <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
+              <button onClick={() => setAdmitForm({ patient_no: '', full_name: '', age: '', ward: '', admit_date: new Date().toISOString().split('T')[0], patient_type: 'in-patient' })}
+                className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Admit Patient
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3">
+              <select value={wardFilter} onChange={e => setWardFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                <option value="">All Wards</option>
+                {[...new Set(patients.map(p => p.ward).filter(Boolean))].sort().map(w => <option key={w}>{w}</option>)}
+              </select>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                <option value="">All Statuses</option>
+                <option value="no_request">Admitted</option>
+                <option value="awaiting_billing">May Go Home</option>
+                <option value="cost_center_clearing">In Clearance</option>
+              </select>
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" placeholder="From" />
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" placeholder="To" />
+              {(wardFilter || statusFilter || dateFrom || dateTo) && (
+                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); }}
+                  className="text-xs text-gray-400 hover:text-gray-600 font-medium px-2">Clear filters</button>
+              )}
+            </div>
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -189,6 +301,12 @@ export default function NurseDashboard({ user, onLogout }) {
                                 className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
                                 View
                               </button>
+                              {p.clearance_step === 'cost_center_clearing' && (
+                                <button onClick={() => openTracker(p)}
+                                  className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors ml-1">
+                                  Track
+                                </button>
+                              )}
                             </td>
                           </tr>
 
@@ -248,9 +366,112 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
         )}
       </main>
+      </div>
 
       {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} />}
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+
+      {/* Admit Patient Modal */}
+      {admitForm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-5">Admit New Patient</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {[['patient_no','Patient No.','text'],['full_name','Full Name','text'],['age','Age','number'],['ward','Ward','text'],['admit_date','Admit Date','date']].map(([k,l,t]) => (
+                <div key={k} className={`flex flex-col gap-1.5 ${k === 'full_name' ? 'col-span-2' : ''}`}>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{l} <span className="text-red-500">*</span></label>
+                  <input type={t} value={admitForm[k]} onChange={e => setAdmitForm(f => ({ ...f, [k]: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+              ))}
+              <div className="flex flex-col gap-1.5 col-span-2">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Patient Type <span className="text-red-500">*</span></label>
+                <div className="flex gap-3">
+                  {['in-patient','er'].map(t => (
+                    <label key={t} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="patient_type" value={t} checked={admitForm.patient_type === t}
+                        onChange={() => setAdmitForm(f => ({ ...f, patient_type: t }))} className="accent-emerald-600" />
+                      <span className="text-sm text-gray-700">{t === 'er' ? 'ER' : 'In-Patient'}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitAdmit} disabled={admitSaving}
+                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {admitSaving ? 'Admitting...' : 'Admit Patient'}
+              </button>
+              <button onClick={() => setAdmitForm(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clearance Progress Tracker */}
+      {trackPatient && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Clearance Progress</h3>
+                <p className="text-sm text-gray-500">{trackPatient.full_name} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â {trackPatient.patient_no}</p>
+              </div>
+              <button onClick={() => setTrackPatient(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {trackLoading ? (
+              <p className="text-center py-8 text-gray-300 text-sm">Loading...</p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2 mb-4">
+                  {trackClearances.map(c => (
+                    <div key={c.cost_center} className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${c.status === 'cleared' ? 'bg-emerald-50' : 'bg-gray-50'}`}>
+                      <span className="text-sm text-gray-700 font-medium">{c.cost_center}</span>
+                      {c.status === 'cleared' ? (
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-xs font-semibold text-emerald-600">Cleared</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-amber-500">Pending</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {trackClearances.length > 0 && (() => {
+                  const cleared = trackClearances.filter(c => c.status === 'cleared').length;
+                  const total = trackClearances.length;
+                  const pending = total - cleared;
+                  const estMins = pending * 15;
+                  return (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Progress</span>
+                        <span className="text-xs font-semibold text-gray-700">{cleared}/{total} cleared</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(cleared/total)*100}%` }} />
+                      </div>
+                      {pending > 0 && (
+                        <p className="text-xs text-gray-400">Est. {estMins} min remaining ({pending} dept{pending !== 1 ? 's' : ''} pending)</p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Cancel discharge confirmation modal */}
       {cancelForm && (

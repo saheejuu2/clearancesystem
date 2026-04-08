@@ -24,23 +24,37 @@ const COST_CENTERS = [
   'Benefits - Window 6',
 ];
 
+const dashboard = ({ user, onLogout }) => {
+  if (user.role === 'admin')           return <AdminDashboard    user={user} onLogout={onLogout} />;
+  if (user.costCenter === 'Nurse')     return <NurseDashboard    user={user} onLogout={onLogout} />;
+  if (user.costCenter === 'Billing')   return <BillingDashboard  user={user} onLogout={onLogout} />;
+  if (COST_CENTERS.includes(user.costCenter)) return <CostCenterDashboard user={user} onLogout={onLogout} />;
+  return <div className="p-8 text-gray-500">Unknown role: {user.costCenter}</div>;
+};
+
 function AppContent({ user, onLogout }) {
   const [locked, setLocked] = useState(false);
 
   const handleIdle = useCallback(() => setLocked(true), []);
-  useIdleTimeout(handleIdle, 2 * 60 * 1000);
-
-  const dashboard = () => {
-    if (user.role === 'admin')           return <AdminDashboard    user={user} onLogout={onLogout} />;
-    if (user.costCenter === 'Nurse')     return <NurseDashboard    user={user} onLogout={onLogout} />;
-    if (user.costCenter === 'Billing')   return <BillingDashboard  user={user} onLogout={onLogout} />;
-    if (COST_CENTERS.includes(user.costCenter)) return <CostCenterDashboard user={user} onLogout={onLogout} />;
-    return <div className="p-8 text-gray-500">Unknown role: {user.costCenter}</div>;
-  };
+  const { warning, countdown, resetTimer } = useIdleTimeout(handleIdle, 2 * 60 * 1000);
 
   return (
     <>
-      {dashboard()}
+      {dashboard({ user, onLogout: () => onLogout() })}
+      {warning && !locked && (
+        <div className="fixed bottom-6 right-6 z-[90] bg-amber-500 text-white rounded-2xl shadow-2xl px-5 py-4 flex items-center gap-4 max-w-sm">
+          <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Session locking in {countdown}s</p>
+            <p className="text-xs opacity-80">Move your mouse to stay active</p>
+          </div>
+          <button onClick={resetTimer} className="text-xs font-semibold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors">
+            Stay
+          </button>
+        </div>
+      )}
       {locked && <IdleLockScreen user={user} onUnlock={() => setLocked(false)} />}
     </>
   );
