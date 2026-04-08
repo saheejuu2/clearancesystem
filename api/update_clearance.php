@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 error_reporting(0);
 ini_set('display_errors', 0);
 header("Access-Control-Allow-Origin: *");
@@ -46,7 +46,7 @@ function log_audit($conn, $patient_id, $patient, $action_label, $actor, $remarks
 
 function notify($conn, $recipient, $patient_id, $patient, $message) {
     $stmt = $conn->prepare("INSERT INTO notifications (recipient, patient_id, patient_no, patient_name, message) VALUES (?, ?, ?, ?, ?)");
-    if (!$stmt) return; // Table doesn't exist yet — fail silently
+    if (!$stmt) return; // Table doesn't exist yet ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fail silently
     $stmt->bind_param("sisss", $recipient, $patient_id, $patient['patient_no'], $patient['full_name'], $message);
     $stmt->execute();
 }
@@ -85,7 +85,7 @@ $COST_CENTERS = array_unique(array_merge($COST_CENTERS_INPATIENT, $COST_CENTERS_
 
 $patient = get_patient($conn, $patient_id);
 
-//STEP 1: Nurse â
+//STEP 1: Nurse ÃƒÆ’Ã‚Â¢
 if ($action === 'may_go_home') {
     $req = get_request($conn, $patient_id);
 
@@ -145,8 +145,7 @@ if ($action === 'for_clearance') {
         notify($conn, $cc, $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") needs clearance from your department.");
     }
 
-    log_audit($conn, $patient_id, $patient, 'Billing Sent for Clearance', $actor);
-    log_audit($conn, $patient_id, $patient, "Billing - Sent for Clearance", $actor);
+    echo json_encode(["success" => true, "message" => "Sent to selected cost centers for clearance."]);
     exit();
 }
 
@@ -215,9 +214,8 @@ if ($action === 'discharge') {
     $stmt2 = $conn->prepare("UPDATE clearance_requests SET final_status='discharged', final_remarks=?, discharged_at=?, discharged_by=? WHERE id=?");
     $stmt2->bind_param("sssi", $remarks, $now, $actor, $req['id']);
     $stmt2->execute();
-
-    log_audit($conn, $patient_id, $patient, 'Billing Patient Discharged', $actor, $remarks);
-    log_audit($conn, $patient_id, $patient, "Billing - Patient Discharged", $actor, $remarks);
+    echo json_encode(["success" => true, "message" => "Patient successfully discharged."]);
+    exit();
     exit();
 }
 
@@ -246,7 +244,6 @@ if ($action === 'cancel_discharge') {
     $stmt2->bind_param("i", $request_id);
     $stmt2->execute();
 
-    log_audit($conn, $patient_id, $patient, 'Nurse Discharge Cancelled', $actor, $remarks);
     log_audit($conn, $patient_id, $patient, "Nurse - Discharge Cancelled", $actor, $remarks);
     echo json_encode(["success" => true, "message" => "Discharge process cancelled. Patient reset to admitted."]);
     exit();
