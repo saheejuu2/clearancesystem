@@ -187,7 +187,7 @@ export default function BillingDashboard({ user, onLogout }) {
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/GEAMH LOGO.png" alt="logo" className="w-7 h-7 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}GEAMH-LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
               <p className="text-white font-semibold text-sm">{user.costCenter}</p>
@@ -222,6 +222,8 @@ export default function BillingDashboard({ user, onLogout }) {
         </aside>
         <main className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5">
         {tab === "dashboard" && <DashboardOverview title="Billing Dashboard" subtitle="Patient clearance overview" />}
+
+        {tab === "discharged" && <DischargedList />}
 
         {tab === "audit" && <AuditTrail key={auditKey} role={user.costCenter} />}
 
