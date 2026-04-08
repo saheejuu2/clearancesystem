@@ -1,10 +1,12 @@
-﻿import { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import ClearanceReport from '../components/ClearanceReport';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
 import NotificationBell from '../components/NotificationBell';
+import DashboardOverview from '../components/DashboardOverview';
+
 
 function DischargedList() {
   const [patients, setPatients] = useState([]);
@@ -106,13 +108,12 @@ export default function BillingDashboard({ user, onLogout }) {
   const [search, setSearch]         = useState('');
   const [loading, setLoading]       = useState(false);
   const [actionId, setActionId]     = useState(null);
-  const [remarksId, setRemarksId]   = useState(null);
-  const [remarks, setRemarks]       = useState('');
-  const [dischargerName, setDischargerName] = useState('');
-  const [reportPatient, setReport]  = useState(null);
+  const [dischargeModal, setDischargeModal] = useState(null);
+  const [dischargeRemarks, setDischargeRemarks] = useState("");
+  const [dischargeName, setDischargeName] = useState("");
   const [ccProgress, setCcProgress] = useState({});
+  const [reportPatient, setReport]  = useState(null);
   const [clearanceForm, setClearanceForm] = useState(null);
-
   const fetchPatients = async () => {
     setLoading(true);
     try {
@@ -163,17 +164,17 @@ export default function BillingDashboard({ user, onLogout }) {
     } finally { setActionId(null); }
   };
 
-  const discharge = async (patient_id) => {
-    if (!dischargerName.trim()) { alert('Please enter your name before discharging.'); return; }
-    if (!remarks.trim()) { alert('Please enter final remarks before discharging.'); return; }
+  const discharge = async () => {
+    if (!dischargeName.trim()) { alert("Please enter your name before discharging."); return; }
+    if (!dischargeRemarks.trim()) { alert("Please enter final remarks before discharging."); return; }
+    const patient_id = dischargeModal.id;
     setActionId(patient_id);
     try {
-      const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id, actor: dischargerName.trim(), remarks });
-      if (res.data.success) { setRemarksId(null); setRemarks(''); setDischargerName(''); fetchPatients(); setAuditKey(k => k + 1); }
+      const res = await api.post("/update_clearance.php", { action: "discharge", patient_id, actor: dischargeName.trim(), remarks: dischargeRemarks });
+      if (res.data.success) { setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
-
   const filtered = patients.filter(p =>
     p.clearance_step !== 'discharged' &&
     (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -199,19 +200,29 @@ export default function BillingDashboard({ user, onLogout }) {
         </div>
       </header>
 
-      <div className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[['patients', 'Patients'], ['discharged', 'Discharged'], ['audit', 'Audit Trail']].map(([key, label]) => (
-            <button key={key} onClick={() => { setTab(key); if (key === 'audit') setAuditKey(k => k + 1); }}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-56 shrink-0 bg-white border-r border-gray-100 flex flex-col">
+          <nav className="flex flex-col gap-1 p-3">
+            {[
+              { key: "dashboard", label: "Dashboard",   d: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+              { key: "patients",   label: "Patients",    d: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+              { key: "discharged", label: "Discharged",  d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
+              { key: "audit",      label: "Audit Trail", d: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
+            ].map(({ key, label, d }) => (
+              <button key={key} onClick={() => { setTab(key); if (key === "audit") setAuditKey(k => k + 1); }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === key ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
+                </svg>
+                {label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <main className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5">
+        {tab === "dashboard" && <DashboardOverview title="Billing Dashboard" subtitle="Patient clearance overview" />}
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-col gap-5">
-        {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} />}
+        {tab === "audit" && <AuditTrail key={auditKey} role={user.costCenter} />}
 
         {tab === 'patients' && (
           <>
@@ -269,7 +280,7 @@ export default function BillingDashboard({ user, onLogout }) {
                                   </button>
                                 )}
                                 {p.clearance_step === 'cost_center_clearing' && prog?.cleared === prog?.total && prog?.total > 0 && (
-                                  <button onClick={() => { setRemarksId(p.id); setRemarks(''); }}
+                                  <button onClick={() => { setDischargeModal(p); setDischargeRemarks(""); setDischargeName(""); }}
                                     className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                     Discharge
                                   </button>
@@ -284,38 +295,6 @@ export default function BillingDashboard({ user, onLogout }) {
                             </td>
                           </tr>
 
-                          {remarksId === p.id && (
-                            <tr key={`remarks-${p.id}`} className="bg-emerald-50">
-                              <td colSpan={7} className="px-5 py-4">
-                                <div className="flex flex-col gap-3">
-                                  <div className="flex flex-col sm:flex-row gap-3">
-                                    <div className="flex flex-col gap-1 flex-1">
-                                      <label className="text-xs font-semibold text-gray-600">Your Name <span className="text-red-500">*</span></label>
-                                      <input type="text" placeholder="Enter your full name" value={dischargerName}
-                                        onChange={e => setDischargerName(e.target.value.replace(/[0-9]/g, ''))}
-                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 flex-1">
-                                      <label className="text-xs font-semibold text-gray-600">Final Remarks <span className="text-red-500">*</span></label>
-                                      <input type="text" placeholder="Enter final remarks" value={remarks}
-                                        onChange={e => setRemarks(e.target.value)}
-                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <button onClick={() => discharge(p.id)} disabled={actionId === p.id}
-                                      className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
-                                      {actionId === p.id ? 'Discharging…' : 'Confirm Discharge'}
-                                    </button>
-                                    <button onClick={() => { setRemarksId(null); setRemarks(''); setDischargerName(''); }}
-                                      className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
                         </>
                       );
                     })}
@@ -328,8 +307,44 @@ export default function BillingDashboard({ user, onLogout }) {
             </div>
           </>
         )}
-      </main>
+        </main>
+      </div>
 
+      {/* Discharge Modal */}
+      {dischargeModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Discharge Patient</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Confirm discharge for <span className="font-semibold text-gray-800">{dischargeModal.full_name}</span> ({dischargeModal.patient_no})
+            </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name" value={dischargeName}
+                  onChange={e => setDischargeName(e.target.value.replace(/[0-9]/g, ""))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Final Remarks <span className="text-red-500">*</span></label>
+                <textarea placeholder="Enter final remarks" value={dischargeRemarks}
+                  onChange={e => setDischargeRemarks(e.target.value)}
+                  rows={2} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={discharge} disabled={actionId === dischargeModal.id}
+                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {actionId === dischargeModal.id ? "Discharging..." : "Confirm Discharge"}
+              </button>
+              <button onClick={() => { setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); }}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {reportPatient && <ClearanceReport patientId={reportPatient.id} onClose={() => setReport(null)} />}
 
       {clearanceForm && (

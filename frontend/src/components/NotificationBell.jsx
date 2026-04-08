@@ -71,6 +71,9 @@ export default function NotificationBell({ recipient, onNotificationClick }) {
                 if (onNotificationClick) onNotificationClick(n);
               }}
                 className={"px-4 py-3 cursor-pointer transition-colors " + (n.is_read ? "bg-white hover:bg-gray-50" : "bg-blue-50 hover:bg-blue-100")}>
+                {recipient === 'Admin' && (
+                  <p className="text-xs font-semibold text-emerald-600 mb-0.5">{n.recipient}</p>
+                )}
                 <p className={"text-sm " + (n.is_read ? "text-gray-600" : "text-gray-800 font-medium")}>{n.message}</p>
                 <p className="text-xs text-gray-400 mt-1">
                   {new Date(n.created_at).toLocaleString("en-PH", { dateStyle: "short", timeStyle: "short" })}

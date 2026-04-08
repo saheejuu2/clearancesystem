@@ -1,8 +1,38 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import PhClock from '../components/PhClock';
 import AuditTrail from '../components/AuditTrail';
 import NotificationBell from '../components/NotificationBell';
+import DashboardOverview from '../components/DashboardOverview';
+
+function AdminDashboardSummary() {
+  const [stats, setStats] = React.useState(null);
+  React.useEffect(() => {
+    api.get("/get_stats.php").then(r => setStats(r.data)).catch(() => {});
+  }, []);
+  const cards = [
+    { label: "Total Patients",    value: stats?.total_patients ?? "-", color: "bg-blue-50 text-blue-700" },
+    { label: "In Progress",       value: stats?.in_progress    ?? "-", color: "bg-amber-50 text-amber-700" },
+    { label: "Total CC Cleared",  value: stats?.cleared        ?? "-", color: "bg-green-50 text-green-700" },
+    { label: "Discharged",        value: stats?.discharged     ?? "-", color: "bg-emerald-50 text-emerald-700" },
+  ];
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
+        <p className="text-sm text-gray-400 mt-0.5">System-wide overview</p>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        {cards.map(c => (
+          <div key={c.label} className={`rounded-2xl p-5 ${c.color}`}>
+            <p className="text-3xl font-bold">{c.value}</p>
+            <p className="text-xs font-semibold mt-1 opacity-70 uppercase tracking-wide">{c.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const COST_CENTERS = [
   'Operating Room/Delivery Room',
@@ -42,7 +72,7 @@ const EyeIcon = ({ show, onClick }) => (
 );
 
 export default function AdminDashboard({ user, onLogout }) {
-  const [tab, setTab]             = useState('staff');
+  const [tab, setTab] = useState('dashboard');
   const [auditKey, setAuditKey]   = useState(0);
   const [allStaff, setAllStaff]   = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -161,7 +191,7 @@ export default function AdminDashboard({ user, onLogout }) {
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={`${import.meta.env.BASE_URL}GEAMH LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}GEAMH-LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
               <p className="text-white font-semibold text-sm">Admin Panel</p>
@@ -186,22 +216,28 @@ export default function AdminDashboard({ user, onLogout }) {
       </header>
 
       {/* Tabs */}
-      {tab !== 'profile' && (
-      <div className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
-          {[['staff', 'Staff Accounts'], ['audit', 'Audit Trail']].map(([key, label]) => (
-            <button key={key} onClick={() => { setTab(key); if (key === 'audit') setAuditKey(k => k + 1); }}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                tab === key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-400 hover:text-gray-600'
-              }`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      )}
+      {tab !== "profile" && (
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-56 shrink-0 bg-white border-r border-gray-100 flex flex-col">
+          <nav className="flex flex-col gap-1 p-3">
+            {[
+              { key: "dashboard", label: "Dashboard",   d: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+              { key: "staff",  label: "Staff Accounts", d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
+              { key: "audit",  label: "Audit Trail",    d: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
+            ].map(({ key, label, d }) => (
+              <button key={key} onClick={() => { setTab(key); if (key === "audit") setAuditKey(k => k + 1); }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === key ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
+                </svg>
+                {label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <main className="flex-1 overflow-y-auto px-6 py-6">
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
+        {tab === "dashboard" && <DashboardOverview title="Admin Dashboard" subtitle="System-wide overview" />}
 
         {tab === 'audit' && <AuditTrail key={auditKey} role="admin" />}
 
@@ -390,6 +426,8 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         )}
       </main>
+      </div>
+      )}
 
       {/* Create / Edit modal */}
       {form && (

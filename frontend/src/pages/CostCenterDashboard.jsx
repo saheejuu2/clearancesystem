@@ -15,8 +15,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [search, setSearch]     = useState('');
   const [loading, setLoading]   = useState(false);
   const [actionId, setActionId] = useState(null);
-  const [remarksMap, setRemarksMap] = useState({});
-  const [nameMap, setNameMap]       = useState({});
+  const [clearModal, setClearModal] = useState(null); // { patient }
+  const [clearName, setClearName]   = useState('');
+  const [clearRemarks, setClearRemarks] = useState('');
   const [viewPatient, setViewPatient] = useState(null);
   const [viewClearances, setViewClearances] = useState([]);
   const [notifReport, setNotifReport] = useState(null);
@@ -56,27 +57,28 @@ export default function CostCenterDashboard({ user, onLogout }) {
     });
   }, [patients]);
 
-  const clearPatient = async (patient_id) => {
-    if (!nameMap[patient_id]?.trim()) {
+  const clearPatient = async () => {
+    if (!clearName.trim()) {
       alert('Please enter your name before confirming.');
       return;
     }
+    const patient_id = clearModal.id;
     setActionId(patient_id);
     try {
       const res = await api.post('/update_clearance.php', {
         action: 'cost_center_clear',
         patient_id,
         cost_center: user.costCenter,
-        actor: nameMap[patient_id].trim(),
-        remarks: remarksMap[patient_id] || '',
+        actor: clearName.trim(),
+        remarks: clearRemarks,
       });
       if (res.data.success) {
-        // Remove patient from list immediately, then sync with server
         setPatients(prev => prev.filter(p => p.id !== patient_id));
         fetchPatients();
         setCcStatuses(prev => ({ ...prev, [patient_id]: { status: 'cleared' } }));
-        setNameMap(prev => { const n = {...prev}; delete n[patient_id]; return n; });
-        setRemarksMap(prev => { const n = {...prev}; delete n[patient_id]; return n; });
+        setClearModal(null);
+        setClearName('');
+        setClearRemarks('');
         setAuditKey(k => k + 1);
       } else {
         alert(res.data.message);
@@ -94,7 +96,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
       <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={`${import.meta.env.BASE_URL}GEAMH LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}GEAMH-LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
               <p className="text-white font-semibold text-sm">{user.costCenter}</p>
@@ -172,13 +174,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
                         <td className="px-5 py-4">
                           {!isCleared && p.clearance_step === 'cost_center_clearing' ? (
                             <button
-                              onClick={() => setRemarksMap(prev => ({ ...prev, [p.id]: prev[p.id] ?? '' }))}
+                              onClick={() => { setClearModal(p); setClearName(""); setClearRemarks(""); }}
                               className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors"
                             >
                               Clear Patient
                             </button>
                           ) : (
-                            <span className="text-xs text-gray-300">â€”</span>
+                            <span className="text-xs text-gray-300">-</span>
                           )}
                         </td>
                         <td className="px-5 py-4">
@@ -196,49 +198,6 @@ export default function CostCenterDashboard({ user, onLogout }) {
                         </td>
                       </tr>
 
-                      {!isCleared && remarksMap.hasOwnProperty(p.id) && (
-                        <tr key={`r-${p.id}`} className="bg-emerald-50">
-                          <td colSpan={7} className="px-5 py-4">
-                            <div className="flex flex-col gap-3">
-                              <div className="flex flex-col sm:flex-row gap-3">
-                                <div className="flex flex-col gap-1 flex-1">
-                                  <label className="text-xs font-semibold text-gray-600">Your Name <span className="text-red-500">*</span></label>
-                                  <input
-                                    type="text"
-                                    placeholder="Enter your full name"
-                                    value={nameMap[p.id] || ''}
-                                    onChange={e => setNameMap(prev => ({ ...prev, [p.id]: e.target.value.replace(/[0-9]/g, '') }))}
-                                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                                  />
-                                </div>
-                                <div className="flex flex-col gap-1 flex-1">
-                                  <label className="text-xs font-semibold text-gray-600">Remarks <span className="text-gray-400">(optional)</span></label>
-                                  <textarea
-                                    value={remarksMap[p.id]}
-                                    onChange={e => setRemarksMap(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                    placeholder="e.g. no outstanding balance"
-                                    rows={1}
-                                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
-                                  />
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button onClick={() => clearPatient(p.id)} disabled={actionId === p.id}
-                                  className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors">
-                                  {actionId === p.id ? 'Clearing…' : 'Confirm Cleared'}
-                                </button>
-                                <button onClick={() => {
-                                  setRemarksMap(prev => { const n = {...prev}; delete n[p.id]; return n; });
-                                  setNameMap(prev => { const n = {...prev}; delete n[p.id]; return n; });
-                                }}
-                                  className="text-sm text-gray-500 hover:text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-lg transition-colors">
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
                     </>
                   );
                 })}
@@ -253,6 +212,42 @@ export default function CostCenterDashboard({ user, onLogout }) {
         )}
       </main>
       {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} />}
+
+      {/* Clear Patient Modal */}
+      {clearModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Clear Patient</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Confirm clearance for <span className="font-semibold text-gray-800">{clearModal.full_name}</span> ({clearModal.patient_no})
+            </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name" value={clearName}
+                  onChange={e => setClearName(e.target.value.replace(/[0-9]/g, ""))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+                <textarea placeholder="e.g. no outstanding balance" value={clearRemarks}
+                  onChange={e => setClearRemarks(e.target.value)}
+                  rows={2} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={clearPatient} disabled={actionId === clearModal.id}
+                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {actionId === clearModal.id ? "Clearing..." : "Confirm Cleared"}
+              </button>
+              <button onClick={() => { setClearModal(null); setClearName(""); setClearRemarks(""); }}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
     </div>
   );
