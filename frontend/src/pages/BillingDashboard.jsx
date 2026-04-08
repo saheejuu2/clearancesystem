@@ -54,7 +54,7 @@ function DischargedList() {
                   <td className="px-5 py-4 text-gray-500">{p.ward}</td>
                   <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
                   <td className="px-5 py-4 text-gray-500 text-xs">
-                    {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'â€”'}
+                    {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'Ã¢â‚¬â€'}
                   </td>
                   <td className="px-5 py-4">
                     {p.request_id && (
@@ -109,6 +109,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [loading, setLoading]       = useState(false);
   const [actionId, setActionId]     = useState(null);
   const [dischargeModal, setDischargeModal] = useState(null);
+  const [dischargeSuccess, setDischargeSuccess] = useState(null); // { full_name, patient_no }
   const [dischargeRemarks, setDischargeRemarks] = useState("");
   const [dischargeName, setDischargeName] = useState("");
   const [ccProgress, setCcProgress] = useState({});
@@ -171,7 +172,7 @@ export default function BillingDashboard({ user, onLogout }) {
     setActionId(patient_id);
     try {
       const res = await api.post("/update_clearance.php", { action: "discharge", patient_id, actor: dischargeName.trim(), remarks: dischargeRemarks });
-      if (res.data.success) { setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); fetchPatients(); setAuditKey(k => k + 1); }
+      if (res.data.success) { setDischargeSuccess({ full_name: dischargeModal.full_name, patient_no: dischargeModal.patient_no }); setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
@@ -345,6 +346,28 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+
+      {/* Discharge Success Modal */}
+      {dischargeSuccess && (
+        <div className="fixed inset-0 bg-black/40 z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Patient Discharged</h3>
+            <p className="text-sm text-gray-500 mb-1">
+              <span className="font-semibold text-gray-800">{dischargeSuccess.full_name}</span>
+            </p>
+            <p className="text-xs text-gray-400 mb-6">{dischargeSuccess.patient_no} has been successfully discharged.</p>
+            <button onClick={() => setDischargeSuccess(null)}
+              className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm rounded-lg transition-colors">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
       {reportPatient && <ClearanceReport patientId={reportPatient.id} onClose={() => setReport(null)} />}
 
       {clearanceForm && (
@@ -376,7 +399,7 @@ export default function BillingDashboard({ user, onLogout }) {
             <div className="flex gap-2">
               <button onClick={sendForClearance} disabled={actionId === clearanceForm.patientId || clearanceForm.selected.length === 0}
                 className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
-                {actionId === clearanceForm.patientId ? 'Sending…' : `Send to ${clearanceForm.selected.length} dept${clearanceForm.selected.length !== 1 ? 's' : ''}`}
+                {actionId === clearanceForm.patientId ? 'Sendingâ€¦' : `Send to ${clearanceForm.selected.length} dept${clearanceForm.selected.length !== 1 ? 's' : ''}`}
               </button>
               <button onClick={() => setClearanceForm(null)}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
