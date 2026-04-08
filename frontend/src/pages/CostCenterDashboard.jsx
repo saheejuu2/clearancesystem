@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -235,7 +235,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         )}
       </main>
       </div>
-      {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} />}
+      {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="cost_center" userCostCenter={user.costCenter} onAction={(action, patient) => { setNotifReport(null); if (action === "clear") { setClearModal(patient); } }} />}
 
       {/* Clear Patient Modal */}
       {clearModal && (

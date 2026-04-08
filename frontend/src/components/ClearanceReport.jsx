@@ -1,16 +1,19 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 
-export default function ClearanceReport({ patientId, onClose }) {
+export default function ClearanceReport({ patientId, onClose, onAction, userRole, userCostCenter }) {
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
   const printRef = useRef();
 
-  useEffect(() => {
+  const reload = () => {
+    setLoading(true);
     api.get(`/get_clearance_report.php?patient_id=${patientId}`)
       .then(res => { if (res.data.success) setData(res.data); })
       .finally(() => setLoading(false));
-  }, [patientId]);
+  };
+
+  useEffect(() => { reload(); }, [patientId]);
 
   const handlePrint = () => {
     const content = printRef.current.innerHTML;
@@ -45,6 +48,55 @@ export default function ClearanceReport({ patientId, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-bold text-gray-800 text-lg">Clearance Report</h2>
           <div className="flex gap-2">
+            {/* Context-aware action buttons */}
+            {data && onAction && (() => {
+              const step = data.request?.final_status === 'discharged' ? 'discharged'
+                : data.request?.billing_status === 'for_clearance' ? 'cost_center_clearing'
+                : data.request?.nurse_status === 'may_go_home' ? 'awaiting_billing'
+                : 'admitted';
+              const allCleared = data.clearances.length > 0 && data.clearances.every(c => c.status === 'cleared');
+              const myCC = data.clearances.find(c => c.cost_center === userCostCenter);
+
+              return (
+                <>
+                  {/* Billing: For Clearance */}
+                  {userRole === 'Billing' && step === 'awaiting_billing' && (
+                    <button onClick={() => onAction('for_clearance', data.patient)}
+                      className="text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors">
+                      For Clearance
+                    </button>
+                  )}
+                  {/* Billing: Discharge */}
+                  {userRole === 'Billing' && step === 'cost_center_clearing' && allCleared && (
+                    <button onClick={() => onAction('discharge', data.patient)}
+                      className="text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors">
+                      Discharge
+                    </button>
+                  )}
+                  {/* Cost center: Clear */}
+                  {userRole === 'cost_center' && step === 'cost_center_clearing' && myCC && myCC.status !== 'cleared' && (
+                    <button onClick={() => onAction('clear', data.patient)}
+                      className="text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors">
+                      Clear Patient
+                    </button>
+                  )}
+                  {/* Nurse: May Go Home */}
+                  {userRole === 'Nurse' && step === 'admitted' && (
+                    <button onClick={() => onAction('may_go_home', data.patient)}
+                      className="text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                      May Go Home
+                    </button>
+                  )}
+                  {/* Nurse: Cancel Discharge */}
+                  {userRole === 'Nurse' && (step === 'awaiting_billing' || step === 'cost_center_clearing') && (
+                    <button onClick={() => onAction('cancel', data.patient)}
+                      className="text-sm font-semibold bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                      Cancel Discharge
+                    </button>
+                  )}
+                </>
+              );
+            })()}
             <button onClick={handlePrint} className="text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />

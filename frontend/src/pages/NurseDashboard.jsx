@@ -368,7 +368,7 @@ export default function NurseDashboard({ user, onLogout }) {
       </main>
       </div>
 
-      {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} />}
+      {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="Nurse" onAction={(action, patient) => { setNotifReport(null); if (action === "may_go_home") openForm(patient.id); else if (action === "cancel") setCancelForm({ patientId: patient.id, patientName: patient.full_name, nurseName: "", remarks: "" }); }} />}
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
 
       {/* Admit Patient Modal */}
@@ -418,7 +418,7 @@ export default function NurseDashboard({ user, onLogout }) {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Clearance Progress</h3>
-                <p className="text-sm text-gray-500">{trackPatient.full_name} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â {trackPatient.patient_no}</p>
+                <p className="text-sm text-gray-500">{trackPatient.full_name} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â {trackPatient.patient_no}</p>
               </div>
               <button onClick={() => setTrackPatient(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
