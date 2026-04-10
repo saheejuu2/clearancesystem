@@ -14,7 +14,13 @@ $sql = "
         cr.nurse_status,
         cr.billing_status,
         cr.final_status,
-        cr.discharged_at
+        cr.discharged_at,
+        (SELECT COUNT(*) FROM cost_center_clearances ccc2
+         WHERE ccc2.clearance_request_id = cr.id AND ccc2.status = 'pending') AS pending_count,
+        (SELECT COUNT(*) FROM cost_center_clearances ccc3
+         WHERE ccc3.clearance_request_id = cr.id) AS total_cc,
+        (SELECT COUNT(*) FROM cost_center_clearances ccc4
+         WHERE ccc4.clearance_request_id = cr.id AND ccc4.remarks IS NOT NULL AND ccc4.remarks != '') AS sent_back_count
     FROM patients p
     LEFT JOIN clearance_requests cr ON cr.patient_id = p.id
     ORDER BY p.admit_date DESC
@@ -24,6 +30,8 @@ $result = $conn->query($sql);
 $all = [];
 while ($row = $result->fetch_assoc()) {
     $row['clearance_step'] = get_step($row);
+    $row['has_pending'] = ($row['request_id'] && (int)$row['pending_count'] > 0 && (int)$row['total_cc'] > 0);
+    $row['was_sent_back'] = ($row['request_id'] && (int)$row['sent_back_count'] > 0);
     $all[] = $row;
 }
 

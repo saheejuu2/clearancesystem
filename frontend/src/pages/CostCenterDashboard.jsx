@@ -193,11 +193,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No pending patients sent back to your department.</td></tr>
                     ) : patients.filter(p => ccStatuses[p.id]?.status === 'pending' && ccStatuses[p.id]?.remarks).map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                        <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                        <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
+                        <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                        <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                         <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                        <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                        <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                        </td>
                         <td className="px-5 py-4 text-orange-600 text-xs font-medium max-w-[180px] truncate" title={ccStatuses[p.id]?.remarks}>{ccStatuses[p.id]?.remarks}</td>
                         <td className="px-5 py-4">
                           <button onClick={() => { setClearModal(p); setClearName(''); setClearRemarks(''); }}
@@ -252,11 +254,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
                         )
                         .map(p => (
                           <tr key={p.patient_id + p.cleared_at} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                            <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
+                            <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                            <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            </td>
                             <td className="px-5 py-4 text-gray-700 font-medium">{p.cleared_by || '—'}</td>
                             <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
                               {p.cleared_at
@@ -294,7 +298,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{user.costCenter}Clearance</h1>
+          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} — Clearance</h1>
           <p className="text-sm text-gray-400 mt-0.5">Review and clear patients assigned to your department</p>
         </div>
 
@@ -307,52 +311,54 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                  {['Patient ID','Name','Age','Ward','Admit Date','Balance Status','Action',''].map(h => (
-                    <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                    <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
+                  <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients pending clearance.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients pending clearance.</td></tr>
                 ) : filtered.map(p => {
                   const myStatus = ccStatuses[p.id];
                   const isCleared = myStatus?.status === 'cleared';
+                  const isSentBack = !isCleared && myStatus?.remarks;
                   return (
-                    <>
-                      <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                        <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                        <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
-                        <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                        <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                        <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
-                        <td className="px-5 py-4">
-                          {isCleared ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Cleared</span>
-                          ) : myStatus?.remarks ? (
-                            <div className="flex flex-col gap-1">
-                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 w-fit">Pending — Sent Back</span>
-                              <span className="text-xs text-gray-400 max-w-[160px] truncate" title={myStatus.remarks}>{myStatus.remarks}</span>
-                            </div>
-                          ) : (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-600">Pending Review</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          {!isCleared && p.clearance_step === 'cost_center_clearing' ? (
-                            <button
-                              onClick={() => { setClearModal(p); setClearName(""); setClearRemarks(""); }}
-                              className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-                            >
-                              Clear Patient
+                    <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                      <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                      <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                      <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                      <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                        {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                          {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {isCleared ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 whitespace-nowrap">Cleared</span>
+                        ) : isSentBack ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 w-fit whitespace-nowrap">Sent Back</span>
+                            <span className="text-xs text-gray-400 max-w-[140px] truncate" title={myStatus.remarks}>{myStatus.remarks}</span>
+                          </div>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-600 whitespace-nowrap">Pending Review</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          {!isCleared && p.clearance_step === 'cost_center_clearing' && (
+                            <button onClick={() => { setClearModal(p); setClearName(""); setClearRemarks(""); }}
+                              className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                              Clear
                             </button>
-                          ) : (
-                            <span className="text-xs text-gray-300">-</span>
                           )}
-                        </td>
-                        <td className="px-5 py-4">
                           <button onClick={async () => {
                             setViewPatient(p);
                             try {
@@ -361,13 +367,12 @@ export default function CostCenterDashboard({ user, onLogout }) {
                               else setViewClearances([]);
                             } catch { setViewClearances([]); }
                           }}
-                            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             View
                           </button>
-                        </td>
-                      </tr>
-
-                    </>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>

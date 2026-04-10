@@ -50,10 +50,12 @@ function DischargedList() {
                 <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No discharged patients.</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                  <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
-                  <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                  <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                  <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                  <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                  <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                  <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                    {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                  </td>
                   <td className="px-5 py-4 text-gray-500 text-xs">
                     {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
                   </td>
@@ -293,13 +295,15 @@ export default function BillingDashboard({ user, onLogout }) {
                       <tbody className="divide-y divide-gray-50">
                         {patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && p.was_sent_back).map(p => (
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
+                            <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-5 py-4">
-                              <p className="font-semibold text-gray-800">{p.full_name}</p>
+                              <p className="font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</p>
                               <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Returned — Ready</span>
                             </td>
-                            <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-2">
                                 <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -347,10 +351,12 @@ export default function BillingDashboard({ user, onLogout }) {
                         <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients currently awaiting cost centers.</td></tr>
                       ) : patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').map(p => (
                         <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                          <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                          <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
-                          <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                          <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                          <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                          <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                          <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                          <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                            {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                          </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2">
                               <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -393,44 +399,53 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID', 'Name', 'Ward', 'Admit Date', 'Status', 'Progress', 'Action'].map(h => (
+                      {['Patient ID', 'Name', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {loading ? (
-                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
+                      <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                     ) : filtered.length === 0 ? (
-                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
+                      <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
                     ) : filtered.map(p => {
                       const step = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
+                      const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                       return (
                         <>
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                            <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
-                            <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
-                              {p.has_pending && p.clearance_step === 'cost_center_clearing' && (
-                                <span className="ml-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600">Pending</span>
+                            <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                            <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              {isPending ? (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 whitespace-nowrap">Pending</span>
+                              ) : (
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${step.style}`}>{step.label}</span>
                               )}
                             </td>
-                            <td className="px-5 py-4">
+                            <td className="px-4 py-3.5">
                               {p.total_cc > 0 ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div className="h-full bg-emerald-500 rounded-full transition-all"
                                       style={{ width: `${((p.total_cc - p.pending_count) / p.total_cc) * 100}%` }} />
                                   </div>
-                                  <span className="text-xs text-gray-400">{p.total_cc - p.pending_count}/{p.total_cc}</span>
+                                  <span className="text-xs text-gray-400 whitespace-nowrap">{p.total_cc - p.pending_count}/{p.total_cc}</span>
                                 </div>
                               ) : <span className="text-xs text-gray-300">—</span>}
                             </td>
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-2 flex-wrap">
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 {p.clearance_step === 'awaiting_billing' && (
                                   <button onClick={() => openClearanceForm(p)} disabled={actionId === p.id}
                                     className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
@@ -451,14 +466,13 @@ export default function BillingDashboard({ user, onLogout }) {
                                 )}
                                 {p.request_id && (
                                   <button onClick={() => setReport(p)}
-                                    className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                                    className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                     Report
                                   </button>
                                 )}
                               </div>
                             </td>
                           </tr>
-
                         </>
                       );
                     })}

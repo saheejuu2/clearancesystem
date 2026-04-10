@@ -164,6 +164,13 @@ if ($action === 'cost_center_clear') {
         exit();
     }
 
+    // Check BEFORE clearing if this CC was previously sent back (had a pending reason)
+    $stmt_pre = $conn->prepare("SELECT remarks FROM cost_center_clearances WHERE clearance_request_id=? AND cost_center=?");
+    $stmt_pre->bind_param("is", $req['id'], $cost_center);
+    $stmt_pre->execute();
+    $pre_row = $stmt_pre->get_result()->fetch_assoc();
+    $was_sent_back = !empty($pre_row['remarks']);
+
     $stmt = $conn->prepare("UPDATE cost_center_clearances SET status='cleared', cleared_at=?, cleared_by=?, remarks=? WHERE clearance_request_id=? AND cost_center=?");
     $stmt->bind_param("sssis", $now, $actor, $remarks, $req['id'], $cost_center);
     $stmt->execute();
@@ -181,6 +188,15 @@ if ($action === 'cost_center_clear') {
     $counts = $stmt2->get_result()->fetch_assoc();
 
     $all_cleared = ($counts['total'] == $counts['cleared']);
+
+    // Notify billing when all CCs are cleared (patient returned to billing)
+    if ($all_cleared) {
+        notify($conn, "Billing", $patient_id, $patient, "All cost centers have cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . "). Patient is ready for discharge.");
+    } else if ($was_sent_back) {
+        // This CC was previously sent back — notify billing it's been resolved
+        notify($conn, "Billing", $patient_id, $patient, $cost_center . " has resolved the pending requirement for " . $patient["full_name"] . " (" . $patient["patient_no"] . ") and cleared the patient.");
+    }
+
     echo json_encode([
         "success"     => true,
         "all_cleared" => $all_cleared,
@@ -214,8 +230,8 @@ if ($action === 'discharge') {
     $stmt2 = $conn->prepare("UPDATE clearance_requests SET final_status='discharged', final_remarks=?, discharged_at=?, discharged_by=? WHERE id=?");
     $stmt2->bind_param("sssi", $remarks, $now, $actor, $req['id']);
     $stmt2->execute();
+    log_audit($conn, $patient_id, $patient, "Billing - Patient Discharged", $actor, $remarks);
     echo json_encode(["success" => true, "message" => "Patient successfully discharged."]);
-    exit();
     exit();
 }
 

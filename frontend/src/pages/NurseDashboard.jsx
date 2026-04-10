@@ -235,6 +235,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <option value="no_request">Admitted</option>
                 <option value="awaiting_billing">May Go Home</option>
                 <option value="cost_center_clearing">In Clearance</option>
+                <option value="pending">Pending</option>
               </select>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" placeholder="From" />
@@ -251,8 +252,8 @@ export default function NurseDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Action',''].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -264,33 +265,36 @@ export default function NurseDashboard({ user, onLogout }) {
                     ) : filtered.map(p => {
                       const step   = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
                       const canAct = p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse';
+                      const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                       return (
                         <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
-                            <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.ward}</td>
-                            <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
-                            <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
-                              {p.has_pending && p.clearance_step === 'cost_center_clearing' && (
-                                <span className="ml-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600">Pending</span>
-                              )}
-                            </td>
-                            <td className="px-5 py-4">
-                              {canAct ? (
+                          <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                          <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                            {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                              {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {isPending ? (
+                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 whitespace-nowrap">Pending</span>
+                            ) : (
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${step.style}`}>{step.label}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {canAct && (
                                 <button onClick={() => openForm(p.id)}
-                                  className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                                  className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   May Go Home
                                 </button>
-                              ) : <span className="text-xs text-gray-300"></span>}
-                            </td>
-                            <td className="px-5 py-4">
+                              )}
                               <button onClick={async () => {
                                 setViewPatient(p);
                                 try {
@@ -299,17 +303,18 @@ export default function NurseDashboard({ user, onLogout }) {
                                   else setViewClearances([]);
                                 } catch { setViewClearances([]); }
                               }}
-                                className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                                className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                 View
                               </button>
                               {p.clearance_step === 'cost_center_clearing' && (
                                 <button onClick={() => openTracker(p)}
-                                  className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors ml-1">
+                                  className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Track
                                 </button>
                               )}
-                            </td>
-                          </tr>
+                            </div>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>
