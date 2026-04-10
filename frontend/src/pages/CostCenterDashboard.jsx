@@ -21,6 +21,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [viewPatient, setViewPatient] = useState(null);
   const [viewClearances, setViewClearances] = useState([]);
   const [notifReport, setNotifReport] = useState(null);
+  const [clearedPatients, setClearedPatients] = useState([]);
+  const [clearedLoading, setClearedLoading]   = useState(false);
+  const [clearedSearch, setClearedSearch]     = useState('');
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -44,6 +47,15 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   const [ccStatuses, setCcStatuses] = useState({});
 
+  const fetchClearedPatients = async () => {
+    setClearedLoading(true);
+    try {
+      const res = await api.get(`/get_cleared_patients.php?cost_center=${encodeURIComponent(user.costCenter)}`);
+      if (res.data.success) setClearedPatients(res.data.cleared);
+    } catch { /* silent */ }
+    finally { setClearedLoading(false); }
+  };
+
   useEffect(() => {
     fetchPatients();
   }, []);
@@ -56,7 +68,6 @@ export default function CostCenterDashboard({ user, onLogout }) {
       }
     });
   }, [patients]);
-
   const clearPatient = async () => {
     if (!clearName.trim()) {
       alert('Please enter your name before confirming.');
@@ -128,6 +139,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </svg>
               Patients
             </button>
+            <button onClick={() => { setTab('cleared'); fetchClearedPatients(); setClearedSearch(''); }}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === 'cleared' ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Cleared Patients
+            </button>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
             <button onClick={() => { setTab('audit'); setAuditKey(k => k + 1); }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === 'audit' ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
@@ -150,6 +168,81 @@ export default function CostCenterDashboard({ user, onLogout }) {
         <main className="flex-1 overflow-y-auto px-6 py-6">
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
         {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} />}
+        {tab === 'cleared' && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Cleared Patients</h1>
+              <p className="text-sm text-gray-400 mt-0.5">
+                Patients your department has already cleared — this is <span className="font-semibold text-gray-600">not</span> the audit trail.
+                The <span className="font-semibold text-gray-600">Audit Trail</span> logs every action taken by every user across the system,
+                while this list shows only patients cleared specifically by <span className="font-semibold text-gray-600">{user.costCenter}</span>.
+              </p>
+            </div>
+            <SearchBar value={clearedSearch} onChange={setClearedSearch} placeholder="Search by name or patient ID..." />
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                      {['Patient ID','Name','Age','Ward','Admit Date','Cleared By','Cleared At','Remarks',''].map(h => (
+                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {clearedLoading ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
+                    ) : clearedPatients.filter(p =>
+                        p.full_name.toLowerCase().includes(clearedSearch.toLowerCase()) ||
+                        p.patient_no.toLowerCase().includes(clearedSearch.toLowerCase())
+                      ).length === 0 ? (
+                      <tr><td colSpan={9} className="text-center py-12 text-gray-300 text-sm">No cleared patients yet.</td></tr>
+                    ) : clearedPatients
+                        .filter(p =>
+                          p.full_name.toLowerCase().includes(clearedSearch.toLowerCase()) ||
+                          p.patient_no.toLowerCase().includes(clearedSearch.toLowerCase())
+                        )
+                        .map(p => (
+                          <tr key={p.patient_id + p.cleared_at} className="hover:bg-gray-50/70 transition-colors">
+                            <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
+                            <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
+                            <td className="px-5 py-4 text-gray-500">{p.age}</td>
+                            <td className="px-5 py-4 text-gray-500">{p.ward}</td>
+                            <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                            <td className="px-5 py-4 text-gray-700 font-medium">{p.cleared_by || '—'}</td>
+                            <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
+                              {p.cleared_at
+                                ? new Date(p.cleared_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+                                : '—'}
+                            </td>
+                            <td className="px-5 py-4 text-gray-400 text-xs max-w-[180px] truncate">{p.remarks || '—'}</td>
+                            <td className="px-5 py-4">
+                              <button
+                                onClick={async () => {
+                                  setViewPatient({ id: p.patient_id, ...p });
+                                  try {
+                                    const r = await api.get('/get_clearance_report.php?patient_id=' + p.patient_id);
+                                    if (r.data.success) setViewClearances(r.data.clearances);
+                                    else setViewClearances([]);
+                                  } catch { setViewClearances([]); }
+                                }}
+                                className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+                {clearedPatients.length} patient{clearedPatients.length !== 1 ? 's' : ''} cleared by {user.costCenter}
+              </div>
+            </div>
+          </div>
+        )}
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
