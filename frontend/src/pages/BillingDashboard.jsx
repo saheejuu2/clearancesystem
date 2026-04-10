@@ -125,6 +125,46 @@ export default function BillingDashboard({ user, onLogout }) {
   const [pendingActor, setPendingActor]   = useState('');
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pendingCCs, setPendingCCs] = useState([]);
+  const [followUpModal, setFollowUpModal] = useState(null);
+  const [followUpSelected, setFollowUpSelected] = useState([]);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+
+  const openFollowUpModal = async (p) => {
+    setFollowUpModal({ patient: p, clearances: [] });
+    setFollowUpSelected([]);
+    try {
+      const res = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
+      if (res.data.success) {
+        const pending = res.data.clearances.filter(c => c.status === 'pending');
+        setFollowUpModal({ patient: p, clearances: res.data.clearances });
+        setFollowUpSelected(pending.map(c => c.cost_center));
+      }
+    } catch { /* silent */ }
+  };
+
+  const toggleFollowUp = (cc) => {
+    setFollowUpSelected(prev =>
+      prev.includes(cc) ? prev.filter(c => c !== cc) : [...prev, cc]
+    );
+  };
+
+  const submitFollowUp = async () => {
+    if (followUpSelected.length === 0) { alert('Select at least one cost center.'); return; }
+    setFollowUpLoading(true);
+    try {
+      await Promise.all(followUpSelected.map(cc =>
+        api.post('/notifications.php?action=send', {
+          recipient: cc,
+          patient_id: followUpModal.patient.id,
+          patient_no: followUpModal.patient.patient_no,
+          patient_name: followUpModal.patient.full_name,
+          message: `Follow-up: Please clear ${followUpModal.patient.full_name} (${followUpModal.patient.patient_no}) at your earliest convenience.`,
+        }).catch(() => {})
+      ));
+      setFollowUpModal(null);
+      setFollowUpSelected([]);
+    } finally { setFollowUpLoading(false); }
+  };
 
   const openPendingModal = async (p) => {
     setPendingModal(p);
@@ -367,10 +407,16 @@ export default function BillingDashboard({ user, onLogout }) {
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <button onClick={() => setReport(p)}
-                              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
-                              Report
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={() => openFollowUpModal(p)}
+                                className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                Follow Up
+                              </button>
+                              <button onClick={() => setReport(p)}
+                                className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                Report
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -684,6 +730,64 @@ export default function BillingDashboard({ user, onLogout }) {
                 onClick={() => setClearanceForm(null)}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors"
               >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Follow Up Modal */}
+      {followUpModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-bold text-gray-900">Send Follow-Up Reminder</h3>
+              <button onClick={() => { setFollowUpModal(null); setFollowUpSelected([]); }}
+                className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Select cost centers to remind for <span className="font-semibold text-gray-800">{followUpModal.patient.full_name}</span> ({followUpModal.patient.patient_no}).
+            </p>
+            <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-2 mb-4">
+              {followUpModal.clearances.length === 0 ? (
+                <p className="text-xs text-gray-400 py-4 text-center">Loading...</p>
+              ) : followUpModal.clearances.map(c => (
+                <label key={c.cost_center}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    c.status === 'cleared'
+                      ? 'opacity-40 cursor-not-allowed bg-gray-50'
+                      : followUpSelected.includes(c.cost_center)
+                        ? 'bg-violet-50 border border-violet-200 cursor-pointer'
+                        : 'hover:bg-gray-50 cursor-pointer'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    disabled={c.status === 'cleared'}
+                    checked={followUpSelected.includes(c.cost_center)}
+                    onChange={() => toggleFollowUp(c.cost_center)}
+                    className="w-4 h-4 accent-violet-600 shrink-0"
+                  />
+                  <span className="flex-1 text-sm text-gray-700">{c.cost_center}</span>
+                  {c.status === 'cleared' ? (
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">Cleared</span>
+                  ) : (
+                    <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">Pending</span>
+                  )}
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={submitFollowUp} disabled={followUpLoading || followUpSelected.length === 0}
+                className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {followUpLoading ? 'Sending...' : `Send Reminder${followUpSelected.length > 1 ? ` (${followUpSelected.length})` : ''}`}
+              </button>
+              <button onClick={() => { setFollowUpModal(null); setFollowUpSelected([]); }}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
                 Cancel
               </button>
             </div>

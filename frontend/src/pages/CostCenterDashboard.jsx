@@ -24,6 +24,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [clearedPatients, setClearedPatients] = useState([]);
   const [clearedLoading, setClearedLoading]   = useState(false);
   const [clearedSearch, setClearedSearch]     = useState('');
+  const [pendingPatients, setPendingPatients] = useState([]);
+  const [pendingLoading, setPendingLoading]   = useState(false);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -32,6 +34,15 @@ export default function CostCenterDashboard({ user, onLogout }) {
       setPatients(res.data);
     } catch { /* silent */ }
     finally { setLoading(false); }
+  };
+
+  const fetchPendingPatients = async () => {
+    setPendingLoading(true);
+    try {
+      const res = await api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&pending_only=1`);
+      setPendingPatients(res.data);
+    } catch { /* silent */ }
+    finally { setPendingLoading(false); }
   };
 
   const fetchCcStatus = async (patient_id) => {
@@ -86,6 +97,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
       if (res.data.success) {
         setPatients(prev => prev.filter(p => p.id !== patient_id));
         fetchPatients();
+        fetchPendingPatients();
         setCcStatuses(prev => ({ ...prev, [patient_id]: { status: 'cleared' } }));
         setClearModal(null);
         setClearName('');
@@ -143,7 +155,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </svg>
               Cleared Patients
             </button>
-            <button onClick={() => setTab('pending')}
+            <button onClick={() => { setTab('pending'); fetchPendingPatients(); }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === 'pending' ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
               <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -183,27 +195,31 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Reason','Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Patient ID','Name','Age','Ward','Admit Date','Reason from Billing','Action'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {patients.filter(p => ccStatuses[p.id]?.status === 'pending' && ccStatuses[p.id]?.remarks).length === 0 ? (
+                    {pendingLoading ? (
+                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
+                    ) : pendingPatients.length === 0 ? (
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No pending patients sent back to your department.</td></tr>
-                    ) : patients.filter(p => ccStatuses[p.id]?.status === 'pending' && ccStatuses[p.id]?.remarks).map(p => (
+                    ) : pendingPatients.map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                        <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                        <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                        <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                        <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                           {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                         </td>
-                        <td className="px-5 py-4 text-orange-600 text-xs font-medium max-w-[180px] truncate" title={ccStatuses[p.id]?.remarks}>{ccStatuses[p.id]?.remarks}</td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-3.5 text-orange-600 text-xs font-medium max-w-[200px] truncate" title={p.cc_remarks}>
+                          {p.cc_remarks || <span className="text-gray-400">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5">
                           <button onClick={() => { setClearModal(p); setClearName(''); setClearRemarks(''); }}
-                            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             Clear Patient
                           </button>
                         </td>
@@ -213,7 +229,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 </table>
               </div>
               <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-                {patients.filter(p => ccStatuses[p.id]?.status === 'pending' && ccStatuses[p.id]?.remarks).length} pending patient(s)
+                {pendingPatients.length} pending patient(s)
               </div>
             </div>
           </div>
