@@ -116,9 +116,6 @@ export default function CostCenterDashboard({ user, onLogout }) {
           <div className="flex items-center gap-3">
             <PhClock />
             <NotificationBell recipient={user.costCenter} onNotificationClick={n => setNotifReport({ id: n.patient_id })} />
-            <button onClick={onLogout} className="text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all">
-              Logout
-            </button>
           </div>
         </div>
       </header>
