@@ -112,39 +112,48 @@ export default function BillingDashboard({ user, onLogout }) {
   const [loading, setLoading]       = useState(false);
   const [actionId, setActionId]     = useState(null);
   const [dischargeModal, setDischargeModal] = useState(null);
-  const [dischargeSuccess, setDischargeSuccess] = useState(null); // { full_name, patient_no }
+  const [dischargeSuccess, setDischargeSuccess] = useState(null);
+  const [reportPatient, setReport] = useState(null);
   const [dischargeRemarks, setDischargeRemarks] = useState("");
   const [dischargeName, setDischargeName] = useState("");
-  const [ccProgress, setCcProgress] = useState({});
-  const [reportPatient, setReport]  = useState(null);
   const [clearanceForm, setClearanceForm] = useState(null);
-  const fetchPatients = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/get_patients.php?role=Billing');
-      setPatients(res.data);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  };
+  const [pendingModal, setPendingModal] = useState(null);
+  const [pendingSelectedCCs, setPendingSelectedCCs] = useState([]);
+  const [pendingReason, setPendingReason] = useState('');
+  const [pendingActor, setPendingActor]   = useState('');
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [pendingCCs, setPendingCCs] = useState([]);
 
-  const fetchProgress = async (patient_id) => {
+  const openPendingModal = async (p) => {
+    setPendingModal(p);
+    setPendingSelectedCCs([]);
+    setPendingReason('');
+    setPendingActor('');
+    setPendingCCs([]);
     try {
-      const res = await api.get(`/get_clearance_report.php?patient_id=${patient_id}`);
+      const res = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
       if (res.data.success) {
-        const cleared = res.data.clearances.filter(c => c.status === 'cleared').length;
-        const total   = res.data.clearances.length;
-        setCcProgress(prev => ({ ...prev, [patient_id]: { cleared, total } }));
+        setPendingCCs(res.data.clearances.map(c => c.cost_center));
       }
     } catch { /* silent */ }
   };
 
-  useEffect(() => { fetchPatients(); }, []);
+  const togglePendingCC = (cc) => {
+    setPendingSelectedCCs(prev =>
+      prev.includes(cc) ? prev.filter(c => c !== cc) : [...prev, cc]
+    );
+  };
 
-  useEffect(() => {
-    patients.forEach(p => {
-      if (p.clearance_step === 'cost_center_clearing') fetchProgress(p.id);
-    });
-  }, [patients]);
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/get_patients.php?role=Billing');
+      setPatients(res.data || []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchPatients(); }, []);
 
   const openClearanceForm = (p) => {
     setClearanceForm({ patientId: p.id, patientName: p.full_name, service: "", isBaby: false, selected: [] });
@@ -178,6 +187,31 @@ export default function BillingDashboard({ user, onLogout }) {
       if (res.data.success) { setDischargeSuccess({ full_name: dischargeModal.full_name, patient_no: dischargeModal.patient_no }); setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setActionId(null); }
+  };
+
+  const submitPending = async () => {
+    if (pendingSelectedCCs.length === 0) { alert('Please select at least one cost center.'); return; }
+    if (!pendingActor.trim()) { alert('Please enter your name.'); return; }
+    setPendingLoading(true);
+    try {
+      const res = await api.post('/send_back_clearance.php', {
+        patient_id: pendingModal.id,
+        actor: pendingActor.trim(),
+        cost_centers: pendingSelectedCCs,
+        reason: pendingReason.trim() || 'Missing requirements',
+      });
+      if (res.data.success) {
+        setPendingModal(null);
+        setPendingSelectedCCs([]);
+        setPendingReason('');
+        setPendingActor('');
+        setPendingCCs([]);
+        fetchPatients();
+        setAuditKey(k => k + 1);
+      } else {
+        alert(res.data.message);
+      }
+    } finally { setPendingLoading(false); }
   };
   const filtered = patients.filter(p =>
     p.clearance_step !== 'discharged' &&
@@ -214,6 +248,7 @@ export default function BillingDashboard({ user, onLogout }) {
             <NavBtn tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Patients</p>
             <NavBtn tabKey="patients" label="Patients" active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            <NavBtn tabKey="pending" label="Pending" active={tab} setTab={setTab} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
             <NavBtn tabKey="audit" label="Audit Trail" active={tab} setTab={() => { setTab("audit"); setAuditKey(k => k + 1); }} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -233,6 +268,116 @@ export default function BillingDashboard({ user, onLogout }) {
         {tab === "discharged" && <DischargedList />}
 
         {tab === "audit" && <AuditTrail key={auditKey} role={user.costCenter} />}
+
+        {tab === 'pending' && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Pending Patients</h1>
+              <p className="text-sm text-gray-400 mt-0.5">Track patients sent back for missing requirements</p>
+            </div>
+
+            {/* Returned to Billing — all CCs cleared again */}
+            {patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && p.was_sent_back).length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2 px-1">Returned to Billing</p>
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-emerald-100">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-emerald-50 border-b border-emerald-100 text-left">
+                          {['Patient ID','Name','Ward','Admit Date','Progress','Action'].map(h => (
+                            <th key={h} className="px-5 py-3.5 text-xs font-semibold text-emerald-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && p.was_sent_back).map(p => (
+                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                            <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
+                            <td className="px-5 py-4">
+                              <p className="font-semibold text-gray-800">{p.full_name}</p>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Returned — Ready</span>
+                            </td>
+                            <td className="px-5 py-4 text-gray-500">{p.ward}</td>
+                            <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }} />
+                                </div>
+                                <span className="text-xs text-emerald-600 font-medium">{p.total_cc}/{p.total_cc}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex gap-2">
+                                <button onClick={() => { setDischargeModal(p); setDischargeRemarks(''); setDischargeName(''); }}
+                                  className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                                  Discharge
+                                </button>
+                                <button onClick={() => setReport(p)}
+                                  className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                                  Report
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Still pending — waiting on cost centers */}
+            <div>
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 px-1">Awaiting Cost Centers</p>
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                        {['Patient ID','Name','Ward','Admit Date','Progress','Action'].map(h => (
+                          <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length === 0 ? (
+                        <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients currently awaiting cost centers.</td></tr>
+                      ) : patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').map(p => (
+                        <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                          <td className="px-5 py-4 font-mono text-xs text-gray-400">{p.patient_no}</td>
+                          <td className="px-5 py-4 font-semibold text-gray-800">{p.full_name}</td>
+                          <td className="px-5 py-4 text-gray-500">{p.ward}</td>
+                          <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-orange-400 rounded-full transition-all"
+                                  style={{ width: `${((p.total_cc - p.pending_count) / p.total_cc) * 100}%` }} />
+                              </div>
+                              <span className="text-xs text-orange-500 font-medium">{p.total_cc - p.pending_count}/{p.total_cc}</span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <button onClick={() => setReport(p)}
+                              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                              Report
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+                  {patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} patient(s) awaiting
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {tab === 'patients' && (
           <>
@@ -260,7 +405,6 @@ export default function BillingDashboard({ user, onLogout }) {
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
                     ) : filtered.map(p => {
                       const step = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
-                      const prog = ccProgress[p.id];
                       return (
                         <>
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
@@ -270,16 +414,20 @@ export default function BillingDashboard({ user, onLogout }) {
                             <td className="px-5 py-4 text-gray-500">{p.admit_date}</td>
                             <td className="px-5 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${step.style}`}>{step.label}</span>
+                              {p.has_pending && p.clearance_step === 'cost_center_clearing' && (
+                                <span className="ml-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600">Pending</span>
+                              )}
                             </td>
                             <td className="px-5 py-4">
-                              {prog ? (
+                              {p.total_cc > 0 ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(prog.cleared / prog.total) * 100}%` }} />
+                                    <div className="h-full bg-emerald-500 rounded-full transition-all"
+                                      style={{ width: `${((p.total_cc - p.pending_count) / p.total_cc) * 100}%` }} />
                                   </div>
-                                  <span className="text-xs text-gray-400">{prog.cleared}/{prog.total}</span>
+                                  <span className="text-xs text-gray-400">{p.total_cc - p.pending_count}/{p.total_cc}</span>
                                 </div>
-                              ) : <span className="text-xs text-gray-300"></span>}
+                              ) : <span className="text-xs text-gray-300">—</span>}
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -289,11 +437,17 @@ export default function BillingDashboard({ user, onLogout }) {
                                     For Clearance
                                   </button>
                                 )}
-                                {p.clearance_step === 'cost_center_clearing' && prog?.cleared === prog?.total && prog?.total > 0 && (
-                                  <button onClick={() => { setDischargeModal(p); setDischargeRemarks(""); setDischargeName(""); }}
-                                    className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                    Discharge
-                                  </button>
+                                {p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && (
+                                  <>
+                                    <button onClick={() => { setDischargeModal(p); setDischargeRemarks(""); setDischargeName(""); }}
+                                      className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                      Discharge
+                                    </button>
+                                    <button onClick={() => openPendingModal(p)}
+                                      className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                      Pending
+                                    </button>
+                                  </>
                                 )}
                                 {p.request_id && (
                                   <button onClick={() => setReport(p)}
@@ -379,8 +533,68 @@ export default function BillingDashboard({ user, onLogout }) {
       )}
       {reportPatient && <ClearanceReport patientId={reportPatient.id} onClose={() => setReport(null)} userRole="Billing" onAction={(action, patient) => { setReport(null); if (action === "for_clearance") openClearanceForm(patient); else if (action === "discharge") { setDischargeModal(patient); } }} />}
 
-      {clearanceForm && (
+      {/* Pending Modal */}
+      {pendingModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Mark as Pending</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Select the cost center(s) to send <span className="font-semibold text-gray-800">{pendingModal.full_name}</span> ({pendingModal.patient_no}) back to.
+            </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name" value={pendingActor}
+                  onChange={e => setPendingActor(e.target.value.replace(/[0-9]/g, ""))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Cost Centers <span className="text-red-500">*</span>
+                  {pendingSelectedCCs.length > 0 && (
+                    <span className="ml-2 normal-case font-normal text-orange-500">{pendingSelectedCCs.length} selected</span>
+                  )}
+                </label>
+                {pendingCCs.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-2">Loading cost centers...</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {pendingCCs.map(cc => (
+                      <label key={cc} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${pendingSelectedCCs.includes(cc) ? 'bg-orange-50 border border-orange-200' : 'hover:bg-gray-50'}`}>
+                        <input
+                          type="checkbox"
+                          checked={pendingSelectedCCs.includes(cc)}
+                          onChange={() => togglePendingCC(cc)}
+                          className="w-4 h-4 accent-orange-500 shrink-0"
+                        />
+                        <span className="text-sm text-gray-700">{cc}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Reason / Missing Requirement</label>
+                <textarea placeholder="Describe the missing requirement (optional)" value={pendingReason}
+                  onChange={e => setPendingReason(e.target.value)}
+                  rows={2} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitPending} disabled={pendingLoading || pendingSelectedCCs.length === 0}
+                className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {pendingLoading ? 'Sending...' : `Send Back${pendingSelectedCCs.length > 1 ? ` (${pendingSelectedCCs.length})` : ''}`}
+              </button>
+              <button onClick={() => { setPendingModal(null); setPendingSelectedCCs([]); setPendingReason(''); setPendingActor(''); setPendingCCs([]); }}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clearanceForm && (        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
             <p className="text-sm text-gray-500 mb-4">
