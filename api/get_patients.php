@@ -58,7 +58,7 @@ $filtered = array_filter($all, function($p) use ($role, $already_cleared, $windo
 
     switch ($role) {
         case 'Nurse':
-            return in_array($step, ['no_request', 'awaiting_nurse']);
+            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing']);
 
         case 'Billing':
             return in_array($step, ['awaiting_billing', 'cost_center_clearing', 'discharged']);

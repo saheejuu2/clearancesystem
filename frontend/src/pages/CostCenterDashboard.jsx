@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -153,12 +153,12 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} Ã¢â‚¬â€ Clearance</h1>
+          <h1 className="text-xl font-bold text-gray-800">{user.costCenter}Clearance</h1>
           <p className="text-sm text-gray-400 mt-0.5">Review and clear patients assigned to your department</p>
         </div>
 
         {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient IDÃ¢â‚¬Â¦" />
+        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -173,7 +173,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">LoadingÃ¢â‚¬Â¦</td></tr>
+                  <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients pending clearance.</td></tr>
                 ) : filtered.map(p => {
