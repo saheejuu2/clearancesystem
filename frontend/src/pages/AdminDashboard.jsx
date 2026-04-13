@@ -33,23 +33,114 @@ function AdminPatientList({ tab }) {
   const [trackPatient, setTrackPatient]     = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading]     = useState(false);
+  const [clearModal, setClearModal]         = useState(null);
+  const [clearCC, setClearCC]               = useState('');
+  const [clearName, setClearName]           = useState('');
+  const [clearRemarks, setClearRemarks]     = useState('');
+  const [clearing, setClearing]             = useState(false);
+  // Nurse actions
+  const [mayGoHomeModal, setMayGoHomeModal] = useState(null);
+  const [mghName, setMghName]               = useState('');
+  const [mghRemarks, setMghRemarks]         = useState('');
+  const [mghSaving, setMghSaving]           = useState(false);
+  // Billing actions
+  const [forClearanceModal, setForClearanceModal] = useState(null); // { patient, selected[] }
+  const [dischargeModal, setDischargeModal] = useState(null);
+  const [dischargeName, setDischargeName]   = useState('');
+  const [dischargeRemarks, setDischargeRemarks] = useState('');
+  const [dischargeSaving, setDischargeSaving] = useState(false);
+  const [pendingModal, setPendingModal]     = useState(null);
+  const [pendingCCs, setPendingCCs]         = useState([]);
+  const [pendingSelected, setPendingSelected] = useState([]);
+  const [pendingReason, setPendingReason]   = useState('');
+  const [pendingActor, setPendingActor]     = useState('');
+  const [pendingSaving, setPendingSaving]   = useState(false);
   const cfg = TAB_CONFIG[tab];
 
-  useEffect(() => {
+  const SERVICE_CC = {
+    OB:       ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
+    Surgery:  ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
+    Medicine: ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room','Hemodialysis Unit'],
+    Pedia:    ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2'],
+  };
+
+  const refetch = () => {
     setLoading(true);
     api.get('/get_patients.php?role=Admin')
       .then(res => setPatients(res.data || []))
       .finally(() => setLoading(false));
-  }, [tab]);
+  };
+  useEffect(() => { refetch(); }, [tab]);
 
   const openTracker = async (p) => {
-    setTrackPatient(p);
-    setTrackLoading(true);
+    setTrackPatient(p); setTrackLoading(true);
     try {
       const r = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
       setTrackClearances(r.data.success ? r.data.clearances : []);
     } catch { setTrackClearances([]); }
     finally { setTrackLoading(false); }
+  };
+
+  const openClearModal = async (p) => {
+    setClearModal({ patient: p, clearances: [] }); setClearCC(''); setClearName(''); setClearRemarks('');
+    try {
+      const r = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
+      if (r.data.success) setClearModal({ patient: p, clearances: r.data.clearances.filter(c => c.status === 'pending') });
+    } catch { /* silent */ }
+  };
+  const submitClear = async () => {
+    if (!clearCC) { alert('Select a cost center.'); return; }
+    if (!clearName.trim()) { alert('Enter your name.'); return; }
+    setClearing(true);
+    try {
+      const res = await api.post('/update_clearance.php', { action: 'cost_center_clear', patient_id: clearModal.patient.id, cost_center: clearCC, actor: clearName.trim(), remarks: clearRemarks.trim() });
+      if (res.data.success) { setClearModal(null); refetch(); } else alert(res.data.message);
+    } finally { setClearing(false); }
+  };
+
+  const submitMayGoHome = async () => {
+    if (!mghName.trim()) { alert('Enter your name.'); return; }
+    setMghSaving(true);
+    try {
+      const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id: mayGoHomeModal.id, actor: mghName.trim(), remarks: mghRemarks.trim() });
+      if (res.data.success) { setMayGoHomeModal(null); setMghName(''); setMghRemarks(''); refetch(); } else alert(res.data.message);
+    } finally { setMghSaving(false); }
+  };
+
+  const openForClearance = (p) => setForClearanceModal({ patient: p, service: '', selected: [] });
+  const sendForClearance = async () => {
+    if (!forClearanceModal.selected.length) { alert('Select at least one cost center.'); return; }
+    try {
+      const res = await api.post('/update_clearance.php', { action: 'for_clearance', patient_id: forClearanceModal.patient.id, actor: 'Admin', cost_centers: forClearanceModal.selected });
+      if (res.data.success) { setForClearanceModal(null); refetch(); } else alert(res.data.message);
+    } catch { /* silent */ }
+  };
+
+  const submitDischarge = async () => {
+    if (!dischargeName.trim()) { alert('Enter your name.'); return; }
+    if (!dischargeRemarks.trim()) { alert('Enter final remarks.'); return; }
+    setDischargeSaving(true);
+    try {
+      const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id: dischargeModal.id, actor: dischargeName.trim(), remarks: dischargeRemarks });
+      if (res.data.success) { setDischargeModal(null); setDischargeName(''); setDischargeRemarks(''); refetch(); } else alert(res.data.message);
+    } finally { setDischargeSaving(false); }
+  };
+
+  const openPendingModal = async (p) => {
+    setPendingModal(p); setPendingCCs([]); setPendingSelected([]); setPendingReason(''); setPendingActor('');
+    try {
+      const r = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
+      if (r.data.success) setPendingCCs(r.data.clearances.map(c => c.cost_center));
+    } catch { /* silent */ }
+  };
+  const submitPending = async () => {
+    if (!pendingSelected.length) { alert('Select at least one cost center.'); return; }
+    if (!pendingActor.trim()) { alert('Enter your name.'); return; }
+    setPendingSaving(true);
+    try {
+      const res = await api.post('/send_back_clearance.php', { patient_id: pendingModal.id, actor: pendingActor.trim(), cost_centers: pendingSelected, reason: pendingReason.trim() || 'Missing requirements' });
+      if (res.data.success) { setPendingModal(null); refetch(); } else alert(res.data.message);
+    } finally { setPendingSaving(false); }
   };
 
   const filtered = patients
@@ -106,12 +197,44 @@ function AdminPatientList({ tab }) {
                       )}
                     </td>
                     <td className="px-4 py-3.5">
-                      {p.clearance_step === 'cost_center_clearing' && (
-                        <button onClick={() => openTracker(p)}
-                          className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                          Track
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {(p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse') && (
+                          <button onClick={() => { setMayGoHomeModal(p); setMghName(''); setMghRemarks(''); }}
+                            className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                            May Go Home
+                          </button>
+                        )}
+                        {p.clearance_step === 'awaiting_billing' && (
+                          <button onClick={() => openForClearance(p)}
+                            className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                            For Clearance
+                          </button>
+                        )}
+                        {p.clearance_step === 'cost_center_clearing' && (
+                          <>
+                            <button onClick={() => openClearModal(p)}
+                              className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                              Clear
+                            </button>
+                            {parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && (
+                              <>
+                                <button onClick={() => { setDischargeModal(p); setDischargeName(''); setDischargeRemarks(''); }}
+                                  className="text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                  Discharge
+                                </button>
+                                <button onClick={() => openPendingModal(p)}
+                                  className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                  Pending
+                                </button>
+                              </>
+                            )}
+                            <button onClick={() => openTracker(p)}
+                              className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                              Track
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -175,6 +298,151 @@ function AdminPatientList({ tab }) {
                 })()}
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Clear Patient Modal */}
+      {clearModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Clear Patient</h3>
+            <p className="text-sm text-gray-500 mb-4">Clear a cost center for <span className="font-semibold text-gray-800">{clearModal.patient.full_name}</span> ({clearModal.patient.patient_no})</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cost Center <span className="text-red-500">*</span></label>
+                <select value={clearCC} onChange={e => setClearCC(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                  <option value="">-- Select pending cost center --</option>
+                  {clearModal.clearances.length === 0 ? <option disabled>Loading...</option> : clearModal.clearances.map(c => <option key={c.cost_center} value={c.cost_center}>{c.cost_center}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name" value={clearName} onChange={e => setClearName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+                <textarea rows={2} value={clearRemarks} onChange={e => setClearRemarks(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitClear} disabled={clearing} className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">{clearing ? 'Clearing...' : 'Confirm Cleared'}</button>
+              <button onClick={() => setClearModal(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* May Go Home Modal */}
+      {mayGoHomeModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Confirm May Go Home</h3>
+            <p className="text-sm text-gray-500 mb-4">Mark <span className="font-semibold text-gray-800">{mayGoHomeModal.full_name}</span> ({mayGoHomeModal.patient_no}) as ready for discharge clearance.</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name" value={mghName} onChange={e => setMghName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+                <textarea rows={2} value={mghRemarks} onChange={e => setMghRemarks(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitMayGoHome} disabled={mghSaving} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">{mghSaving ? 'Confirming...' : 'Confirm May Go Home'}</button>
+              <button onClick={() => setMayGoHomeModal(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* For Clearance Modal */}
+      {forClearanceModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
+            <p className="text-sm text-gray-500 mb-4"><span className="font-semibold text-gray-700">{forClearanceModal.patient.full_name}</span> — select service to load cost centers.</p>
+            <div className="flex flex-col gap-1.5 mb-4">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Service</label>
+              <select value={forClearanceModal.service} onChange={e => { const svc = e.target.value; setForClearanceModal(f => ({ ...f, service: svc, selected: svc ? [...SERVICE_CC[svc]] : [] })); }} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                <option value="">-- Select Service --</option>
+                {Object.keys(SERVICE_CC).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            {forClearanceModal.selected.length > 0 && (
+              <div className="flex flex-col gap-1.5 mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                {forClearanceModal.selected.map(cc => (
+                  <div key={cc} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                    <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    <span className="text-sm text-gray-700">{cc}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button onClick={sendForClearance} disabled={!forClearanceModal.selected.length} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">Send to {forClearanceModal.selected.length} dept{forClearanceModal.selected.length !== 1 ? 's' : ''}</button>
+              <button onClick={() => setForClearanceModal(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discharge Modal */}
+      {dischargeModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Discharge Patient</h3>
+            <p className="text-sm text-gray-500 mb-4">Confirm discharge for <span className="font-semibold text-gray-800">{dischargeModal.full_name}</span> ({dischargeModal.patient_no})</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name" value={dischargeName} onChange={e => setDischargeName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Final Remarks <span className="text-red-500">*</span></label>
+                <textarea rows={2} value={dischargeRemarks} onChange={e => setDischargeRemarks(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitDischarge} disabled={dischargeSaving} className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">{dischargeSaving ? 'Discharging...' : 'Confirm Discharge'}</button>
+              <button onClick={() => setDischargeModal(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Modal */}
+      {pendingModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Mark as Pending</h3>
+            <p className="text-sm text-gray-500 mb-4">Send <span className="font-semibold text-gray-800">{pendingModal.full_name}</span> ({pendingModal.patient_no}) back to cost center(s).</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name" value={pendingActor} onChange={e => setPendingActor(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cost Centers <span className="text-red-500">*</span> {pendingSelected.length > 0 && <span className="text-orange-500 normal-case font-normal ml-1">{pendingSelected.length} selected</span>}</label>
+                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                  {pendingCCs.length === 0 ? <p className="text-xs text-gray-400 py-2 text-center">Loading...</p> : pendingCCs.map(cc => (
+                    <label key={cc} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${pendingSelected.includes(cc) ? 'bg-orange-50 border border-orange-200' : 'hover:bg-gray-50'}`}>
+                      <input type="checkbox" checked={pendingSelected.includes(cc)} onChange={() => setPendingSelected(prev => prev.includes(cc) ? prev.filter(c => c !== cc) : [...prev, cc])} className="w-4 h-4 accent-orange-500 shrink-0" />
+                      <span className="text-sm text-gray-700">{cc}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Reason</label>
+                <textarea rows={2} placeholder="Missing requirement (optional)" value={pendingReason} onChange={e => setPendingReason(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitPending} disabled={pendingSaving || !pendingSelected.length} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">{pendingSaving ? 'Sending...' : `Send Back${pendingSelected.length > 1 ? ` (${pendingSelected.length})` : ''}`}</button>
+              <button onClick={() => setPendingModal(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
+            </div>
           </div>
         </div>
       )}
