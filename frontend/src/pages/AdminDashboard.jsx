@@ -495,14 +495,30 @@ export default function AdminDashboard({ user, onLogout }) {
   const [showProfilePass, setShowProfilePass]       = useState(false);
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
 
+  const [toastSettings, setToastSettings] = useState({});
+
   const fetchAll = () => {
     setLoading(true);
     api.get('/manage_users.php?action=list_all')
       .then(res => setAllStaff(Array.isArray(res.data) ? res.data : []))
       .finally(() => setLoading(false));
   };
+
+  const fetchToastSettings = () => {
+    api.get('/notification_settings.php')
+      .then(res => setToastSettings(res.data || {}))
+      .catch(() => {});
+  };
+
+  const toggleToast = async (costCenter, current) => {
+    const newVal = !current;
+    setToastSettings(prev => ({ ...prev, [costCenter]: newVal }));
+    await api.post('/notification_settings.php', { cost_center: costCenter, toast_enabled: newVal }).catch(() => {});
+  };
+
   useEffect(() => {
     fetchAll();
+    fetchToastSettings();
     api.get('/get_stats.php').then(r => {
       const d = r.data || {};
       setPendingCount(d.pending_count || 0);
@@ -664,9 +680,9 @@ export default function AdminDashboard({ user, onLogout }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                        {['Username','Full Name','Cost Center','Created','Actions'].map(h => (
-                          <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                        ))}
+                        {['Username','Full Name','Cost Center','Created','Notification Management','Actions'].map(h => (
+                        <th key={h} className={`px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap ${h === 'Notification Management' ? 'text-center' : ''}`}>{h}</th>
+                      ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -680,6 +696,24 @@ export default function AdminDashboard({ user, onLogout }) {
                           <td className="px-5 py-4 font-semibold text-gray-800">{s.full_name}</td>
                           <td className="px-5 py-4"><span className="text-xs font-medium bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">{s.cost_center}</span></td>
                           <td className="px-5 py-4 text-gray-500 text-xs">{new Date(s.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</td>
+                          <td className="px-5 py-4 text-center">
+                            {s.cost_center && s.cost_center !== 'Nurse' && s.cost_center !== 'Billing' ? (() => {
+                              const on = toastSettings[s.cost_center] !== false;
+                              return (
+                                <button
+                                  onClick={() => toggleToast(s.cost_center, on)}
+                                  className={`relative inline-flex h-7 w-16 items-center rounded-full transition-colors duration-200 focus:outline-none ${on ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                                >
+                                  <span className={`absolute text-[10px] font-bold text-white transition-all duration-200 ${on ? 'left-2' : 'right-2'}`}>
+                                    {on ? 'ON' : 'OFF'}
+                                  </span>
+                                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-10' : 'translate-x-1'}`} />
+                                </button>
+                              );
+                            })() : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
+                          </td>
                           <td className="px-5 py-4">
                             <div className="flex gap-2">
                               <button onClick={() => openEdit(s)} className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">Edit</button>

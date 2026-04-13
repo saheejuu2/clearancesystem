@@ -14,8 +14,13 @@ export default function NotificationBell({ recipient, onNotificationClick }) {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifications, 3000);
+    const onVisible = () => { if (document.visibilityState === "visible") fetchNotifications(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchNotifications]);
 
   useEffect(() => {
@@ -27,12 +32,12 @@ export default function NotificationBell({ recipient, onNotificationClick }) {
 
   const markRead = async (id) => {
     await api.post("/notifications.php?action=read", { id }).catch(() => {});
-    fetchNotifications();
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
   };
 
   const markAllRead = async () => {
     await api.post("/notifications.php?action=read_all&recipient=" + encodeURIComponent(recipient)).catch(() => {});
-    fetchNotifications();
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
   };
 
   const unread = notifications.filter(n => !n.is_read).length;
@@ -71,7 +76,7 @@ export default function NotificationBell({ recipient, onNotificationClick }) {
                 if (onNotificationClick) onNotificationClick(n);
               }}
                 className={"px-4 py-3 cursor-pointer transition-colors " + (n.is_read ? "bg-white hover:bg-gray-50" : "bg-blue-50 hover:bg-blue-100")}>
-                {recipient === 'Admin' && (
+                {recipient === "Admin" && (
                   <p className="text-xs font-semibold text-emerald-600 mb-0.5">{n.recipient}</p>
                 )}
                 <p className={"text-sm " + (n.is_read ? "text-gray-600" : "text-gray-800 font-medium")}>{n.message}</p>

@@ -7,6 +7,7 @@ import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
+import PendingPatientToast from '../components/PendingPatientToast';
 import usePagination from '../hooks/usePagination';
 import Pagination from '../components/Pagination';
 
@@ -28,6 +29,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [clearedSearch, setClearedSearch]     = useState('');
   const [pendingPatients, setPendingPatients] = useState([]);
   const [pendingLoading, setPendingLoading]   = useState(false);
+
+  const [toastEnabled, setToastEnabled] = useState(true);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -71,6 +74,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   useEffect(() => {
     fetchPatients();
+    api.get(`/notification_settings.php?cost_center=${encodeURIComponent(user.costCenter)}`)
+      .then(res => setToastEnabled(res.data.toast_enabled !== false))
+      .catch(() => {});
     // Pre-fetch pending count for badge (only sent-back patients)
     api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&pending_only=1`)
       .then(res => setPendingPatients(Array.isArray(res.data) ? res.data : []))
@@ -410,6 +416,10 @@ export default function CostCenterDashboard({ user, onLogout }) {
       </div>
       {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="cost_center" userCostCenter={user.costCenter} onAction={(action, patient) => { setNotifReport(null); if (action === "clear") { setClearModal(patient); } }} />}
 
+      <PendingPatientToast patients={patients.filter(p => {
+        const s = ccStatuses[p.id];
+        return !s || s.status !== 'cleared';
+      })} enabled={toastEnabled} />
       {/* Clear Patient Modal */}
       {clearModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
