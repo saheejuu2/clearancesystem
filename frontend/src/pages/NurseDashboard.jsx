@@ -14,7 +14,7 @@ const STEP_LABEL = {
   no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
   awaiting_nurse:       { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
   awaiting_billing:     { label: 'May Go Home',  style: 'bg-blue-100 text-blue-600'       },
-  cost_center_clearing: { label: 'In Clearance', style: 'bg-amber-100 text-amber-600'     },
+  cost_center_clearing: { label: 'Clearance', style: 'bg-amber-100 text-amber-600'     },
   discharged:           { label: 'Discharged',   style: 'bg-emerald-100 text-emerald-700' },
 };
 
@@ -180,7 +180,7 @@ export default function NurseDashboard({ user, onLogout }) {
             {[
               { value: "no_request",          label: "Admitted",     dot: "bg-gray-400",  count: patients.filter(p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse').length },
               { value: "awaiting_billing",     label: "May Go Home",  dot: "bg-blue-500",  count: patients.filter(p => p.clearance_step === 'awaiting_billing').length },
-              { value: "cost_center_clearing", label: "In Clearance", dot: "bg-amber-500", count: patients.filter(p => p.clearance_step === 'cost_center_clearing').length },
+              { value: "cost_center_clearing", label: "Clearance", dot: "bg-amber-500", count: patients.filter(p => p.clearance_step === 'cost_center_clearing').length },
             ].map(s => (
               <button key={s.value}
                 onClick={() => { setTab("patients"); setStatusFilter(statusFilter === s.value ? "" : s.value); }}
@@ -246,7 +246,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <option value="">Status</option>
                 <option value="no_request">Admitted</option>
                 <option value="awaiting_billing">May Go Home</option>
-                <option value="cost_center_clearing">In Clearance</option>
+                <option value="cost_center_clearing">Clearance</option>
                 <option value="pending">Pending</option>
               </select>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
