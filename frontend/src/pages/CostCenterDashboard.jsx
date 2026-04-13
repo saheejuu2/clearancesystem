@@ -469,7 +469,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 ) : pagedCC.map(p => {
                   const myStatus = ccStatuses[p.id];
                   const isCleared = myStatus?.status === 'cleared';
-                  const isSentBack = !isCleared && myStatus?.remarks;
+                  const isPendingBalance = myStatus?.status === 'pending_balance';
+                  const isSentBack = !isCleared && !isPendingBalance && myStatus?.remarks;
                   return (
                     <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
@@ -487,6 +488,16 @@ export default function CostCenterDashboard({ user, onLogout }) {
                       <td className="px-4 py-3.5">
                         {isCleared ? (
                           <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 whitespace-nowrap">Cleared</span>
+                        ) : isPendingBalance ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600 whitespace-nowrap">Pending Balance</span>
+                            {myStatus?.remarks && (
+                              <button onClick={() => setRemarksModal({ patient: p, remarks: myStatus.remarks })}
+                                className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap">
+                                View Remarks
+                              </button>
+                            )}
+                          </div>
                         ) : isSentBack ? (
                           <div className="flex flex-col gap-0.5">
                             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 w-fit whitespace-nowrap">Sent Back</span>
