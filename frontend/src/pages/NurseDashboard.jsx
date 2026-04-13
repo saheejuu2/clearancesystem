@@ -3,6 +3,7 @@ import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
+import DateFilter from '../components/DateFilter';
 import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
@@ -49,13 +50,15 @@ export default function NurseDashboard({ user, onLogout }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  const fetchPatients = async () => {
+  const fetchPatients = async (date) => {
     setLoading(true);
+    const d = date || filterDate;
     try {
       const [listRes, allRes] = await Promise.all([
-        api.get('/get_patients.php?role=Nurse'),
-        api.get('/get_patients.php?role=Billing'), // get all in-progress for cancel
+        api.get(`/get_patients.php?role=Nurse&date=${d}`),
+        api.get(`/get_patients.php?role=Billing&date=${d}`),
       ]);
       setPatients(listRes.data);
       setAllPatients(allRes.data.filter(p =>
@@ -66,7 +69,6 @@ export default function NurseDashboard({ user, onLogout }) {
   };
 
   useEffect(() => { fetchPatients(); }, []);
-
   const openForm = (patient_id) => {
     setConfirmForm({ patientId: patient_id, nurseName: '', remarks: '' });
   };
@@ -225,15 +227,17 @@ export default function NurseDashboard({ user, onLogout }) {
 
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
-              <button onClick={() => setAdmitForm({ patient_no: '', full_name: '', age: '', ward: '', admit_date: new Date().toISOString().split('T')[0], patient_type: 'in-patient' })}
-                className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Admit Patient
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+                <button onClick={() => setAdmitForm({ patient_no: '', full_name: '', age: '', ward: '', admit_date: new Date().toISOString().split('T')[0], patient_type: 'in-patient' })}
+                  className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap shrink-0">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Admit Patient
+                </button>
+              </div>
             </div>
-
             {/* Filters */}
             <div className="flex flex-wrap gap-3">
               <select value={wardFilter} onChange={e => setWardFilter(e.target.value)}

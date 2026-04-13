@@ -4,6 +4,7 @@ import ClearanceReport from '../components/ClearanceReport';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
+import DateFilter from '../components/DateFilter';
 import NotificationBell from '../components/NotificationBell';
 import NavBtn from '../components/NavBtn';
 import DashboardOverview from '../components/DashboardOverview';
@@ -127,6 +128,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pendingCCs, setPendingCCs] = useState([]);
   const [followUpModal, setFollowUpModal] = useState(null);
+  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [followUpSelected, setFollowUpSelected] = useState([]);
   const [followUpLoading, setFollowUpLoading] = useState(false);
 
@@ -187,10 +189,11 @@ export default function BillingDashboard({ user, onLogout }) {
     );
   };
 
-  const fetchPatients = async () => {
+  const fetchPatients = async (date) => {
     setLoading(true);
+    const d = date || filterDate;
     try {
-      const res = await api.get('/get_patients.php?role=Billing');
+      const res = await api.get(`/get_patients.php?role=Billing&date=${d}`);
       setPatients(res.data || []);
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -432,7 +435,10 @@ export default function BillingDashboard({ user, onLogout }) {
               <p className="text-sm text-gray-400 mt-0.5">Manage patient clearance and discharge</p>
             </div>
 
-            <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient" />
+            <div className="flex items-center gap-3">
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient" /></div>
+              <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+            </div>
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">

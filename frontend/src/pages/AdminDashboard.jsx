@@ -6,6 +6,7 @@ import NotificationBell from '../components/NotificationBell';
 import NavBtn from '../components/NavBtn';
 import DashboardOverview from '../components/DashboardOverview';
 import SearchBar from '../components/SearchBar';
+import DateFilter from '../components/DateFilter';
 import usePagination from '../hooks/usePagination';
 import Pagination from '../components/Pagination';
 
@@ -59,6 +60,7 @@ function AdminPatientList({ tab }) {
   const [selected, setSelectedIds]          = useState(new Set());
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [deleting, setDeleting]             = useState(false);
+  const [filterDate, setFilterDate]         = useState(() => new Date().toISOString().split('T')[0]);
   const cfg = TAB_CONFIG[tab];
 
   const SERVICE_CC = {
@@ -68,9 +70,10 @@ function AdminPatientList({ tab }) {
     Pedia:    ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2'],
   };
 
-  const refetch = () => {
+  const refetch = (date) => {
     setLoading(true);
-    api.get('/get_patients.php?role=Admin')
+    const d = date || filterDate;
+    api.get(`/get_patients.php?role=Admin&date=${d}`)
       .then(res => setPatients(res.data || []))
       .finally(() => setLoading(false));
   };
@@ -179,7 +182,9 @@ function AdminPatientList({ tab }) {
           <h1 className="text-xl font-bold text-gray-800">{cfg.title}</h1>
           <p className="text-sm text-gray-400 mt-0.5">{cfg.subtitle}</p>
         </div>
-        {!selectMode ? (
+        <div className="flex items-center gap-2">
+          <DateFilter value={filterDate} onChange={d => { setFilterDate(d); refetch(d); }} />
+          {!selectMode ? (
           <button onClick={() => { setSelectMode(true); setSelectedIds(new Set()); }}
             className="flex items-center gap-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,6 +205,7 @@ function AdminPatientList({ tab }) {
             </button>
           </div>
         )}
+        </div>
       </div>
       <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

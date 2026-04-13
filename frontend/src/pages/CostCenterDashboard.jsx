@@ -3,6 +3,7 @@ import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
+import DateFilter from '../components/DateFilter';
 import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
@@ -36,11 +37,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   const [remarksModal, setRemarksModal] = useState(null);
   const [toastEnabled, setToastEnabled] = useState(true);
+  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  const fetchPatients = async () => {
+  const fetchPatients = async (date) => {
     setLoading(true);
+    const d = date || filterDate;
     try {
-      const res = await api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}`);
+      const res = await api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&date=${d}`);
       setPatients(res.data);
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -448,7 +451,10 @@ export default function CostCenterDashboard({ user, onLogout }) {
         </div>
 
         {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
+        <div className="flex items-center gap-3">
+          <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+          <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+        </div>
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
