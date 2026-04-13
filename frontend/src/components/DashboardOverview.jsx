@@ -3,7 +3,7 @@ import api from '../services/api';
 
 const fmt = (dt) => dt ? new Date(dt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
 
-export default function DashboardOverview({ title = 'Dashboard', subtitle = 'Overview' }) {
+export default function DashboardOverview({ title = 'Dashboard', subtitle = 'Overview', onCardClick }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,10 +17,11 @@ export default function DashboardOverview({ title = 'Dashboard', subtitle = 'Ove
   if (!stats)  return <p className="text-center py-12 text-gray-300 text-sm">No data available.</p>;
 
   const cards = [
-    { label: 'Total Patients',    value: stats.total_patients,   color: 'bg-blue-50 text-blue-700',       icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-    { label: 'Awaiting Billing',  value: stats.awaiting_billing, color: 'bg-amber-50 text-amber-700',     icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { label: 'In Clearance',      value: stats.in_progress,      color: 'bg-violet-50 text-violet-700',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-    { label: 'Discharged',        value: stats.discharged,       color: 'bg-emerald-50 text-emerald-700', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { label: 'Total Patients',   value: stats.total_patients,   color: 'bg-blue-50 text-blue-700',       tab: 'total',            icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+    { label: 'Awaiting Billing', value: stats.awaiting_billing, color: 'bg-amber-50 text-amber-700',     tab: 'awaiting_billing', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { label: 'In Clearance',     value: stats.in_progress,      color: 'bg-violet-50 text-violet-700',   tab: 'in_clearance',     icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+    { label: 'Pending',          value: stats.pending_count,    color: 'bg-orange-50 text-orange-700',   tab: 'pending',          icon: 'M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z' },
+    { label: 'Discharged',       value: stats.discharged,       color: 'bg-emerald-50 text-emerald-700', tab: 'discharged',       icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
   ];
 
   return (
@@ -31,9 +32,11 @@ export default function DashboardOverview({ title = 'Dashboard', subtitle = 'Ove
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {cards.map(c => (
-          <div key={c.label} className={`rounded-2xl p-5 ${c.color} flex flex-col gap-3`}>
+          <div key={c.label}
+            onClick={() => onCardClick && onCardClick(c.tab)}
+            className={`rounded-2xl p-5 ${c.color} flex flex-col gap-3 ${onCardClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}>
             <svg className="w-6 h-6 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={c.icon} />
             </svg>

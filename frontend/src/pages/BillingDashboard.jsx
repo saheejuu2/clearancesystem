@@ -7,6 +7,8 @@ import SearchBar from '../components/SearchBar';
 import NotificationBell from '../components/NotificationBell';
 import NavBtn from '../components/NavBtn';
 import DashboardOverview from '../components/DashboardOverview';
+import usePagination from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 
 
 function DischargedList() {
@@ -25,6 +27,7 @@ function DischargedList() {
     p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase())
   );
+  const { paged, page, setPage, totalPages, total, start, pageSize } = usePagination(filtered);
 
   return (
     <div className="flex flex-col gap-5">
@@ -48,7 +51,7 @@ function DischargedList() {
                 <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No discharged patients.</td></tr>
-              ) : filtered.map(p => (
+              ) : paged.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                   <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                   <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
@@ -72,9 +75,7 @@ function DischargedList() {
             </tbody>
           </table>
         </div>
-        <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-          {filtered.length} patient{filtered.length !== 1 ? 's' : ''}
-        </div>
+        <Pagination page={page} totalPages={totalPages} total={total} start={start} pageSize={pageSize} onPage={setPage} />
       </div>
       {report && <ClearanceReport patientId={report.id} onClose={() => setReport(null)} />}
     </div>
@@ -260,6 +261,7 @@ export default function BillingDashboard({ user, onLogout }) {
     (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
+  const { paged: pagedBilling, page: billingPage, setPage: setBillingPage, totalPages: billingTotalPages, total: billingTotal, start: billingStart, pageSize: billingPageSize } = usePagination(filtered);
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -455,7 +457,7 @@ export default function BillingDashboard({ user, onLogout }) {
                       <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
-                    ) : filtered.map(p => {
+                    ) : pagedBilling.map(p => {
                       const step = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
                       const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                       return (
@@ -525,9 +527,7 @@ export default function BillingDashboard({ user, onLogout }) {
                   </tbody>
                 </table>
               </div>
-              <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-                Showing {filtered.length} of {patients.length} patients
-              </div>
+              <Pagination page={billingPage} totalPages={billingTotalPages} total={billingTotal} start={billingStart} pageSize={billingPageSize} onPage={setBillingPage} />
             </div>
           </>
         )}

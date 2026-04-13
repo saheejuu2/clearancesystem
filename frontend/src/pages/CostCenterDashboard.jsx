@@ -7,6 +7,8 @@ import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
+import usePagination from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 
 export default function CostCenterDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState('patients');
@@ -113,6 +115,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
     p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase())
   );
+  const { paged: pagedCC, page: ccPage, setPage: setCcPage, totalPages: ccTotalPages, total: ccTotal, start: ccStart, pageSize: ccPageSize } = usePagination(filtered);
+
+  const clearedFiltered = clearedPatients.filter(p =>
+    p.full_name.toLowerCase().includes(clearedSearch.toLowerCase()) ||
+    p.patient_no.toLowerCase().includes(clearedSearch.toLowerCase())
+  );
+  const { paged: pagedCleared, page: clearedPage, setPage: setClearedPage, totalPages: clearedTotalPages, total: clearedTotal, start: clearedStart, pageSize: clearedPageSize } = usePagination(clearedFiltered);
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -258,17 +267,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   <tbody className="divide-y divide-gray-50">
                     {clearedLoading ? (
                       <tr><td colSpan={9} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
-                    ) : clearedPatients.filter(p =>
-                        p.full_name.toLowerCase().includes(clearedSearch.toLowerCase()) ||
-                        p.patient_no.toLowerCase().includes(clearedSearch.toLowerCase())
-                      ).length === 0 ? (
+                    ) : clearedFiltered.length === 0 ? (
                       <tr><td colSpan={9} className="text-center py-12 text-gray-300 text-sm">No cleared patients yet.</td></tr>
-                    ) : clearedPatients
-                        .filter(p =>
-                          p.full_name.toLowerCase().includes(clearedSearch.toLowerCase()) ||
-                          p.patient_no.toLowerCase().includes(clearedSearch.toLowerCase())
-                        )
-                        .map(p => (
+                    ) : pagedCleared.map(p => (
                           <tr key={p.patient_id + p.cleared_at} className="hover:bg-gray-50/70 transition-colors">
                             <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
@@ -305,9 +306,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   </tbody>
                 </table>
               </div>
-              <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-                {clearedPatients.length} patient{clearedPatients.length !== 1 ? 's' : ''} cleared by {user.costCenter}
-              </div>
+              <Pagination page={clearedPage} totalPages={clearedTotalPages} total={clearedTotal} start={clearedStart} pageSize={clearedPageSize} onPage={setClearedPage} />
             </div>
           </div>
         )}
@@ -337,7 +336,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients pending clearance.</td></tr>
-                ) : filtered.map(p => {
+                ) : pagedCC.map(p => {
                   const myStatus = ccStatuses[p.id];
                   const isCleared = myStatus?.status === 'cleared';
                   const isSentBack = !isCleared && myStatus?.remarks;
@@ -394,9 +393,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </tbody>
             </table>
           </div>
-          <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-            Showing {filtered.length} patients pending clearance
-          </div>
+          <Pagination page={ccPage} totalPages={ccTotalPages} total={ccTotal} start={ccStart} pageSize={ccPageSize} onPage={setCcPage} />
         </div>
         </div>
         )}

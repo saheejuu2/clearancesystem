@@ -7,6 +7,8 @@ import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
+import usePagination from '../hooks/usePagination';
+import Pagination from '../components/Pagination';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
@@ -129,11 +131,16 @@ export default function NurseDashboard({ user, onLogout }) {
     const q = search.toLowerCase();
     const matchQ = !q || p.full_name.toLowerCase().includes(q) || p.patient_no.toLowerCase().includes(q);
     const matchWard = !wardFilter || p.ward === wardFilter;
-    const matchStatus = !statusFilter || p.clearance_step === statusFilter;
+    const matchStatus = !statusFilter
+      ? true
+      : statusFilter === 'pending'
+        ? p.has_pending && p.clearance_step === 'cost_center_clearing'
+        : p.clearance_step === statusFilter;
     const matchFrom = !dateFrom || p.admit_date >= dateFrom;
     const matchTo = !dateTo || p.admit_date <= dateTo;
     return matchQ && matchWard && matchStatus && matchFrom && matchTo;
   });
+  const { paged: pagedPatients, page: nursePage, setPage: setNursePage, totalPages: nurseTotalPages, total: nurseTotal, start: nurseStart, pageSize: nursePageSize } = usePagination(filtered);
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -262,7 +269,7 @@ export default function NurseDashboard({ user, onLogout }) {
                       <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
-                    ) : filtered.map(p => {
+                    ) : pagedPatients.map(p => {
                       const step   = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
                       const canAct = p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse';
                       const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
@@ -321,9 +328,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 </table>
               </div>
 
-              <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-                Showing {filtered.length} of {patients.length} patients
-              </div>
+              <Pagination page={nursePage} totalPages={nurseTotalPages} total={nurseTotal} start={nurseStart} pageSize={nursePageSize} onPage={setNursePage} />
             </div>
           </div>
         )}

@@ -35,6 +35,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
 
 $data = json_decode(file_get_contents("php://input"), true);
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
+    $recipient    = $data['recipient']    ?? '';
+    $patient_id   = (int)($data['patient_id']   ?? 0);
+    $patient_no   = $data['patient_no']   ?? '';
+    $patient_name = $data['patient_name'] ?? '';
+    $message      = $data['message']      ?? '';
+    if (!$recipient || !$patient_id || !$message) {
+        echo json_encode(["success" => false, "message" => "Missing fields."]);
+        exit();
+    }
+    $stmt = $conn->prepare("INSERT INTO notifications (recipient, patient_id, patient_no, patient_name, message) VALUES (?, ?, ?, ?, ?)");
+    if ($stmt) {
+        $stmt->bind_param("sisss", $recipient, $patient_id, $patient_no, $patient_name, $message);
+        $stmt->execute();
+        echo json_encode(["success" => true]);
+    } else {
+        echo json_encode(["success" => false, "message" => "DB error."]);
+    }
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'read') {
     $id = (int)($data['id'] ?? 0);
     if ($id) {
