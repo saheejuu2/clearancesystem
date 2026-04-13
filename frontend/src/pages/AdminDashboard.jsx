@@ -5,6 +5,7 @@ import AuditTrail from '../components/AuditTrail';
 import NotificationBell from '../components/NotificationBell';
 import NavBtn from '../components/NavBtn';
 import DashboardOverview from '../components/DashboardOverview';
+import SearchBar from '../components/SearchBar';
 import usePagination from '../hooks/usePagination';
 import Pagination from '../components/Pagination';
 
@@ -153,9 +154,7 @@ function AdminPatientList({ tab }) {
         <h1 className="text-xl font-bold text-gray-800">{cfg.title}</h1>
         <p className="text-sm text-gray-400 mt-0.5">{cfg.subtitle}</p>
       </div>
-      <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="Search by name or patient ID..."
-        className="w-full max-w-sm px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
+      <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -810,9 +809,7 @@ export default function AdminDashboard({ user, onLogout }) {
                 <p className="text-sm text-gray-400 mt-0.5">Manage all staff accounts across every cost center</p>
               </div>
               <div className="flex gap-3 items-center">
-                <input type="text" placeholder="Search by name, username, or cost center..." value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
+                <SearchBar value={search} onChange={setSearch} placeholder="Search by name, username, or cost center…" />
                 <div className="relative w-64 shrink-0" ref={ccRef}>
                   <button onClick={() => setCcOpen(v => !v)}
                     className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
