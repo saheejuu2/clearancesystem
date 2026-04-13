@@ -604,7 +604,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             <NavBtn compact tabKey="discharged"       label="Discharged"       active={tab} setTab={setTab} d="M5 13l4 4L19 7" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Management</p>
-            <NavBtn compact tabKey="staff" label="Staff Accounts" active={tab} setTab={setTab} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            <NavBtn compact tabKey="staff" label="Account Management" active={tab} setTab={setTab} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Records</p>
             <NavBtn compact tabKey="audit" label="Audit Trail" active={tab} setTab={() => { setTab("audit"); setAuditKey(k => k + 1); }} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </nav>
@@ -625,7 +625,7 @@ export default function AdminDashboard({ user, onLogout }) {
           {tab === 'staff' && (
             <div className="flex flex-col gap-5">
               <div>
-                <h1 className="text-xl font-bold text-gray-800">Staff Accounts</h1>
+                <h1 className="text-xl font-bold text-gray-800">Account Management</h1>
                 <p className="text-sm text-gray-400 mt-0.5">Manage all staff accounts across every cost center</p>
               </div>
               <div className="flex gap-3 items-center">
@@ -656,7 +656,7 @@ export default function AdminDashboard({ user, onLogout }) {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Add Staff
+                  Add Account
                 </button>
               </div>
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -771,7 +771,7 @@ export default function AdminDashboard({ user, onLogout }) {
       {form && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-5">{form.mode === 'create' ? 'Add Staff Account' : 'Edit Staff Account'}</h3>
+            <h3 className="text-base font-bold text-gray-900 mb-5">{form.mode === 'create' ? 'Add Account' : 'Edit Account'}</h3>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Full Name <span className="text-red-500">*</span></label>
