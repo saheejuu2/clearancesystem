@@ -7,7 +7,7 @@ export default function PendingPatientToast({ patients = [], enabled = true }) {
   const timerRef = useRef(null);
   const queueRef = useRef([]);
 
-  const dismiss = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+  const dismiss = (toastId) => setToasts(prev => prev.filter(t => t.toastId !== toastId));
 
   const showNext = () => {
     if (queueRef.current.length === 0) return;
