@@ -30,6 +30,9 @@ function AdminPatientList({ tab }) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
+  const [trackPatient, setTrackPatient]     = useState(null);
+  const [trackClearances, setTrackClearances] = useState([]);
+  const [trackLoading, setTrackLoading]     = useState(false);
   const cfg = TAB_CONFIG[tab];
 
   useEffect(() => {
@@ -38,6 +41,16 @@ function AdminPatientList({ tab }) {
       .then(res => setPatients(res.data || []))
       .finally(() => setLoading(false));
   }, [tab]);
+
+  const openTracker = async (p) => {
+    setTrackPatient(p);
+    setTrackLoading(true);
+    try {
+      const r = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
+      setTrackClearances(r.data.success ? r.data.clearances : []);
+    } catch { setTrackClearances([]); }
+    finally { setTrackLoading(false); }
+  };
 
   const filtered = patients
     .filter(cfg.filter)
@@ -58,16 +71,16 @@ function AdminPatientList({ tab }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                {['Patient ID','Name','Age','Ward','Admit Date','Type','Status'].map(h => (
+                {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
               ) : paged.map(p => {
                 const step = STEP_LABELS[p.clearance_step] || STEP_LABELS['no_request'];
                 const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
@@ -92,6 +105,14 @@ function AdminPatientList({ tab }) {
                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${step.style}`}>{step.label}</span>
                       )}
                     </td>
+                    <td className="px-4 py-3.5">
+                      {p.clearance_step === 'cost_center_clearing' && (
+                        <button onClick={() => openTracker(p)}
+                          className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                          Track
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -100,6 +121,63 @@ function AdminPatientList({ tab }) {
         </div>
         <Pagination page={page} totalPages={totalPages} total={total} start={start} pageSize={pageSize} onPage={setPage} />
       </div>
+
+      {/* Clearance Progress Tracker Modal */}
+      {trackPatient && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Clearance Progress</h3>
+                <p className="text-sm text-gray-500">{trackPatient.full_name} — {trackPatient.patient_no}</p>
+              </div>
+              <button onClick={() => setTrackPatient(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {trackLoading ? (
+              <p className="text-center py-8 text-gray-300 text-sm">Loading...</p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2 mb-4">
+                  {trackClearances.map(c => (
+                    <div key={c.cost_center} className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${c.status === 'cleared' ? 'bg-emerald-50' : 'bg-gray-50'}`}>
+                      <span className="text-sm text-gray-700 font-medium">{c.cost_center}</span>
+                      {c.status === 'cleared' ? (
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-xs font-semibold text-emerald-600">Cleared</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-amber-500">Pending</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {trackClearances.length > 0 && (() => {
+                  const cleared = trackClearances.filter(c => c.status === 'cleared').length;
+                  const total   = trackClearances.length;
+                  return (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Progress</span>
+                        <span className="text-xs font-semibold text-gray-700">{cleared}/{total} cleared</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(cleared/total)*100}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

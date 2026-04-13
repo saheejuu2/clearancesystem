@@ -338,6 +338,42 @@ export default function NurseDashboard({ user, onLogout }) {
       {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="Nurse" onAction={(action, patient) => { setNotifReport(null); if (action === "may_go_home") openForm(patient.id); else if (action === "cancel") setCancelForm({ patientId: patient.id, patientName: patient.full_name, nurseName: "", remarks: "" }); }} />}
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
 
+      {/* May Go Home Confirm Modal */}
+      {confirmForm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Confirm May Go Home</h3>
+            <p className="text-sm text-gray-500 mb-5">Enter your name to confirm this patient is ready for discharge clearance.</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your full name"
+                  value={confirmForm.nurseName}
+                  onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value.replace(/[0-9]/g, '') }))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+                <textarea placeholder="e.g. patient is stable" rows={2}
+                  value={confirmForm.remarks}
+                  onChange={e => setConfirmForm(f => ({ ...f, remarks: e.target.value }))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitMayGoHome} disabled={actionId === confirmForm.patientId}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {actionId === confirmForm.patientId ? 'Confirming...' : 'Confirm May Go Home'}
+              </button>
+              <button onClick={() => setConfirmForm(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Admit Patient Modal */}
       {admitForm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
