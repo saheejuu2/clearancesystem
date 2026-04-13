@@ -239,11 +239,11 @@ export default function NurseDashboard({ user, onLogout }) {
               <select value={wardFilter} onChange={e => setWardFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
                 <option value="">All Wards</option>
-                {[...new Set(patients.map(p => p.ward).filter(Boolean))].sort().map(w => <option key={w}>{w}</option>)}
+                {['OB', 'Medical', 'Surgery', 'Pediatrics'].map(w => <option key={w}>{w}</option>)}
               </select>
               <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-                <option value="">All Statuses</option>
+                <option value="">Status</option>
                 <option value="no_request">Admitted</option>
                 <option value="awaiting_billing">May Go Home</option>
                 <option value="cost_center_clearing">In Clearance</option>
@@ -385,13 +385,21 @@ export default function NurseDashboard({ user, onLogout }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-5">Admit New Patient</h3>
             <div className="grid grid-cols-2 gap-4">
-              {[['patient_no','Patient No.','text'],['full_name','Full Name','text'],['age','Age','number'],['ward','Ward','text'],['admit_date','Admit Date','date']].map(([k,l,t]) => (
+              {[['patient_no','Patient No.','text'],['full_name','Full Name','text'],['age','Age','number'],['admit_date','Admit Date','date']].map(([k,l,t]) => (
                 <div key={k} className={`flex flex-col gap-1.5 ${k === 'full_name' ? 'col-span-2' : ''}`}>
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{l} <span className="text-red-500">*</span></label>
                   <input type={t} value={admitForm[k]} onChange={e => setAdmitForm(f => ({ ...f, [k]: e.target.value }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
               ))}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Ward <span className="text-red-500">*</span></label>
+                <select value={admitForm.ward} onChange={e => setAdmitForm(f => ({ ...f, ward: e.target.value }))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                  <option value="">Select ward…</option>
+                  {['OB', 'Medical', 'Surgery', 'Pediatrics'].map(w => <option key={w}>{w}</option>)}
+                </select>
+              </div>
               <div className="flex flex-col gap-1.5 col-span-2">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Patient Type <span className="text-red-500">*</span></label>
                 <div className="flex gap-3">
