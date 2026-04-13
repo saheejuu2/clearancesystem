@@ -55,6 +55,10 @@ function AdminPatientList({ tab }) {
   const [pendingReason, setPendingReason]   = useState('');
   const [pendingActor, setPendingActor]     = useState('');
   const [pendingSaving, setPendingSaving]   = useState(false);
+  const [selectMode, setSelectMode]         = useState(false);
+  const [selected, setSelectedIds]          = useState(new Set());
+  const [deleteConfirm, setDeleteConfirm]   = useState(false);
+  const [deleting, setDeleting]             = useState(false);
   const cfg = TAB_CONFIG[tab];
 
   const SERVICE_CC = {
@@ -148,11 +152,54 @@ function AdminPatientList({ tab }) {
     .filter(p => p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()));
   const { paged, page, setPage, totalPages, total, start, pageSize } = usePagination(filtered);
 
+  const toggleSelect = (id) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const toggleAll = () => setSelectedIds(prev => prev.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await api.post('/delete_patients.php', { ids: [...selected] });
+      if (res.data.success) {
+        setDeleteConfirm(false);
+        setSelectMode(false);
+        setSelectedIds(new Set());
+        refetch();
+      } else alert(res.data.message);
+    } finally { setDeleting(false); }
+  };
+
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-bold text-gray-800">{cfg.title}</h1>
-        <p className="text-sm text-gray-400 mt-0.5">{cfg.subtitle}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800">{cfg.title}</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{cfg.subtitle}</p>
+        </div>
+        {!selectMode ? (
+          <button onClick={() => { setSelectMode(true); setSelectedIds(new Set()); }}
+            className="flex items-center gap-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">{selected.size} selected</span>
+            <button onClick={() => setDeleteConfirm(true)} disabled={selected.size === 0}
+              className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-40 px-4 py-2 rounded-xl transition-colors">
+              Delete Selected
+            </button>
+            <button onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}
+              className="text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl transition-colors">
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
       <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -160,6 +207,13 @@ function AdminPatientList({ tab }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                {selectMode && (
+                  <th className="px-4 py-3.5">
+                    <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0}
+                      onChange={toggleAll}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
+                  </th>
+                )}
                 {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
@@ -167,14 +221,22 @@ function AdminPatientList({ tab }) {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
+                <tr><td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
+                <tr><td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
               ) : paged.map(p => {
                 const step = STEP_LABELS[p.clearance_step] || STEP_LABELS['no_request'];
                 const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                 return (
-                  <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                  <tr key={p.id}
+                    onClick={() => selectMode && toggleSelect(p.id)}
+                    className={`transition-colors ${selectMode ? 'cursor-pointer select-none' : ''} ${selectMode && selected.has(p.id) ? 'bg-red-50/60 hover:bg-red-50' : 'hover:bg-gray-50/70'}`}>
+                    {selectMode && (
+                      <td className="px-4 py-3.5">
+                        <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)}
+                          className="rounded border-gray-300 text-red-500 focus:ring-red-400" />
+                      </td>
+                    )}
                     <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                     <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                     <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
@@ -444,16 +506,33 @@ function AdminPatientList({ tab }) {
           </div>
         </div>
       )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <p className="text-base font-bold text-gray-900 mb-1">Delete {selected.size} patient{selected.size !== 1 ? 's' : ''}?</p>
+            <p className="text-sm text-gray-500 mb-5">This will permanently remove the patient record and all associated clearance data. This cannot be undone.</p>
+            <div className="flex gap-2">
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+              <button onClick={() => setDeleteConfirm(false)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-const COST_CENTERS = [
-  'Operating Room/Delivery Room','Pulmonary Department (MSA)','Hemodialysis Unit',
-  'Newborn Screening','Newborn Hearing Test','Radiology','Laboratory','Bloodbank',
-  'Pharmacy','Billing - Window 1','Billing - Window 2','Benefits - Window 3A',
-  'Benefits - Window 3B','Benefits - Window 6','Billing','Nurse',
-];
 
 const EMPTY_FORM = { username: '', full_name: '', password: '', confirmPassword: '', cost_center: '' };
 
@@ -1095,3 +1174,10 @@ export default function AdminDashboard({ user, onLogout }) {
     </div>
   );
 }
+
+const COST_CENTERS = [
+  'Operating Room/Delivery Room','Pulmonary Department (MSA)','Hemodialysis Unit',
+  'Newborn Screening','Newborn Hearing Test','Radiology','Laboratory','Bloodbank',
+  'Pharmacy','Billing - Window 1','Billing - Window 2','Benefits - Window 3A',
+  'Benefits - Window 3B','Benefits - Window 6','Billing','Nurse',
+];
