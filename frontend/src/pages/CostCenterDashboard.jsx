@@ -91,10 +91,10 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   useEffect(() => {
     fetchPatients();
+    fetchPendingBalance();
     api.get(`/notification_settings.php?cost_center=${encodeURIComponent(user.costCenter)}`)
       .then(res => setToastEnabled(res.data.toast_enabled !== false))
       .catch(() => {});
-    // Pre-fetch pending count for badge (only sent-back patients)
     api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&pending_only=1`)
       .then(res => setPendingPatients(Array.isArray(res.data) ? res.data : []))
       .catch(() => {});
