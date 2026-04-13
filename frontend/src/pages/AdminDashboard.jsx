@@ -496,6 +496,41 @@ export default function AdminDashboard({ user, onLogout }) {
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
 
   const [toastSettings, setToastSettings] = useState({});
+  const [adminPendingBalance, setAdminPendingBalance] = useState([]);
+  const [adminPendingBalanceLoading, setAdminPendingBalanceLoading] = useState(false);
+  const [adminRemarksModal, setAdminRemarksModal] = useState(null);
+  const [expandedPatient, setExpandedPatient] = useState(null);
+  const [adminClearModal, setAdminClearModal] = useState(null); // { patient, cost_center }
+  const [adminClearRemarks, setAdminClearRemarks] = useState('');
+  const [adminClearSaving, setAdminClearSaving] = useState(false);
+
+  const handleAdminClear = async () => {
+    setAdminClearSaving(true);
+    try {
+      const res = await api.post('/pending_balance.php', {
+        action: 'admin_clear',
+        patient_id: adminClearModal.patient.id,
+        cost_center: adminClearModal.cost_center,
+        actor: user.fullName || user.username,
+        remarks: adminClearRemarks.trim() || 'Cleared by admin',
+      });
+      if (res.data.success) {
+        setAdminClearModal(null);
+        setAdminClearRemarks('');
+        fetchAdminPendingBalance();
+      } else {
+        alert(res.data.message);
+      }
+    } finally { setAdminClearSaving(false); }
+  };
+
+  const fetchAdminPendingBalance = () => {
+    setAdminPendingBalanceLoading(true);
+    api.get('/pending_balance.php?cost_center=all')
+      .then(res => setAdminPendingBalance(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {})
+      .finally(() => setAdminPendingBalanceLoading(false));
+  };
 
   const fetchAll = () => {
     setLoading(true);
@@ -519,6 +554,7 @@ export default function AdminDashboard({ user, onLogout }) {
   useEffect(() => {
     fetchAll();
     fetchToastSettings();
+    fetchAdminPendingBalance();
     api.get('/get_stats.php').then(r => {
       const d = r.data || {};
       setPendingCount(d.pending_count || 0);
@@ -617,6 +653,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTab} badge={adminStats.awaiting_billing} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             <NavBtn compact tabKey="in_clearance"     label="In Clearance"     active={tab} setTab={setTab} badge={adminStats.in_progress} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             <NavBtn compact tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={pendingCount} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <NavBtn compact tabKey="pending_balance" label="Pending Balance" active={tab} setTab={() => { setTab('pending_balance'); fetchAdminPendingBalance(); }} badge={[...new Set(adminPendingBalance.filter(r => r.status === 'pending_balance').map(r => r.id))].length || undefined} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             <NavBtn compact tabKey="discharged"       label="Discharged"       active={tab} setTab={setTab} d="M5 13l4 4L19 7" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Management</p>
@@ -637,6 +674,134 @@ export default function AdminDashboard({ user, onLogout }) {
           {tab === "dashboard" && <DashboardOverview title="Admin Dashboard" subtitle="System-wide overview" onCardClick={t => setTab(t)} />}
           {tab === 'audit' && <AuditTrail key={auditKey} role="admin" />}
           {PATIENT_TABS.includes(tab) && <AdminPatientList tab={tab} />}
+
+          {tab === 'pending_balance' && (() => {
+            // Group flat list by patient_id
+            const grouped = adminPendingBalance.reduce((acc, row) => {
+              const key = row.id;
+              if (!acc[key]) {
+                acc[key] = {
+                  id: row.id, patient_no: row.patient_no, full_name: row.full_name,
+                  age: row.age, ward: row.ward, admit_date: row.admit_date,
+                  patient_type: row.patient_type, costCenters: []
+                };
+              }
+              acc[key].costCenters.push({
+                cost_center: row.cost_center,
+                status: row.status,
+                flagged_by: row.status === 'pending_balance' ? row.flagged_by : null,
+                balance_remarks: row.status === 'pending_balance' ? row.balance_remarks : null,
+                flagged_at: row.flagged_at,
+              });
+              return acc;
+            }, {});
+            const patients = Object.values(grouped);
+
+            return (
+              <div className="flex flex-col gap-5">
+                <div>
+                  <h1 className="text-xl font-bold text-gray-800">Pending Balance</h1>
+                  <p className="text-sm text-gray-400 mt-0.5">Click a patient to see which cost centers flagged a balance mismatch</p>
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                          {['Patient ID','Name','Ward','Admit Date','Flagged Depts',''].map(h => (
+                            <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminPendingBalanceLoading ? (
+                          <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
+                        ) : patients.length === 0 ? (
+                          <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No pending balance patients.</td></tr>
+                        ) : patients.map(p => (
+                          <>
+                            <tr key={p.id}
+                              onClick={() => setExpandedPatient(expandedPatient === p.id ? null : p.id)}
+                              className="hover:bg-gray-50/70 transition-colors cursor-pointer border-b border-gray-50">
+                              <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                              <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                              <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
+                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className="text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-1 rounded-full">
+                                  {p.costCenters.length} dept{p.costCenters.length !== 1 ? 's' : ''}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4 text-gray-400">
+                                <svg className={`w-4 h-4 transition-transform ${expandedPatient === p.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </td>
+                            </tr>
+                            {expandedPatient === p.id && (
+                              <tr key={`${p.id}-detail`}>
+                                <td colSpan={6} className="px-5 pb-4 pt-0 bg-gray-50/60">
+                                  <div className="rounded-xl border border-gray-100 overflow-hidden mt-1">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-gray-100 text-left">
+                                          {['Cost Center','Flagged By','Remarks','Action'].map(h => (
+                                            <th key={h} className="px-4 py-2.5 font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100 bg-white">
+                                        {p.costCenters.map((cc, i) => (
+                                          <tr key={i}>
+                                            <td className="px-4 py-2.5">
+                                              <span className="font-medium bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{cc.cost_center}</span>
+                                            </td>
+                                            <td className="px-4 py-2.5 text-gray-600">
+                                              {cc.status === 'pending_balance'
+                                                ? <span className="text-red-600 font-medium">{cc.flagged_by}</span>
+                                                : <span className="text-gray-400 italic">No action yet</span>
+                                              }
+                                            </td>
+                                            <td className="px-4 py-2.5">
+                                              {cc.status === 'pending_balance' && cc.balance_remarks
+                                                ? <button onClick={e => { e.stopPropagation(); setAdminRemarksModal({ ...p, cost_center: cc.cost_center, balance_remarks: cc.balance_remarks }); }}
+                                                    className="font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors">
+                                                    View
+                                                  </button>
+                                                : <span className="text-gray-300">—</span>
+                                              }
+                                            </td>
+                                            <td className="px-4 py-2.5">
+                                              {cc.status === 'pending_balance'
+                                                ? <button onClick={e => { e.stopPropagation(); setAdminClearModal({ patient: p, cost_center: cc.cost_center }); setAdminClearRemarks(''); }}
+                                                    className="font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap">
+                                                    Clear
+                                                  </button>
+                                                : <span className="text-xs text-amber-500 font-medium bg-amber-50 px-2 py-0.5 rounded-full">Pending</span>
+                                              }
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+                    {patients.length} patient(s) with pending balance
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {tab === 'staff' && (
             <div className="flex flex-col gap-5">
@@ -874,6 +1039,59 @@ export default function AdminDashboard({ user, onLogout }) {
               </button>
               <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {adminClearModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Admin Override — Clear Patient</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Clear <span className="font-semibold text-gray-800">{adminClearModal.patient.full_name}</span> ({adminClearModal.patient.patient_no}) at{' '}
+              <span className="font-semibold text-emerald-700">{adminClearModal.cost_center}</span>
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+              <textarea rows={2} placeholder="e.g. balance verified and settled"
+                value={adminClearRemarks} onChange={e => setAdminClearRemarks(e.target.value)}
+                className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={handleAdminClear} disabled={adminClearSaving}
+                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {adminClearSaving ? 'Clearing...' : 'Confirm Clear'}
+              </button>
+              <button onClick={() => { setAdminClearModal(null); setAdminClearRemarks(''); }}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {adminRemarksModal && (        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Balance Remarks</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{adminRemarksModal.full_name} · {adminRemarksModal.patient_no}</p>
+                <p className="text-xs text-emerald-600 font-medium mt-0.5">{adminRemarksModal.cost_center}</p>
+              </div>
+              <button onClick={() => setAdminRemarksModal(null)} className="text-gray-300 hover:text-gray-500 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+              <p className="text-sm text-red-700 leading-relaxed">{adminRemarksModal.balance_remarks}</p>
+            </div>
+            <button onClick={() => setAdminRemarksModal(null)}
+              className="w-full mt-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+              Close
+            </button>
           </div>
         </div>
       )}
