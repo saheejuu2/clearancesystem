@@ -369,7 +369,7 @@ export default function BillingDashboard({ user, onLogout }) {
 
             {/* Sent back — waiting on cost centers to resolve */}
             <div>
-              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 px-1">Awaiting Resolution</p>
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 px-1">Pending (Mismatched Amount)</p>
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
