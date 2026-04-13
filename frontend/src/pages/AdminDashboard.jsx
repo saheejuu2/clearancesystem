@@ -21,8 +21,7 @@ const TAB_CONFIG = {
   admitted:        { title: 'Admitted',          subtitle: 'Patients not yet in discharge process',        filter: p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse' },
   awaiting_billing:{ title: 'Awaiting Billing',  subtitle: 'Nurse approved — waiting for billing',         filter: p => p.clearance_step === 'awaiting_billing' },
   in_clearance:    { title: 'In Clearance',      subtitle: 'Currently being cleared by cost centers',      filter: p => p.clearance_step === 'cost_center_clearing' },
-  pending:         { title: 'Pending',           subtitle: 'Patients with missing requirements sent back',  filter: p => p.has_pending && p.clearance_step === 'cost_center_clearing' },
-  cleared:         { title: 'Cleared Patients',  subtitle: 'All cost centers have cleared these patients',  filter: p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 },
+  pending:         { title: 'Missing Requirements', subtitle: 'Patients with missing requirements sent back',  filter: p => p.has_pending && p.clearance_step === 'cost_center_clearing' },  cleared:         { title: 'Cleared Patients',  subtitle: 'All cost centers have cleared these patients',  filter: p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 },
   discharged:      { title: 'Discharged',        subtitle: 'Successfully discharged patients',             filter: p => p.clearance_step === 'discharged' },
 };
 
@@ -477,6 +476,8 @@ const EyeIcon = ({ show, onClick }) => (
 export default function AdminDashboard({ user, onLogout }) {
   const [tab, setTab] = useState('dashboard');
   const [auditKey, setAuditKey]   = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [adminStats, setAdminStats]     = useState({});
   const [allStaff, setAllStaff]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
@@ -500,7 +501,14 @@ export default function AdminDashboard({ user, onLogout }) {
       .then(res => setAllStaff(Array.isArray(res.data) ? res.data : []))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+    api.get('/get_stats.php').then(r => {
+      const d = r.data || {};
+      setPendingCount(d.pending_count || 0);
+      setAdminStats(d);
+    }).catch(() => {});
+  }, []);
   useEffect(() => {
     if (!ccOpen) return;
     const close = (e) => { if (ccRef.current && !ccRef.current.contains(e.target)) setCcOpen(false); };
@@ -589,10 +597,10 @@ export default function AdminDashboard({ user, onLogout }) {
             <NavBtn compact tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Patients</p>
             <NavBtn compact tabKey="total"            label="Total Patients"   active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            <NavBtn compact tabKey="admitted"         label="Admitted"         active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTab} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="in_clearance"     label="In Clearance"     active={tab} setTab={setTab} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            <NavBtn compact tabKey="pending"          label="Pending"          active={tab} setTab={setTab} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <NavBtn compact tabKey="admitted"         label="Admitted"         active={tab} setTab={setTab} badge={(adminStats.total_patients || 0) - (adminStats.awaiting_billing || 0) - (adminStats.in_progress || 0) - (adminStats.discharged || 0) - (adminStats.pending_count || 0)} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTab} badge={adminStats.awaiting_billing} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <NavBtn compact tabKey="in_clearance"     label="In Clearance"     active={tab} setTab={setTab} badge={adminStats.in_progress} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <NavBtn compact tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={pendingCount} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             <NavBtn compact tabKey="discharged"       label="Discharged"       active={tab} setTab={setTab} d="M5 13l4 4L19 7" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Management</p>

@@ -23,14 +23,10 @@ $users = [
     ['laboratory',  'Laboratory Staff',          'Laboratory',                   'staff'],
     ['bloodbank',   'Bloodbank Staff',           'Bloodbank',                    'staff'],
     ['pharmacy',    'Pharmacy Staff',            'Pharmacy',                     'staff'],
-    // Billing windows
-    ['billing_w1',  'Billing Window 1 Staff',    'Billing - Window 1',           'staff'],
-    ['billing_w2',  'Billing Window 2 Staff',    'Billing - Window 2',           'staff'],
+    
     // Benefits windows
-    ['benefits_3a', 'Benefits Window 3A Staff',  'Benefits - Window 3A',         'staff'],
-    ['benefits_3b', 'Benefits Window 3B Staff',  'Benefits - Window 3B',         'staff'],
-    ['benefits_6',  'Benefits Window 6 Staff',   'Benefits - Window 6',          'staff'],
-    // Keep legacy accounts
+    ['benefits', 'Benefits Staff',  'Benefits - Window 3A',         'staff'],
+    
     ['billing',     'Billing Staff',             'Billing',                      'staff'],
     ['nurse',       'Nurse Staff',               'Nurse',                        'staff'],
 ];

@@ -30,7 +30,7 @@ $result = $conn->query($sql);
 $all = [];
 while ($row = $result->fetch_assoc()) {
     $row['clearance_step'] = get_step($row);
-    $row['has_pending'] = ($row['request_id'] && (int)$row['pending_count'] > 0 && (int)$row['total_cc'] > 0);
+    $row['has_pending'] = ($row['request_id'] && (int)$row['sent_back_count'] > 0);
     $row['was_sent_back'] = ($row['request_id'] && (int)$row['sent_back_count'] > 0);
     $all[] = $row;
 }
@@ -95,6 +95,9 @@ $filtered = array_filter($all, function($p) use ($role, $already_cleared, $windo
 
         case 'Billing':
             return in_array($step, ['awaiting_billing', 'cost_center_clearing', 'discharged']);
+
+        case 'Admin':
+            return true; // Admin sees all patients
 
         default:
             if ($step !== 'cost_center_clearing') return false;

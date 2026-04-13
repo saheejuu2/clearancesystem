@@ -178,15 +178,20 @@ export default function NurseDashboard({ user, onLogout }) {
             </button>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Filter by Status</p>
             {[
-              { value: "no_request",          label: "Admitted",     dot: "bg-gray-400" },
-              { value: "awaiting_billing",     label: "May Go Home",  dot: "bg-blue-500" },
-              { value: "cost_center_clearing", label: "In Clearance", dot: "bg-amber-500" },
+              { value: "no_request",          label: "Admitted",     dot: "bg-gray-400",  count: patients.filter(p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse').length },
+              { value: "awaiting_billing",     label: "May Go Home",  dot: "bg-blue-500",  count: patients.filter(p => p.clearance_step === 'awaiting_billing').length },
+              { value: "cost_center_clearing", label: "In Clearance", dot: "bg-amber-500", count: patients.filter(p => p.clearance_step === 'cost_center_clearing').length },
             ].map(s => (
               <button key={s.value}
                 onClick={() => { setTab("patients"); setStatusFilter(statusFilter === s.value ? "" : s.value); }}
                 className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors text-left w-full ${statusFilter === s.value ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
                 <span className={`w-2 h-2 rounded-full shrink-0 ${statusFilter === s.value ? "bg-white" : s.dot}`} />
-                {s.label}
+                <span className="flex-1">{s.label}</span>
+                {s.count > 0 && (
+                  <span className={`ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${statusFilter === s.value ? 'bg-white/30 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    {s.count > 99 ? '99+' : s.count}
+                  </span>
+                )}
               </button>
             ))}
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>

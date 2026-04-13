@@ -291,8 +291,8 @@ export default function BillingDashboard({ user, onLogout }) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Overview</p>
             <NavBtn tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Patients</p>
-            <NavBtn tabKey="patients" label="Patients" active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            <NavBtn tabKey="pending" label="Pending" active={tab} setTab={setTab} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <NavBtn tabKey="patients" label="Patients" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step !== 'discharged').length} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            <NavBtn tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
             <NavBtn tabKey="audit" label="Audit Trail" active={tab} setTab={() => { setTab("audit"); setAuditKey(k => k + 1); }} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -316,20 +316,20 @@ export default function BillingDashboard({ user, onLogout }) {
         {tab === 'pending' && (
           <div className="flex flex-col gap-5">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Pending Patients</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Track patients sent back for missing requirements</p>
+              <h1 className="text-xl font-bold text-gray-800">Missing Requirements</h1>
+              <p className="text-sm text-gray-400 mt-0.5">Patients with missing requirements sent back by billing</p>
             </div>
 
-            {/* Returned to Billing — all CCs cleared again */}
+            {/* Returned to Billing — sent back, all CCs cleared again */}
             {patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && p.was_sent_back).length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2 px-1">Returned to Billing</p>
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2 px-1">Returned to Billing — Ready</p>
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-emerald-100">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-emerald-50 border-b border-emerald-100 text-left">
-                          {['Patient ID','Name','Ward','Admit Date','Progress','Action'].map(h => (
+                          {['Patient ID','Name','Ward','Admit Date','Action'].map(h => (
                             <th key={h} className="px-5 py-3.5 text-xs font-semibold text-emerald-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -347,21 +347,13 @@ export default function BillingDashboard({ user, onLogout }) {
                               {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                             </td>
                             <td className="px-5 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }} />
-                                </div>
-                                <span className="text-xs text-emerald-600 font-medium">{p.total_cc}/{p.total_cc}</span>
-                              </div>
-                            </td>
-                            <td className="px-5 py-4">
                               <div className="flex gap-2">
                                 <button onClick={() => { setDischargeModal(p); setDischargeRemarks(''); setDischargeName(''); }}
-                                  className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                                  className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Discharge
                                 </button>
                                 <button onClick={() => setReport(p)}
-                                  className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                                  className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Report
                                 </button>
                               </div>
@@ -375,9 +367,9 @@ export default function BillingDashboard({ user, onLogout }) {
               </div>
             )}
 
-            {/* Still pending — waiting on cost centers */}
+            {/* Sent back — waiting on cost centers to resolve */}
             <div>
-              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 px-1">Awaiting Cost Centers</p>
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 px-1">Awaiting Resolution</p>
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -390,7 +382,7 @@ export default function BillingDashboard({ user, onLogout }) {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length === 0 ? (
-                        <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients currently awaiting cost centers.</td></tr>
+                        <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients with missing requirements.</td></tr>
                       ) : patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').map(p => (
                         <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                           <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
@@ -426,7 +418,7 @@ export default function BillingDashboard({ user, onLogout }) {
                   </table>
                 </div>
                 <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-                  {patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} patient(s) awaiting
+                  {patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} patient(s) with missing requirements
                 </div>
               </div>
             </div>

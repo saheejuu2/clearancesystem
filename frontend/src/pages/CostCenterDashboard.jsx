@@ -71,6 +71,10 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   useEffect(() => {
     fetchPatients();
+    // Pre-fetch pending count for badge (only sent-back patients)
+    api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&pending_only=1`)
+      .then(res => setPendingPatients(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -152,10 +156,15 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Patients</p>
             <button onClick={() => setTab('patients')}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === 'patients' ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Patients
+              <span className="flex-1">Patients</span>
+              {patients.length > 0 && (
+                <span className="ml-auto bg-emerald-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  {patients.length > 99 ? '99+' : patients.length}
+                </span>
+              )}
             </button>
             <button onClick={() => { setTab('cleared'); fetchClearedPatients(); setClearedSearch(''); }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === 'cleared' ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
@@ -169,7 +178,12 @@ export default function CostCenterDashboard({ user, onLogout }) {
               <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
               </svg>
-              Pending
+              <span className="flex-1">Missing Requirements</span>
+              {pendingPatients.length > 0 && (
+                <span className="ml-auto bg-orange-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  {pendingPatients.length > 99 ? '99+' : pendingPatients.length}
+                </span>
+              )}
             </button>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
             <button onClick={() => { setTab('audit'); setAuditKey(k => k + 1); }}
@@ -196,7 +210,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'pending' && (
           <div className="flex flex-col gap-5">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Pending Patients</h1>
+              <h1 className="text-xl font-bold text-gray-800">Missing Requirements</h1>
               <p className="text-sm text-gray-400 mt-0.5">Patients sent back to <span className="font-semibold text-gray-600">{user.costCenter}</span> with missing requirements</p>
             </div>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

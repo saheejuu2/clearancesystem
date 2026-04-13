@@ -1,4 +1,4 @@
-export default function NavBtn({ tabKey, label, active, setTab, d, compact }) {
+export default function NavBtn({ tabKey, label, active, setTab, d, compact, badge }) {
   const isActive = active === tabKey;
   return (
     <button onClick={() => setTab(tabKey)}
@@ -8,7 +8,12 @@ export default function NavBtn({ tabKey, label, active, setTab, d, compact }) {
       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
       </svg>
-      {label}
+      <span className="flex-1">{label}</span>
+      {badge > 0 && (
+        <span className="ml-auto bg-orange-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </button>
   );
 }

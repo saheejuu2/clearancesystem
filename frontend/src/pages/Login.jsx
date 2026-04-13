@@ -1,19 +1,43 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
 
 export default function Login({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [username, setUsername]       = useState('');
+  const [password, setPassword]       = useState('');
+  const [costCenter, setCostCenter]   = useState('');
+  const [costCenters, setCostCenters] = useState([]);
+  const [isAdmin, setIsAdmin]         = useState(false);
+  const [showPass, setShowPass]       = useState(false);
+  const [error, setError]             = useState('');
+  const [loading, setLoading]         = useState(false);
+
+  // Load cost centers from DB on mount
+  useEffect(() => {
+    api.get('/get_cost_centers.php')
+      .then(res => setCostCenters(res.data))
+      .catch(() => {});
+  }, []);
+
+  // When username loses focus, check if this user is an admin
+  const handleUsernameBlur = async () => {
+    if (!username.trim()) return;
+    try {
+      const res = await api.get(`/get_user_role.php?username=${encodeURIComponent(username)}`);
+      setIsAdmin(res.data.role === 'admin');
+      if (res.data.role === 'admin') setCostCenter('');
+    } catch { /* ignore */ }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!isAdmin && !costCenter) {
+      setError('Please select your department.');
+      return;
+    }
     setLoading(true);
     try {
-      const res = await api.post('/login.php', { username, password });
+      const res = await api.post('/login.php', { username, password, cost_center: costCenter });
       if (res.data.success) {
         onLogin({ id: res.data.id, costCenter: res.data.cost_center, username: res.data.username, fullName: res.data.full_name, role: res.data.role });
       } else {
@@ -64,6 +88,25 @@ export default function Login({ onLogin }) {
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+
+              {!isAdmin && (
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="department" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    Department
+                  </label>
+                  <select
+                    id="department"
+                    value={costCenter}
+                    onChange={e => setCostCenter(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                  >
+                    <option value="">Select your department…</option>
+                    {costCenters.map(cc => (
+                      <option key={cc} value={cc}>{cc}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="username" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   Username
@@ -72,12 +115,15 @@ export default function Login({ onLogin }) {
                   id="username"
                   type="text"
                   value={username}
-                  onChange={e => setUsername(e.target.value)}
+                  onChange={e => { setUsername(e.target.value); setIsAdmin(false); }}
+                  onBlur={handleUsernameBlur}
                   placeholder="Enter your username"
                   required
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                 />
               </div>
+
+              
 
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="password" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
