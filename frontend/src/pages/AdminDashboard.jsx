@@ -831,7 +831,7 @@ export default function AdminDashboard({ user, onLogout }) {
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-            <p className="text-base font-bold text-gray-900 mb-2">Delete Staff Account?</p>
+            <p className="text-base font-bold text-gray-900 mb-2">Delete Account?</p>
             <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
             <div className="flex gap-2">
               <button onClick={() => handleDelete(deleteId)} disabled={saving}
