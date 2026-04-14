@@ -802,7 +802,15 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      <AwaitingBillingToast patients={patients} enabled={toastEnabled} />
+      <AwaitingBillingToast patients={patients} enabled={toastEnabled} onPatientClick={(patient) => {
+        // Ensure patient has id property for openClearanceForm
+        const patientData = {
+          ...patient,
+          id: patient.id || patient.patient_id,
+          full_name: patient.full_name || patient.patient_name,
+        };
+        openClearanceForm(patientData);
+      }} />
     </div>
   );
 }

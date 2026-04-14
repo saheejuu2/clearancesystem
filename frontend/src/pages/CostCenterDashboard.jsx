@@ -558,9 +558,22 @@ export default function CostCenterDashboard({ user, onLogout }) {
       {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="cost_center" userCostCenter={user.costCenter} onAction={(action, patient) => { setNotifReport(null); if (action === "clear") { setClearModal(patient); } }} />}
 
       <PendingPatientToast patients={patients.filter(p => {
-        const s = ccStatuses[p.id];
-        return !s || s.status !== 'cleared';
-      })} enabled={toastEnabled} />
+        // Only show patients that are actually in cost_center_clearing state and not yet cleared by this CC
+        return p.clearance_step === 'cost_center_clearing' && (!ccStatuses[p.id] || ccStatuses[p.id].status !== 'cleared');
+      })} enabled={toastEnabled} onPatientClick={(patient) => {
+        // Ensure patient has id property
+        const patientData = {
+          ...patient,
+          id: patient.id || patient.patient_id,
+        };
+        setClearModal(patientData);
+        setClearName('');
+        setClearRemarks('');
+        setClearPrice('');
+        setClearPassword('');
+        setClearPriceError('');
+        setShowClearPass(false);
+      }} />
       {/* Clear Patient Modal */}
       {clearModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">

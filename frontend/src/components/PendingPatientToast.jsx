@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 // Shows a persistent toast for each uncleared patient until they are cleared
-export default function PendingPatientToast({ patients = [], enabled = true }) {
+export default function PendingPatientToast({ patients = [], enabled = true, onPatientClick }) {
   const [toasts, setToasts] = useState([]);
-  const shownRef = useRef(new Set());
-  const timerRef = useRef(null);
 
   useEffect(() => {
     if (!enabled) {
@@ -23,13 +21,21 @@ export default function PendingPatientToast({ patients = [], enabled = true }) {
 
   const dismiss = (toastId) => setToasts(prev => prev.filter(t => t.toastId !== toastId));
 
+  const handleToastClick = (patient) => {
+    if (onPatientClick) {
+      onPatientClick(patient);
+    }
+    dismiss(patient.toastId);
+  };
+
   if (toasts.length === 0) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 items-end pointer-events-none">
       {toasts.map(t => (
         <div key={t.toastId}
-          className="pointer-events-auto flex items-start gap-3 bg-white border border-amber-200 shadow-xl rounded-2xl px-4 py-3 w-80 animate-slide-in">
+          onClick={() => handleToastClick(t)}
+          className="pointer-events-auto flex items-start gap-3 bg-white border border-amber-200 shadow-xl rounded-2xl px-4 py-3 w-80 animate-slide-in cursor-pointer hover:shadow-2xl hover:border-amber-300 transition-all">
           <div className="mt-0.5 shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
             <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -41,7 +47,7 @@ export default function PendingPatientToast({ patients = [], enabled = true }) {
             <p className="text-sm font-semibold text-gray-800 truncate">{t.full_name}</p>
             <p className="text-xs text-gray-400">{t.patient_no} · {t.ward}</p>
           </div>
-          <button onClick={() => dismiss(t.toastId)}
+          <button onClick={(e) => { e.stopPropagation(); dismiss(t.toastId); }}
             className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors mt-0.5">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
