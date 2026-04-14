@@ -133,12 +133,14 @@ export default function BillingDashboard({ user, onLogout }) {
   const [followUpModal, setFollowUpModal] = useState(null);
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [followUpSelected, setFollowUpSelected] = useState([]);
+  const [followUpNotes, setFollowUpNotes] = useState({});
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [toastEnabled, setToastEnabled] = useState(true);
 
   const openFollowUpModal = async (p) => {
     setFollowUpModal({ patient: p, clearances: [] });
     setFollowUpSelected([]);
+    setFollowUpNotes({});
     try {
       const res = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
       if (res.data.success) {
@@ -159,17 +161,20 @@ export default function BillingDashboard({ user, onLogout }) {
     if (followUpSelected.length === 0) { alert('Select at least one cost center.'); return; }
     setFollowUpLoading(true);
     try {
-      await Promise.all(followUpSelected.map(cc =>
-        api.post('/notifications.php?action=send', {
+      await Promise.all(followUpSelected.map(cc => {
+        const note = followUpNotes[cc]?.trim();
+        const message = `Follow-up: Please clear ${followUpModal.patient.full_name} (${followUpModal.patient.patient_no}) at your earliest convenience.${note ? ` Note: ${note}` : ''}`;
+        return api.post('/notifications.php?action=send', {
           recipient: cc,
           patient_id: followUpModal.patient.id,
           patient_no: followUpModal.patient.patient_no,
           patient_name: followUpModal.patient.full_name,
-          message: `Follow-up: Please clear ${followUpModal.patient.full_name} (${followUpModal.patient.patient_no}) at your earliest convenience.`,
-        }).catch(() => {})
-      ));
+          message,
+        }).catch(() => {});
+      }));
       setFollowUpModal(null);
       setFollowUpSelected([]);
+      setFollowUpNotes({});
     } finally { setFollowUpLoading(false); }
   };
 
@@ -921,7 +926,7 @@ export default function BillingDashboard({ user, onLogout }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-bold text-gray-900">Send Follow-Up Reminder</h3>
-              <button onClick={() => { setFollowUpModal(null); setFollowUpSelected([]); }}
+              <button onClick={() => { setFollowUpModal(null); setFollowUpSelected([]); setFollowUpNotes({}); }}
                 className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -935,28 +940,39 @@ export default function BillingDashboard({ user, onLogout }) {
               {followUpModal.clearances.length === 0 ? (
                 <p className="text-xs text-gray-400 py-4 text-center">Loading...</p>
               ) : followUpModal.clearances.map(c => (
-                <label key={c.cost_center}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    c.status === 'cleared'
-                      ? 'opacity-40 cursor-not-allowed bg-gray-50'
-                      : followUpSelected.includes(c.cost_center)
-                        ? 'bg-violet-50 border border-violet-200 cursor-pointer'
-                        : 'hover:bg-gray-50 cursor-pointer'
-                  }`}>
-                  <input
-                    type="checkbox"
-                    disabled={c.status === 'cleared'}
-                    checked={followUpSelected.includes(c.cost_center)}
-                    onChange={() => toggleFollowUp(c.cost_center)}
-                    className="w-4 h-4 accent-violet-600 shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-gray-700">{c.cost_center}</span>
-                  {c.status === 'cleared' ? (
-                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">Cleared</span>
-                  ) : (
-                    <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">Pending</span>
+                <div key={c.cost_center} className="flex flex-col">
+                  <label
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                      c.status === 'cleared'
+                        ? 'opacity-40 cursor-not-allowed bg-gray-50'
+                        : followUpSelected.includes(c.cost_center)
+                          ? 'bg-violet-50 border border-violet-200 cursor-pointer'
+                          : 'hover:bg-gray-50 cursor-pointer'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      disabled={c.status === 'cleared'}
+                      checked={followUpSelected.includes(c.cost_center)}
+                      onChange={() => toggleFollowUp(c.cost_center)}
+                      className="w-4 h-4 accent-violet-600 shrink-0"
+                    />
+                    <span className="flex-1 text-sm text-gray-700">{c.cost_center}</span>
+                    {c.status === 'cleared' ? (
+                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">Cleared</span>
+                    ) : (
+                      <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">Pending</span>
+                    )}
+                  </label>
+                  {followUpSelected.includes(c.cost_center) && (
+                    <input
+                      type="text"
+                      placeholder="Add a note (optional)"
+                      value={followUpNotes[c.cost_center] || ''}
+                      onChange={e => setFollowUpNotes(prev => ({ ...prev, [c.cost_center]: e.target.value }))}
+                      className="mx-3 mb-1.5 px-3 py-1.5 text-xs border border-violet-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                    />
                   )}
-                </label>
+                </div>
               ))}
             </div>
             <div className="flex gap-2">
@@ -964,7 +980,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
                 {followUpLoading ? 'Sending...' : `Send Reminder${followUpSelected.length > 1 ? ` (${followUpSelected.length})` : ''}`}
               </button>
-              <button onClick={() => { setFollowUpModal(null); setFollowUpSelected([]); }}
+              <button onClick={() => { setFollowUpModal(null); setFollowUpSelected([]); setFollowUpNotes({}); }}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
                 Cancel
               </button>
