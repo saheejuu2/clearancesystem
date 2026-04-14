@@ -14,6 +14,7 @@ import usePagination from '../hooks/usePagination';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import Pagination from '../components/Pagination';
+import CostCenterChatBox from '../components/CostCenterChatBox';
 
 export default function CostCenterDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState('patients');
@@ -697,13 +698,10 @@ export default function CostCenterDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <CostCenterChatBox sender={user.username} />
     </div>
   );
 }
-
-
-
-
 
 
 

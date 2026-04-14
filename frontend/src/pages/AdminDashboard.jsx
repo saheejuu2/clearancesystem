@@ -11,6 +11,7 @@ import DateFilter from '../components/DateFilter';
 import usePagination from '../hooks/usePagination';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import Pagination from '../components/Pagination';
+import AdminChatBox from '../components/AdminChatBox';
 
 const STEP_LABELS = {
   no_request:           { label: 'Admitted',         style: 'bg-gray-100 text-gray-500'       },
@@ -1182,6 +1183,7 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <AdminChatBox />
     </div>
   );
 }

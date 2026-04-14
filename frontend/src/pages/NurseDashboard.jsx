@@ -11,6 +11,7 @@ import NotificationBell from '../components/NotificationBell';
 import usePagination from '../hooks/usePagination';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import Pagination from '../components/Pagination';
+import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
@@ -618,6 +619,7 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <ChatBox sender={user.costCenter} />
     </div>
   );
 }

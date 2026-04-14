@@ -13,6 +13,7 @@ import AwaitingBillingToast from '../components/AwaitingBillingToast';
 import usePagination from '../hooks/usePagination';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import Pagination from '../components/Pagination';
+import ChatBox from '../components/ChatBox';
 
 
 function DischargedList() {
@@ -1037,6 +1038,7 @@ export default function BillingDashboard({ user, onLogout }) {
         };
         openClearanceForm(patientData);
       }} />
+      <ChatBox sender={user.costCenter} />
     </div>
   );
 }
