@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import websocketService from '../services/websocket';
 import PhClock from '../components/PhClock';
 import AuditTrail from '../components/AuditTrail';
 import NotificationBell from '../components/NotificationBell';
@@ -8,7 +9,7 @@ import DashboardOverview from '../components/DashboardOverview';
 import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import usePagination from '../hooks/usePagination';
-import useAutoRefresh from '../hooks/useAutoRefresh';
+import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import Pagination from '../components/Pagination';
 
 const STEP_LABELS = {
@@ -79,7 +80,9 @@ function AdminPatientList({ tab }) {
       .finally(() => setLoading(false));
   };
   useEffect(() => { refetch(); }, [tab]);
-  useAutoRefresh(() => refetch(), 10000, true, [tab, filterDate]);
+  useWebSocketPatients('Admin', filterDate, (updatedPatients) => {
+    setPatients(updatedPatients || []);
+  }, true, [tab, filterDate]);
 
   const openTracker = async (p) => {
     setTrackPatient(p); setTrackLoading(true);

@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
+import websocketService from '../services/websocket';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
@@ -9,7 +10,7 @@ import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import usePagination from '../hooks/usePagination';
-import useAutoRefresh from '../hooks/useAutoRefresh';
+import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import Pagination from '../components/Pagination';
 
 const STEP_LABEL = {
@@ -70,7 +71,15 @@ export default function NurseDashboard({ user, onLogout }) {
   };
 
   useEffect(() => { fetchPatients(); }, []);
-  useAutoRefresh(fetchPatients, 10000, true, [filterDate]);
+  useWebSocketPatients('Nurse', filterDate, (updatedPatients) => {
+    setPatients(updatedPatients);
+    // Also fetch billing patients for the allPatients list
+    api.get(`/get_patients.php?role=Billing&date=${filterDate}`)
+      .then(res => setAllPatients(res.data.filter(p =>
+        ['awaiting_billing', 'cost_center_clearing'].includes(p.clearance_step)
+      )))
+      .catch(() => {});
+  }, true, [filterDate]);
   const openForm = (patient_id) => {
     setConfirmForm({ patientId: patient_id, nurseName: '', remarks: '' });
   };

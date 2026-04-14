@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import websocketService from '../services/websocket';
 import ClearanceReport from '../components/ClearanceReport';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -10,7 +11,7 @@ import NavBtn from '../components/NavBtn';
 import DashboardOverview from '../components/DashboardOverview';
 import AwaitingBillingToast from '../components/AwaitingBillingToast';
 import usePagination from '../hooks/usePagination';
-import useAutoRefresh from '../hooks/useAutoRefresh';
+import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import Pagination from '../components/Pagination';
 
 
@@ -209,7 +210,9 @@ export default function BillingDashboard({ user, onLogout }) {
       .then(res => setToastEnabled(res.data.toast_enabled !== false))
       .catch(() => setToastEnabled(true));
   }, []);
-  useAutoRefresh(fetchPatients, 10000, true, [filterDate]);
+  useWebSocketPatients('Billing', filterDate, (updatedPatients) => {
+    setPatients(updatedPatients || []);
+  }, true, [filterDate]);
 
   const openClearanceForm = (p) => {
     setClearanceForm({ patientId: p.id, patientName: p.full_name, service: "", isBaby: false, selected: [] });

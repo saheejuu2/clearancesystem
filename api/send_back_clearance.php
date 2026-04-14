@@ -9,6 +9,7 @@ header("Content-Type: application/json");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit(); }
 
 include 'db_config.php';
+include 'websocket_helper.php';
 
 $data        = json_decode(file_get_contents("php://input"), true);
 $patient_id  = (int)($data['patient_id'] ?? 0);
@@ -26,6 +27,7 @@ if (!$patient_id || !$actor || empty($cost_centers)) {
 }
 
 $now = date('Y-m-d H:i:s');
+$today = date('Y-m-d');
 
 // Get latest clearance request
 $stmt = $conn->prepare("SELECT * FROM clearance_requests WHERE patient_id = ? ORDER BY id DESC LIMIT 1");
@@ -77,6 +79,13 @@ foreach ($cost_centers as $cost_center) {
         $stmt6->execute();
     }
 }
+
+// Broadcast update to all affected dashboards
+fetchAndBroadcastPatients($conn, 'Billing', $today);
+foreach ($cost_centers as $cc) {
+  fetchAndBroadcastPatients($conn, $cc, $today);
+}
+fetchAndBroadcastPatients($conn, 'Admin', $today);
 
 $cc_list = implode(', ', $cost_centers);
 echo json_encode(["success" => true, "message" => "Patient sent back to: $cc_list."]);

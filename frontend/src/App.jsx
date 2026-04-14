@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Login from './pages/Login';
 import NurseDashboard from './pages/NurseDashboard';
 import BillingDashboard from './pages/BillingDashboard';
@@ -6,6 +6,7 @@ import CostCenterDashboard from './pages/CostCenterDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import IdleLockScreen from './components/IdleLockScreen';
 import useIdleTimeout from './hooks/useIdleTimeout';
+import websocketService from './services/websocket';
 
 const COST_CENTERS = [
   'Operating Room/Delivery Room',
@@ -34,6 +35,16 @@ const dashboard = ({ user, onLogout }) => {
 
 function AppContent({ user, onLogout }) {
   const [locked, setLocked] = useState(false);
+
+  // Initialize WebSocket connection
+  useEffect(() => {
+    const baseUrl = window.location.origin;
+    websocketService.connect(baseUrl);
+
+    return () => {
+      // Don't disconnect on unmount - keep connection alive
+    };
+  }, []);
 
   // IDLE LOCK DISABLED — re-enable by removing the `false &&` guards below
   const handleIdle = useCallback(() => {}, []); // setLocked(true) disabled

@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
+import websocketService from '../services/websocket';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
@@ -10,7 +11,7 @@ import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import PendingPatientToast from '../components/PendingPatientToast';
 import usePagination from '../hooks/usePagination';
-import useAutoRefresh from '../hooks/useAutoRefresh';
+import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import Pagination from '../components/Pagination';
 
 export default function CostCenterDashboard({ user, onLogout }) {
@@ -110,7 +111,11 @@ export default function CostCenterDashboard({ user, onLogout }) {
     api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&pending_only=1`)
       .then(res => setPendingPatients(Array.isArray(res.data) ? res.data : []))
       .catch(() => {});
-  }, 10000, true, [user.costCenter, filterDate]);
+  }, 15000, true, [user.costCenter, filterDate]);
+
+  useWebSocketPatients(user.costCenter, filterDate, (updatedPatients) => {
+    setPatients(updatedPatients || []);
+  }, true, [user.costCenter, filterDate]);
 
   useEffect(() => {
     patients.forEach(async p => {

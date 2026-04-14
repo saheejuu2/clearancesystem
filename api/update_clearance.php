@@ -9,6 +9,7 @@ header("Content-Type: application/json");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit(); }
 
 include 'db_config.php';
+include 'websocket_helper.php';
 
 $data       = json_decode(file_get_contents("php://input"), true);
 $action     = $data['action']     ?? '';
@@ -104,6 +105,11 @@ if ($action === 'may_go_home') {
     $stmt->execute();
     log_audit($conn, $patient_id, $patient, "Nurse - May Go Home", $actor);
     notify($conn, "Billing", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") is ready for billing review.");
+    
+    // Broadcast update to Nurse and Billing dashboards
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    
     echo json_encode(["success" => true, "message" => "Patient marked as may go home."]);
     exit();
 }
@@ -143,6 +149,12 @@ if ($action === 'for_clearance') {
         $stmt2->bind_param("is", $req["id"], $cc);
         $stmt2->execute();
         notify($conn, $cc, $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") needs clearance from your department.");
+    }
+
+    // Broadcast update to all cost centers and billing
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    foreach ($selected as $cc) {
+      fetchAndBroadcastPatients($conn, $cc, $today);
     }
 
     echo json_encode(["success" => true, "message" => "Sent to selected cost centers for clearance."]);
@@ -204,6 +216,12 @@ if ($action === 'cost_center_clear') {
         notify($conn, "Admin",  $patient_id, $patient, $cost_center . " has cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . ").");
     }
 
+    // Broadcast update to all affected dashboards
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, $cost_center, $today);
+    fetchAndBroadcastPatients($conn, 'Admin', $today);
+
     echo json_encode([
         "success"     => true,
         "all_cleared" => $all_cleared,
@@ -238,6 +256,12 @@ if ($action === 'discharge') {
     $stmt2->bind_param("sssi", $remarks, $now, $actor, $req['id']);
     $stmt2->execute();
     log_audit($conn, $patient_id, $patient, "Billing - Patient Discharged", $actor, $remarks);
+    
+    // Broadcast update to all dashboards
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, 'Admin', $today);
+    
     echo json_encode(["success" => true, "message" => "Patient successfully discharged."]);
     exit();
 }
@@ -268,6 +292,12 @@ if ($action === 'cancel_discharge') {
     $stmt2->execute();
 
     log_audit($conn, $patient_id, $patient, "Nurse - Discharge Cancelled", $actor, $remarks);
+    
+    // Broadcast update to all dashboards
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, 'Admin', $today);
+    
     echo json_encode(["success" => true, "message" => "Discharge process cancelled. Patient reset to admitted."]);
     exit();
 }
