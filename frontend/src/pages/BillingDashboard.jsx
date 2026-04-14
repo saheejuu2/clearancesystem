@@ -136,6 +136,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [followUpNotes, setFollowUpNotes] = useState({});
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [toastEnabled, setToastEnabled] = useState(true);
+  const [pendingFilter, setPendingFilter] = useState('all');
 
   const openFollowUpModal = async (p) => {
     setFollowUpModal({ patient: p, clearances: [] });
@@ -505,111 +506,102 @@ export default function BillingDashboard({ user, onLogout }) {
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Missing Requirements</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Patients with missing requirements sent back by billing</p>
+              <p className="text-sm text-gray-400 mt-0.5">Patients sent back by billing with unresolved requirements</p>
             </div>
 
-            {/* Returned to Billing — sent back, all CCs cleared again */}
-            {patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && p.was_sent_back).length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2 px-1">Returned to Billing — Ready</p>
-                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-emerald-100">
+            <div className="flex items-center gap-3">
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <select value={pendingFilter} onChange={e => setPendingFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+                <option value="all">All Categories</option>
+                <option value="mismatched">Mismatched Amount</option>
+                <option value="missing">Missing Requirements</option>
+              </select>
+            </div>
+
+            {(() => {
+              const base = patients.filter(p =>
+                p.clearance_step === 'cost_center_clearing' &&
+                p.has_pending &&
+                (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
+              );
+              // "Mismatched Amount" = sent back but still has pending CCs (not all resolved)
+              // "Missing Requirements" = sent back and some CCs still pending with remarks
+              // For now we treat both categories from the same has_pending flag.
+              // The distinction: mismatched = pending_count > 0 (CCs not yet re-cleared)
+              //                  missing    = was_sent_back but pending_count === 0 (all re-cleared, returned to billing)
+              const mismatchedPatients = base.filter(p => parseInt(p.pending_count) > 0);
+              const missingPatients    = base.filter(p => parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0);
+
+              const shown =
+                pendingFilter === 'mismatched' ? mismatchedPatients :
+                pendingFilter === 'missing'    ? missingPatients :
+                base;
+
+              return (
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-emerald-50 border-b border-emerald-100 text-left">
-                          {['Patient ID','Name','Ward','Admit Date','Action'].map(h => (
-                            <th key={h} className="px-5 py-3.5 text-xs font-semibold text-emerald-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                          {['Patient ID','Name','Ward','Admit Date','Category','Progress','Action'].map(h => (
+                            <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
-                        {patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && p.was_sent_back).map(p => (
-                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                            <td className="px-5 py-4">
-                              <p className="font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</p>
-                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Returned — Ready</span>
-                            </td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex gap-2">
-                                <button onClick={() => { setDischargeModal(p); setDischargeRemarks(''); setDischargeName(''); }}
-                                  className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                  Discharge
-                                </button>
-                                <button onClick={() => setReport(p)}
-                                  className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                  Report
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {shown.length === 0 ? (
+                          <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
+                        ) : shown.map(p => {
+                          const isMismatched = parseInt(p.pending_count) > 0;
+                          return (
+                            <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                              <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                              <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                              </td>
+                              <td className="px-5 py-4">
+                                {isMismatched ? (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 whitespace-nowrap">Mismatched Amount</span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600 whitespace-nowrap">Missing Requirements</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-orange-400 rounded-full transition-all"
+                                      style={{ width: p.total_cc > 0 ? `${((p.total_cc - p.pending_count) / p.total_cc) * 100}%` : '0%' }} />
+                                  </div>
+                                  <span className="text-xs text-orange-500 font-medium">{p.total_cc - p.pending_count}/{p.total_cc}</span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-1.5">
+                                  <button onClick={() => openFollowUpModal(p)}
+                                    className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                    Follow Up
+                                  </button>
+                                  <button onClick={() => setReport(p)}
+                                    className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                    Report
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
+                  <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+                    {shown.length} patient(s) shown
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Sent back — waiting on cost centers to resolve */}
-            <div>
-              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 px-1">Pending (Mismatched Amount)</p>
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                        {['Patient ID','Name','Ward','Admit Date','Progress','Action'].map(h => (
-                          <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length === 0 ? (
-                        <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients with missing requirements.</td></tr>
-                      ) : patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').map(p => (
-                        <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                          <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                          <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                          <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
-                          <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                            {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-orange-400 rounded-full transition-all"
-                                  style={{ width: `${((p.total_cc - p.pending_count) / p.total_cc) * 100}%` }} />
-                              </div>
-                              <span className="text-xs text-orange-500 font-medium">{p.total_cc - p.pending_count}/{p.total_cc}</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-1.5">
-                              <button onClick={() => openFollowUpModal(p)}
-                                className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                Follow Up
-                              </button>
-                              <button onClick={() => setReport(p)}
-                                className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                Report
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-                  {patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} patient(s) with missing requirements
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         )}
 
