@@ -613,7 +613,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">₱</span>
                   <input type="number" placeholder="Enter amount to confirm" value={clearPrice}
-                    onChange={e => { setClearPrice(e.target.value); setClearPriceError(''); }}
+                    onChange={e => { setClearPrice(e.target.value.replace(/[^0-9.]/g, '')); setClearPriceError(''); }}
                     className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 {clearPriceError && !clearPriceError.includes('password') && (

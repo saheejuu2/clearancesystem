@@ -421,7 +421,13 @@ export default function NurseDashboard({ user, onLogout }) {
               {[['patient_no','Patient No.','text'],['full_name','Full Name','text'],['age','Age','number'],['admit_date','Admit Date','date']].map(([k,l,t]) => (
                 <div key={k} className={`flex flex-col gap-1.5 ${k === 'full_name' ? 'col-span-2' : ''}`}>
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{l} <span className="text-red-500">*</span></label>
-                  <input type={t} value={admitForm[k]} onChange={e => setAdmitForm(f => ({ ...f, [k]: e.target.value }))}
+                  <input type={t} value={admitForm[k]}
+                    onChange={e => {
+                      let val = e.target.value;
+                      if (k === 'full_name') val = val.replace(/[^a-zA-Z\s.,-]/g, '');
+                      if (k === 'age') val = val.replace(/[^0-9]/g, '');
+                      setAdmitForm(f => ({ ...f, [k]: val }));
+                    }}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
               ))}
