@@ -10,7 +10,7 @@ export default function NavBtn({ tabKey, label, active, setTab, d, compact, badg
       </svg>
       <span className="flex-1">{label}</span>
       {badge > 0 && (
-        <span className="ml-auto bg-orange-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+        <span className={`ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${isActive ? 'bg-white/30 text-white' : 'bg-orange-500 text-white'}`}>
           {badge > 99 ? '99+' : badge}
         </span>
       )}

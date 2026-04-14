@@ -137,6 +137,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [toastEnabled, setToastEnabled] = useState(true);
   const [pendingFilter, setPendingFilter] = useState('all');
+  const [pendingRemarks, setPendingRemarks] = useState({}); // { [patient_id]: [{ cost_center, remarks }] }
 
   const openFollowUpModal = async (p) => {
     setFollowUpModal({ patient: p, clearances: [] });
@@ -219,6 +220,25 @@ export default function BillingDashboard({ user, onLogout }) {
   useWebSocketPatients('Billing', filterDate, (updatedPatients) => {
     setPatients(updatedPatients || []);
   }, true, [filterDate]);
+
+  // Fetch sent-back remarks for pending tab
+  useEffect(() => {
+    if (tab !== 'pending') return;
+    const sentBack = patients.filter(p => p.clearance_step === 'cost_center_clearing' && p.has_pending);
+    if (sentBack.length === 0) return;
+    sentBack.forEach(p => {
+      if (pendingRemarks[p.id]) return; // already fetched
+      api.get(`/get_clearance_report.php?patient_id=${p.id}`)
+        .then(res => {
+          if (res.data.success) {
+            const reasons = res.data.clearances
+              .filter(c => c.remarks && c.remarks.trim())
+              .map(c => ({ cost_center: c.cost_center, remarks: c.remarks }));
+            setPendingRemarks(prev => ({ ...prev, [p.id]: reasons }));
+          }
+        }).catch(() => {});
+    });
+  }, [tab, patients]);
 
   const openClearanceForm = (p) => {
     setClearanceForm({ patientId: p.id, patientName: p.full_name, service: "", isBaby: false, selected: [] });
@@ -315,7 +335,7 @@ export default function BillingDashboard({ user, onLogout }) {
             <NavBtn tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Patients</p>
             <NavBtn tabKey="patients" label="Awaiting Billing" active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            <NavBtn tabKey="clearance" label="Clearance (Processing)" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing').length} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            <NavBtn tabKey="clearance" label="Clearance (Processing)" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0)).length} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             <NavBtn tabKey="for_discharge" label="For Discharge" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             <NavBtn tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -365,10 +385,12 @@ export default function BillingDashboard({ user, onLogout }) {
                     {loading ? (
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                     ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
+                        !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).length === 0 ? (
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients currently in clearance processing.</td></tr>
                     ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
+                        !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).map(p => {
                         const allCleared = parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0;
@@ -520,23 +542,34 @@ export default function BillingDashboard({ user, onLogout }) {
             </div>
 
             {(() => {
-              const base = patients.filter(p =>
-                p.clearance_step === 'cost_center_clearing' &&
-                p.has_pending &&
-                (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
-              );
-              // "Mismatched Amount" = sent back but still has pending CCs (not all resolved)
-              // "Missing Requirements" = sent back and some CCs still pending with remarks
-              // For now we treat both categories from the same has_pending flag.
-              // The distinction: mismatched = pending_count > 0 (CCs not yet re-cleared)
-              //                  missing    = was_sent_back but pending_count === 0 (all re-cleared, returned to billing)
-              const mismatchedPatients = base.filter(p => parseInt(p.pending_count) > 0);
-              const missingPatients    = base.filter(p => parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0);
+              // All sent-back patients still in clearance
+              const base = patients
+                .filter(p =>
+                  p.clearance_step === 'cost_center_clearing' &&
+                  p.has_pending &&
+                  (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
+                   p.patient_no.toLowerCase().includes(search.toLowerCase()))
+                )
+                // Sort: patients still waiting (pending_count > 0) first, then by name
+                .sort((a, b) => {
+                  const aPending = parseInt(a.pending_count) > 0 ? 0 : 1;
+                  const bPending = parseInt(b.pending_count) > 0 ? 0 : 1;
+                  if (aPending !== bPending) return aPending - bPending;
+                  return a.full_name.localeCompare(b.full_name);
+                });
 
-              const shown =
-                pendingFilter === 'mismatched' ? mismatchedPatients :
-                pendingFilter === 'missing'    ? missingPatients :
-                base;
+              // Category logic based on remarks content:
+              // "Mismatched Amount" = remarks contain amount/mismatch keywords
+              // "Missing Requirements" = all other sent-back cases
+              const getCategory = (p) => {
+                const remarks = (pendingRemarks[p.id] || []).map(r => r.remarks.toLowerCase()).join(' ');
+                return remarks.includes('mismatch') || remarks.includes('amount')
+                  ? 'mismatched'
+                  : 'missing';
+              };
+
+              const shown = pendingFilter === 'all' ? base
+                : base.filter(p => getCategory(p) === pendingFilter);
 
               return (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -544,16 +577,17 @@ export default function BillingDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Patient ID','Name','Ward','Admit Date','Category','Progress','Action'].map(h => (
+                          {['Patient ID','Name','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
                             <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
                         {shown.length === 0 ? (
-                          <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
+                          <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
                         ) : shown.map(p => {
-                          const isMismatched = parseInt(p.pending_count) > 0;
+                          const cat = getCategory(p);
+                          const remarks = pendingRemarks[p.id] || [];
                           return (
                             <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                               <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
@@ -563,19 +597,33 @@ export default function BillingDashboard({ user, onLogout }) {
                                 {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                               </td>
                               <td className="px-5 py-4">
-                                {isMismatched ? (
+                                {cat === 'mismatched' ? (
                                   <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 whitespace-nowrap">Mismatched Amount</span>
                                 ) : (
                                   <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600 whitespace-nowrap">Missing Requirements</span>
                                 )}
                               </td>
+                              <td className="px-5 py-4 max-w-[200px]">
+                                {remarks.length === 0 ? (
+                                  <span className="text-xs text-gray-300">—</span>
+                                ) : (
+                                  <div className="flex flex-col gap-1">
+                                    {remarks.map((r, i) => (
+                                      <div key={i} className="text-xs text-gray-600">
+                                        <span className="font-semibold text-gray-400">{r.cost_center}: </span>
+                                        <span className="italic">{r.remarks}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-2">
-                                  <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div className="h-full bg-orange-400 rounded-full transition-all"
                                       style={{ width: p.total_cc > 0 ? `${((p.total_cc - p.pending_count) / p.total_cc) * 100}%` : '0%' }} />
                                   </div>
-                                  <span className="text-xs text-orange-500 font-medium">{p.total_cc - p.pending_count}/{p.total_cc}</span>
+                                  <span className="text-xs text-orange-500 font-medium whitespace-nowrap">{p.total_cc - p.pending_count}/{p.total_cc}</span>
                                 </div>
                               </td>
                               <td className="px-5 py-4">
