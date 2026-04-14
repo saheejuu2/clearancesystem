@@ -274,7 +274,7 @@ export default function BillingDashboard({ user, onLogout }) {
     } finally { setPendingLoading(false); }
   };
   const filtered = patients.filter(p =>
-    p.clearance_step !== 'discharged' &&
+    p.clearance_step === 'awaiting_billing' &&
     (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
@@ -308,7 +308,9 @@ export default function BillingDashboard({ user, onLogout }) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Overview</p>
             <NavBtn tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Patients</p>
-            <NavBtn tabKey="patients" label="Patients" active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            <NavBtn tabKey="patients" label="Awaiting Billing" active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            <NavBtn tabKey="clearance" label="Clearance (Processing)" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing').length} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            <NavBtn tabKey="for_discharge" label="For Discharge" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             <NavBtn tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
@@ -324,11 +326,175 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
         </aside>
         <main className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5">
-        {tab === "dashboard" && <DashboardOverview title="Billing Dashboard" subtitle="Patient clearance overview" />}
+        {tab === "dashboard" && <DashboardOverview title="Billing Dashboard" subtitle="Patient clearance overview" onCardClick={key => {
+          const map = { awaiting_billing: 'patients', in_clearance: 'clearance', pending: 'pending', discharged: 'discharged' };
+          if (map[key]) setTab(map[key]);
+        }} />}
 
         {tab === "discharged" && <DischargedList />}
 
         {tab === "audit" && <AuditTrail key={auditKey} role={user.costCenter} />}
+
+        {tab === 'clearance' && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Clearance (Processing)</h1>
+              <p className="text-sm text-gray-400 mt-0.5">Patients referred by Billing currently undergoing cost center clearance</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                      {['Patient ID','Name','Ward','Admit Date','Type','Progress','Action'].map(h => (
+                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {loading ? (
+                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
+                    ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
+                        (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
+                      ).length === 0 ? (
+                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients currently in clearance processing.</td></tr>
+                    ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
+                        (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
+                      ).map(p => {
+                        const allCleared = parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0;
+                        const isPending = p.has_pending;
+                        return (
+                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                            <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                            <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all ${isPending ? 'bg-orange-400' : 'bg-emerald-500'}`}
+                                    style={{ width: p.total_cc > 0 ? `${((p.total_cc - p.pending_count) / p.total_cc) * 100}%` : '0%' }} />
+                                </div>
+                                <span className={`text-xs font-medium whitespace-nowrap ${isPending ? 'text-orange-500' : allCleared ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                  {p.total_cc - p.pending_count}/{p.total_cc}
+                                  {isPending && ' ⚠'}
+                                  {allCleared && ' ✓'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {isPending && (
+                                  <button onClick={() => openFollowUpModal(p)}
+                                    className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                    Follow Up
+                                  </button>
+                                )}
+                                <button onClick={() => setReport(p)}
+                                  className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                  Report
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+                {patients.filter(p => p.clearance_step === 'cost_center_clearing').length} patient(s) in clearance processing
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'for_discharge' && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">For Discharge</h1>
+              <p className="text-sm text-gray-400 mt-0.5">Patients fully cleared by all cost centers and ready for discharge</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                      {['Patient ID','Name','Ward','Admit Date','Type','Action'].map(h => (
+                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {loading ? (
+                      <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
+                    ) : patients.filter(p =>
+                        p.clearance_step === 'cost_center_clearing' &&
+                        parseInt(p.pending_count) === 0 &&
+                        parseInt(p.total_cc) > 0 &&
+                        (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
+                      ).length === 0 ? (
+                      <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients ready for discharge.</td></tr>
+                    ) : patients.filter(p =>
+                        p.clearance_step === 'cost_center_clearing' &&
+                        parseInt(p.pending_count) === 0 &&
+                        parseInt(p.total_cc) > 0 &&
+                        (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
+                      ).map(p => (
+                      <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                        <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                        <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                            {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => { setDischargeModal(p); setDischargeRemarks(''); setDischargeName(''); }}
+                              className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                              Discharge
+                            </button>
+                            <button onClick={() => openPendingModal(p)}
+                              className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                              Send Back
+                            </button>
+                            <button onClick={() => setReport(p)}
+                              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                              Report
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+                {patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length} patient(s) ready for discharge
+              </div>
+            </div>
+          </div>
+        )}
 
         {tab === 'pending' && (
           <div className="flex flex-col gap-5">
@@ -445,8 +611,8 @@ export default function BillingDashboard({ user, onLogout }) {
         {tab === 'patients' && (
           <>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Billing Dashboard</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Manage patient clearance and discharge</p>
+              <h1 className="text-xl font-bold text-gray-800">Awaiting Billing</h1>
+              <p className="text-sm text-gray-400 mt-0.5">Patients marked as May Go Home, pending billing review</p>
             </div>
 
             <div className="flex items-center gap-3">

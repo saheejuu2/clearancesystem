@@ -12,6 +12,7 @@ import NotificationBell from '../components/NotificationBell';
 import PendingPatientToast from '../components/PendingPatientToast';
 import usePagination from '../hooks/usePagination';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import Pagination from '../components/Pagination';
 
 export default function CostCenterDashboard({ user, onLogout }) {
