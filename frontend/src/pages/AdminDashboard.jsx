@@ -124,8 +124,8 @@ function AdminPatientList({ tab }) {
     if (!forClearanceModal.selected.length) { alert('Select at least one cost center.'); return; }
     try {
       const res = await api.post('/update_clearance.php', { action: 'for_clearance', patient_id: forClearanceModal.patient.id, actor: 'Admin', cost_centers: forClearanceModal.selected });
-      if (res.data.success) { setForClearanceModal(null); refetch(); } else alert(res.data.message);
-    } catch { /* silent */ }
+      if (res.data.success) { setForClearanceModal(null); refetch(); } else { alert(res.data.message); setForClearanceModal(null); }
+    } catch { alert('An error occurred. Please try again.'); setForClearanceModal(null); }
   };
 
   const submitDischarge = async () => {

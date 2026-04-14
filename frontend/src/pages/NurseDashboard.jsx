@@ -1,6 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
-import websocketService from '../services/websocket';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
@@ -41,6 +40,7 @@ export default function NurseDashboard({ user, onLogout }) {
   // Admission form
   const [admitForm, setAdmitForm] = useState(null);
   const [admitSaving, setAdmitSaving] = useState(false);
+  const [admitSuccess, setAdmitSuccess] = useState(null); // { full_name, patient_no }
 
   // Clearance progress tracker
   const [trackPatient, setTrackPatient] = useState(null);
@@ -125,8 +125,11 @@ export default function NurseDashboard({ user, onLogout }) {
     setAdmitSaving(true);
     try {
       const res = await api.post('/add_patient.php', admitForm);
-      if (res.data.success) { setAdmitForm(null); fetchPatients(); }
-      else alert(res.data.message);
+      if (res.data.success) {
+        setAdmitSuccess({ full_name: admitForm.full_name, patient_no: admitForm.patient_no });
+        setAdmitForm(null);
+        fetchPatients();
+      } else alert(res.data.message);
     } finally { setAdmitSaving(false); }
   };
 
@@ -438,6 +441,28 @@ export default function NurseDashboard({ user, onLogout }) {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admit Success Modal */}
+      {admitSuccess && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Patient Admitted</h3>
+            <p className="text-sm text-gray-500 mb-1">
+              <span className="font-semibold text-gray-800">{admitSuccess.full_name}</span>
+            </p>
+            <p className="text-xs text-gray-400 mb-6">{admitSuccess.patient_no} has been successfully admitted.</p>
+            <button onClick={() => setAdmitSuccess(null)}
+              className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm rounded-lg transition-colors">
+              Done
+            </button>
           </div>
         </div>
       )}

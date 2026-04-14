@@ -232,8 +232,9 @@ export default function BillingDashboard({ user, onLogout }) {
         cost_centers: clearanceForm.selected,
       });
       if (res.data.success) { setClearanceForm(null); fetchPatients(); }
-      else alert(res.data.message);
-    } finally { setActionId(null); }
+      else { alert(res.data.message); setClearanceForm(null); }
+    } catch { alert('An error occurred. Please try again.'); }
+    finally { setActionId(null); }
   };
 
   const discharge = async () => {
