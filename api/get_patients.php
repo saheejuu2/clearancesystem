@@ -6,6 +6,20 @@ header("Content-Type: application/json");
 include 'db_config.php';
 
 $role = isset($_GET['role']) ? $_GET['role'] : '';
+$date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'); // default: today
+
+// Build date condition — patient had any activity on this date
+$date_condition = "AND (
+    DATE(p.created_at) = '$date'
+    OR DATE(cr.nurse_cleared_at) = '$date'
+    OR DATE(cr.billing_sent_at) = '$date'
+    OR DATE(cr.discharged_at) = '$date'
+    OR EXISTS (
+        SELECT 1 FROM cost_center_clearances ccc_d
+        WHERE ccc_d.clearance_request_id = cr.id
+        AND DATE(ccc_d.cleared_at) = '$date'
+    )
+)";
 
 $sql = "
     SELECT 
@@ -23,7 +37,8 @@ $sql = "
          WHERE ccc4.clearance_request_id = cr.id AND ccc4.remarks IS NOT NULL AND ccc4.remarks != '') AS sent_back_count
     FROM patients p
     LEFT JOIN clearance_requests cr ON cr.patient_id = p.id
-    ORDER BY p.admit_date DESC
+    WHERE 1=1 $date_condition
+    ORDER BY p.admit_date DESC, p.id DESC
 ";
 
 $result = $conn->query($sql);
@@ -77,7 +92,7 @@ if ($pending_only && $role && !in_array($role, ['Nurse', 'Billing'])) {
           AND ccc.remarks != ''
           AND cr.billing_status = 'for_clearance'
           AND cr.final_status != 'discharged'
-        ORDER BY p.admit_date DESC
+        ORDER BY p.admit_date DESC, p.id DESC
     ");
     $stmt_p->bind_param("s", $role);
     $stmt_p->execute();

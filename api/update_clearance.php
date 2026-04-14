@@ -192,9 +192,16 @@ if ($action === 'cost_center_clear') {
     // Notify billing when all CCs are cleared (patient returned to billing)
     if ($all_cleared) {
         notify($conn, "Billing", $patient_id, $patient, "All cost centers have cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . "). Patient is ready for discharge.");
+        notify($conn, "Nurse",   $patient_id, $patient, $cost_center . " has cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . "). All departments done — ready for discharge.");
+        notify($conn, "Admin",   $patient_id, $patient, "All cost centers have cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . "). Patient is ready for discharge.");
     } else if ($was_sent_back) {
         // This CC was previously sent back — notify billing it's been resolved
         notify($conn, "Billing", $patient_id, $patient, $cost_center . " has resolved the pending requirement for " . $patient["full_name"] . " (" . $patient["patient_no"] . ") and cleared the patient.");
+        notify($conn, "Nurse",   $patient_id, $patient, $cost_center . " has resolved and cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . ").");
+        notify($conn, "Admin",   $patient_id, $patient, $cost_center . " has resolved the pending requirement for " . $patient["full_name"] . " (" . $patient["patient_no"] . ") and cleared the patient.");
+    } else {
+        notify($conn, "Nurse",  $patient_id, $patient, $cost_center . " has cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . ").");
+        notify($conn, "Admin",  $patient_id, $patient, $cost_center . " has cleared " . $patient["full_name"] . " (" . $patient["patient_no"] . ").");
     }
 
     echo json_encode([

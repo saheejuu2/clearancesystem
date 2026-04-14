@@ -1,46 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
 
-// Shows a sliding toast for each uncleared patient every 10 seconds
+// Shows a persistent toast for each uncleared patient until they are cleared
 export default function PendingPatientToast({ patients = [], enabled = true }) {
   const [toasts, setToasts] = useState([]);
   const shownRef = useRef(new Set());
   const timerRef = useRef(null);
-  const queueRef = useRef([]);
-
-  const dismiss = (toastId) => setToasts(prev => prev.filter(t => t.toastId !== toastId));
-
-  const showNext = () => {
-    if (queueRef.current.length === 0) return;
-    const patient = queueRef.current.shift();
-    const toastId = `${patient.id}-${Date.now()}`;
-    setToasts(prev => [...prev, { ...patient, toastId }]);
-    // Auto-dismiss after 8s
-    setTimeout(() => setToasts(prev => prev.filter(t => t.toastId !== toastId)), 8000);
-    // Show next after 1.5s gap
-    if (queueRef.current.length > 0) {
-      setTimeout(showNext, 1500);
-    }
-  };
 
   useEffect(() => {
-    if (patients.length === 0 || !enabled) return;
+    if (!enabled) {
+      setToasts([]);
+      return;
+    }
 
-    const fire = () => {
-      queueRef.current = [...patients];
-      showNext();
-    };
+    // Create toasts for all uncleared patients
+    const newToasts = patients.map(p => ({
+      ...p,
+      toastId: `${p.id}`,
+    }));
 
-    // Fire immediately after 10s, then repeat every 10s
-    timerRef.current = setTimeout(() => {
-      fire();
-      timerRef.current = setInterval(fire, 10000);
-    }, 10000);
+    setToasts(newToasts);
+  }, [patients, enabled]);
 
-    return () => {
-      clearTimeout(timerRef.current);
-      clearInterval(timerRef.current);
-    };
-  }, [patients.map(p => p.id).join(',')]);
+  const dismiss = (toastId) => setToasts(prev => prev.filter(t => t.toastId !== toastId));
 
   if (toasts.length === 0) return null;
 

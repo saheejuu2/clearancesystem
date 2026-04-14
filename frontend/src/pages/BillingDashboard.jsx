@@ -8,7 +8,9 @@ import DateFilter from '../components/DateFilter';
 import NotificationBell from '../components/NotificationBell';
 import NavBtn from '../components/NavBtn';
 import DashboardOverview from '../components/DashboardOverview';
+import AwaitingBillingToast from '../components/AwaitingBillingToast';
 import usePagination from '../hooks/usePagination';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import Pagination from '../components/Pagination';
 
 
@@ -131,6 +133,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [followUpSelected, setFollowUpSelected] = useState([]);
   const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [toastEnabled, setToastEnabled] = useState(true);
 
   const openFollowUpModal = async (p) => {
     setFollowUpModal({ patient: p, clearances: [] });
@@ -199,7 +202,14 @@ export default function BillingDashboard({ user, onLogout }) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchPatients(); }, []);
+  useEffect(() => { 
+    fetchPatients();
+    // Fetch notification settings for Billing
+    api.get(`/notification_settings.php?cost_center=Billing`)
+      .then(res => setToastEnabled(res.data.toast_enabled !== false))
+      .catch(() => setToastEnabled(true));
+  }, []);
+  useAutoRefresh(fetchPatients, 10000, true, [filterDate]);
 
   const openClearanceForm = (p) => {
     setClearanceForm({ patientId: p.id, patientName: p.full_name, service: "", isBaby: false, selected: [] });
@@ -792,6 +802,7 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <AwaitingBillingToast patients={patients} enabled={toastEnabled} />
     </div>
   );
 }

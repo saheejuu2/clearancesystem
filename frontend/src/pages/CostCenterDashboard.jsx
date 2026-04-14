@@ -10,6 +10,7 @@ import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import PendingPatientToast from '../components/PendingPatientToast';
 import usePagination from '../hooks/usePagination';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import Pagination from '../components/Pagination';
 
 export default function CostCenterDashboard({ user, onLogout }) {
@@ -102,6 +103,14 @@ export default function CostCenterDashboard({ user, onLogout }) {
       .then(res => setPendingPatients(Array.isArray(res.data) ? res.data : []))
       .catch(() => {});
   }, []);
+
+  useAutoRefresh(() => {
+    fetchPatients();
+    fetchPendingBalance();
+    api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&pending_only=1`)
+      .then(res => setPendingPatients(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {});
+  }, 10000, true, [user.costCenter, filterDate]);
 
   useEffect(() => {
     patients.forEach(async p => {

@@ -9,6 +9,7 @@ import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import usePagination from '../hooks/usePagination';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import Pagination from '../components/Pagination';
 
 const STEP_LABEL = {
@@ -69,6 +70,7 @@ export default function NurseDashboard({ user, onLogout }) {
   };
 
   useEffect(() => { fetchPatients(); }, []);
+  useAutoRefresh(fetchPatients, 10000, true, [filterDate]);
   const openForm = (patient_id) => {
     setConfirmForm({ patientId: patient_id, nurseName: '', remarks: '' });
   };

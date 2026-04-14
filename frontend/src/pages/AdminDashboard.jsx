@@ -8,13 +8,14 @@ import DashboardOverview from '../components/DashboardOverview';
 import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import usePagination from '../hooks/usePagination';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import Pagination from '../components/Pagination';
 
 const STEP_LABELS = {
   no_request:           { label: 'Admitted',         style: 'bg-gray-100 text-gray-500'       },
   awaiting_nurse:       { label: 'Admitted',         style: 'bg-gray-100 text-gray-500'       },
   awaiting_billing:     { label: 'Awaiting Billing', style: 'bg-amber-100 text-amber-600'     },
-  cost_center_clearing: { label: 'In Clearance',     style: 'bg-violet-100 text-violet-600'   },
+  cost_center_clearing: { label: 'Clearance (Processing)',     style: 'bg-violet-100 text-violet-600'   },
   discharged:           { label: 'Discharged',       style: 'bg-emerald-100 text-emerald-700' },
 };
 
@@ -22,7 +23,7 @@ const TAB_CONFIG = {
   total:           { title: 'Total Patients',    subtitle: 'All patients in the system',                   filter: p => true },
   admitted:        { title: 'Admitted',          subtitle: 'Patients not yet in discharge process',        filter: p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse' },
   awaiting_billing:{ title: 'Awaiting Billing',  subtitle: 'Nurse approved — waiting for billing',         filter: p => p.clearance_step === 'awaiting_billing' },
-  in_clearance:    { title: 'In Clearance',      subtitle: 'Currently being cleared by cost centers',      filter: p => p.clearance_step === 'cost_center_clearing' },
+  in_clearance:    { title: 'Clearance (Processing)',      subtitle: 'Currently being cleared by cost centers',      filter: p => p.clearance_step === 'cost_center_clearing' },
   pending:         { title: 'Missing Requirements', subtitle: 'Patients with missing requirements sent back',  filter: p => p.has_pending && p.clearance_step === 'cost_center_clearing' },  cleared:         { title: 'Cleared Patients',  subtitle: 'All cost centers have cleared these patients',  filter: p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 },
   discharged:      { title: 'Discharged',        subtitle: 'Successfully discharged patients',             filter: p => p.clearance_step === 'discharged' },
 };
@@ -78,6 +79,7 @@ function AdminPatientList({ tab }) {
       .finally(() => setLoading(false));
   };
   useEffect(() => { refetch(); }, [tab]);
+  useAutoRefresh(() => refetch(), 10000, true, [tab, filterDate]);
 
   const openTracker = async (p) => {
     setTrackPatient(p); setTrackLoading(true);
@@ -735,7 +737,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <NavBtn compact tabKey="total"            label="Total Patients"   active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             <NavBtn compact tabKey="admitted"         label="Admitted"         active={tab} setTab={setTab} badge={(adminStats.total_patients || 0) - (adminStats.awaiting_billing || 0) - (adminStats.in_progress || 0) - (adminStats.discharged || 0) - (adminStats.pending_count || 0)} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTab} badge={adminStats.awaiting_billing} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="in_clearance"     label="In Clearance"     active={tab} setTab={setTab} badge={adminStats.in_progress} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <NavBtn compact tabKey="in_clearance"     label="Clearance (Processing)"     active={tab} setTab={setTab} badge={adminStats.in_progress} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             <NavBtn compact tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={pendingCount} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn compact tabKey="pending_balance" label="Pending Balance" active={tab} setTab={() => { setTab('pending_balance'); fetchAdminPendingBalance(); }} badge={[...new Set(adminPendingBalance.filter(r => r.status === 'pending_balance').map(r => r.id))].length || undefined} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -944,7 +946,7 @@ export default function AdminDashboard({ user, onLogout }) {
                           <td className="px-5 py-4"><span className="text-xs font-medium bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">{s.cost_center}</span></td>
                           <td className="px-5 py-4 text-gray-500 text-xs">{new Date(s.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</td>
                           <td className="px-5 py-4 text-center">
-                            {s.cost_center && s.cost_center !== 'Nurse' && s.cost_center !== 'Billing' ? (() => {
+                            {s.cost_center && s.cost_center !== 'Nurse' ? (() => {
                               const on = toastSettings[s.cost_center] !== false;
                               return (
                                 <button

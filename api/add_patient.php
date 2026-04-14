@@ -1,6 +1,6 @@
 <?php
-error_reporting(0);
-ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -24,11 +24,16 @@ if (!$patient_no || !$full_name || !$age || !$ward) {
 }
 
 $stmt = $conn->prepare("INSERT INTO patients (patient_no, full_name, age, ward, admit_date, patient_type) VALUES (?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("sissss", $patient_no, $full_name, $age, $ward, $admit_date, $patient_type);
+if (!$stmt) {
+    echo json_encode(["success" => false, "message" => "Prepare failed: " . $conn->error]);
+    exit();
+}
+
+$stmt->bind_param("ssisss", $patient_no, $full_name, $age, $ward, $admit_date, $patient_type);
 
 if ($stmt->execute()) {
     echo json_encode(["success" => true, "message" => "Patient admitted successfully.", "id" => $conn->insert_id]);
 } else {
-    echo json_encode(["success" => false, "message" => "Patient number already exists."]);
+    echo json_encode(["success" => false, "message" => "Execute failed: " . $stmt->error]);
 }
 ?>
