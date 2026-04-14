@@ -41,6 +41,7 @@ export default function NurseDashboard({ user, onLogout }) {
   const [admitForm, setAdmitForm] = useState(null);
   const [admitSaving, setAdmitSaving] = useState(false);
   const [admitSuccess, setAdmitSuccess] = useState(null); // { full_name, patient_no }
+  const [mayGoHomeSuccess, setMayGoHomeSuccess] = useState(null); // { full_name, patient_no }
 
   // Clearance progress tracker
   const [trackPatient, setTrackPatient] = useState(null);
@@ -80,8 +81,8 @@ export default function NurseDashboard({ user, onLogout }) {
       )))
       .catch(() => {});
   }, true, [filterDate]);
-  const openForm = (patient_id) => {
-    setConfirmForm({ patientId: patient_id, nurseName: '', remarks: '' });
+  const openForm = (patient) => {
+    setConfirmForm({ patientId: patient.id, full_name: patient.full_name, patient_no: patient.patient_no, nurseName: '', remarks: '' });
   };
 
   const submitMayGoHome = async () => {
@@ -89,16 +90,30 @@ export default function NurseDashboard({ user, onLogout }) {
       alert('Please enter your name before confirming.');
       return;
     }
-    setActionId(confirmForm.patientId);
+    const { patientId, full_name, patient_no } = confirmForm;
+    const actor = confirmForm.nurseName.trim();
+    const remarks = confirmForm.remarks.trim();
+    // Close modal and optimistically update immediately
+    setConfirmForm(null);
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? { ...p, clearance_step: 'awaiting_billing' } : p
+    ));
+    setActionId(patientId);
     try {
       const res = await api.post('/update_clearance.php', {
         action:     'may_go_home',
-        patient_id: confirmForm.patientId,
-        actor:      confirmForm.nurseName.trim(),
-        remarks:    confirmForm.remarks.trim(),
+        patient_id: patientId,
+        actor,
+        remarks,
       });
-      if (res.data.success) { setConfirmForm(null); fetchPatients(); setAuditKey(k => k + 1); }
-      else alert(res.data.message);
+      if (res.data.success || res.data.message === 'Already marked as may go home.') {
+        setMayGoHomeSuccess({ full_name, patient_no });
+        fetchPatients();
+        setAuditKey(k => k + 1);
+      } else {
+        alert(res.data.message);
+        fetchPatients();
+      }
     } finally { setActionId(null); }
   };
 
@@ -320,7 +335,7 @@ export default function NurseDashboard({ user, onLogout }) {
                           <td className="px-4 py-3.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {canAct && (
-                                <button onClick={() => openForm(p.id)}
+                                <button onClick={() => openForm(p)}
                                   className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   May Go Home
                                 </button>
@@ -358,7 +373,7 @@ export default function NurseDashboard({ user, onLogout }) {
       </main>
       </div>
 
-      {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="Nurse" onAction={(action, patient) => { setNotifReport(null); if (action === "may_go_home") openForm(patient.id); else if (action === "cancel") setCancelForm({ patientId: patient.id, patientName: patient.full_name, nurseName: "", remarks: "" }); }} />}
+      {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="Nurse" onAction={(action, patient) => { setNotifReport(null); if (action === "may_go_home") openForm(patient); else if (action === "cancel") setCancelForm({ patientId: patient.id, patientName: patient.full_name, nurseName: "", remarks: "" }); }} />}
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
 
       {/* May Go Home Confirm Modal */}
@@ -461,6 +476,28 @@ export default function NurseDashboard({ user, onLogout }) {
             <p className="text-xs text-gray-400 mb-6">{admitSuccess.patient_no} has been successfully admitted.</p>
             <button onClick={() => setAdmitSuccess(null)}
               className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm rounded-lg transition-colors">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* May Go Home Success Modal */}
+      {mayGoHomeSuccess && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">May Go Home</h3>
+            <p className="text-sm text-gray-500 mb-1">
+              <span className="font-semibold text-gray-800">{mayGoHomeSuccess.full_name}</span>
+            </p>
+            <p className="text-xs text-gray-400 mb-6">{mayGoHomeSuccess.patient_no} has been sent for billing review.</p>
+            <button onClick={() => setMayGoHomeSuccess(null)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg transition-colors">
               Done
             </button>
           </div>
