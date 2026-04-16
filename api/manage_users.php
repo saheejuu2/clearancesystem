@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
     exit();
 }
 
-// â”€â”€ POST: edit staff â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'edit') {
     $id          = (int)($data['id']          ?? 0);
     $full_name   = trim($data['full_name']    ?? '');
