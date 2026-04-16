@@ -10,7 +10,7 @@ $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'); // default: today
 
 // Build date condition — patient had any activity on this date
 $date_condition = "AND (
-    DATE(p.created_at) = '$date'
+    DATE(p.admit_date) = '$date'
     OR DATE(cr.nurse_cleared_at) = '$date'
     OR DATE(cr.billing_sent_at) = '$date'
     OR DATE(cr.discharged_at) = '$date'

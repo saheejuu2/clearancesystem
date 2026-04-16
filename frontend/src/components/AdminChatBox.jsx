@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import api from '../services/api';
 
 const COST_CENTERS = [
+  'Nurse',
+  'Billing',
   'Operating Room/Delivery Room',
   'Pulmonary Department (MSA)',
   'Hemodialysis Unit',
@@ -12,13 +14,6 @@ const COST_CENTERS = [
   'Laboratory',
   'Bloodbank',
   'Pharmacy',
-  'Billing - Window 1',
-  'Billing - Window 2',
-  'Benefits - Window 3A',
-  'Benefits - Window 3B',
-  'Benefits - Window 6',
-  'Nurse',
-  'Billing',
 ];
 
 export default function AdminChatBox() {

@@ -1,6 +1,20 @@
 ﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
 
+const STATIC_COST_CENTERS = [
+  'Nurse',
+  'Billing',
+  'Operating Room/Delivery Room',
+  'Pulmonary Department (MSA)',
+  'Hemodialysis Unit',
+  'Newborn Screening',
+  'Newborn Hearing Test',
+  'Radiology',
+  'Laboratory',
+  'Bloodbank',
+  'Pharmacy',
+];
+
 export default function Login({ onLogin }) {
   const [username, setUsername]       = useState('');
   const [password, setPassword]       = useState('');
@@ -14,8 +28,14 @@ export default function Login({ onLogin }) {
   // Load cost centers from DB on mount
   useEffect(() => {
     api.get('/get_cost_centers.php')
-      .then(res => setCostCenters(res.data))
-      .catch(() => {});
+      .then(res => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setCostCenters(res.data);
+        } else {
+          setCostCenters(STATIC_COST_CENTERS);
+        }
+      })
+      .catch(() => setCostCenters(STATIC_COST_CENTERS));
   }, []);
 
   // When username loses focus, check if this user is an admin

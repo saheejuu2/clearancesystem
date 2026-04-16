@@ -23,6 +23,7 @@ if (!$patient_id || !$action || !$actor) {
 }
 
 $now = date('Y-m-d H:i:s');
+$today = date('Y-m-d');
 
 function get_request($conn, $patient_id) {
     $stmt = $conn->prepare("SELECT * FROM clearance_requests WHERE patient_id = ? ORDER BY id DESC LIMIT 1");
