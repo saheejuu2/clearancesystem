@@ -51,6 +51,8 @@ function AdminPatientList({ tab }) {
   const [forClearanceModal, setForClearanceModal] = useState(null); // { patient, selected[] }
   const [dischargeModal, setDischargeModal] = useState(null);
   const [dischargeName, setDischargeName]   = useState('');
+  const [dischargePassword, setDischargePassword] = useState('');
+  const [showDischargePass, setShowDischargePass] = useState(false);
   const [dischargeRemarks, setDischargeRemarks] = useState('');
   const [dischargeSaving, setDischargeSaving] = useState(false);
   const [pendingModal, setPendingModal]     = useState(null);
@@ -58,6 +60,8 @@ function AdminPatientList({ tab }) {
   const [pendingSelected, setPendingSelected] = useState([]);
   const [pendingReason, setPendingReason]   = useState('');
   const [pendingActor, setPendingActor]     = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
+  const [showPendingPass, setShowPendingPass] = useState(false);
   const [pendingSaving, setPendingSaving]   = useState(false);
   const [selectMode, setSelectMode]         = useState(false);
   const [selected, setSelectedIds]          = useState(new Set());
@@ -130,12 +134,17 @@ function AdminPatientList({ tab }) {
   };
 
   const submitDischarge = async () => {
-    if (!dischargeName.trim()) { alert('Enter your name.'); return; }
+    if (!dischargeName.trim()) { alert('Enter your username.'); return; }
+    if (!dischargePassword.trim()) { alert('Enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: dischargeName.trim(), password: dischargePassword, cost_center: 'Billing' });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     if (!dischargeRemarks.trim()) { alert('Enter final remarks.'); return; }
     setDischargeSaving(true);
     try {
       const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id: dischargeModal.id, actor: dischargeName.trim(), remarks: dischargeRemarks });
-      if (res.data.success) { setDischargeModal(null); setDischargeName(''); setDischargeRemarks(''); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setDischargeModal(null); setDischargeName(''); setDischargePassword(''); setDischargeRemarks(''); refetch(); } else alert(res.data.message);
     } finally { setDischargeSaving(false); }
   };
 
@@ -148,11 +157,16 @@ function AdminPatientList({ tab }) {
   };
   const submitPending = async () => {
     if (!pendingSelected.length) { alert('Select at least one cost center.'); return; }
-    if (!pendingActor.trim()) { alert('Enter your name.'); return; }
+    if (!pendingActor.trim()) { alert('Enter your username.'); return; }
+    if (!pendingPassword.trim()) { alert('Enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: pendingActor.trim(), password: pendingPassword, cost_center: 'Billing' });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     setPendingSaving(true);
     try {
       const res = await api.post('/send_back_clearance.php', { patient_id: pendingModal.id, actor: pendingActor.trim(), cost_centers: pendingSelected, reason: pendingReason.trim() || 'Missing requirements' });
-      if (res.data.success) { setPendingModal(null); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setPendingModal(null); setPendingActor(''); setPendingPassword(''); refetch(); } else alert(res.data.message);
     } finally { setPendingSaving(false); }
   };
 
@@ -389,8 +403,8 @@ function AdminPatientList({ tab }) {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={clearName} onChange={e => setClearName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your username" value={clearName} onChange={e => setClearName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -413,8 +427,8 @@ function AdminPatientList({ tab }) {
             <p className="text-sm text-gray-500 mb-4">Mark <span className="font-semibold text-gray-800">{mayGoHomeModal.full_name}</span> ({mayGoHomeModal.patient_no}) as ready for discharge clearance.</p>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={mghName} onChange={e => setMghName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter your username" value={mghName} onChange={e => setMghName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -467,9 +481,20 @@ function AdminPatientList({ tab }) {
             <h3 className="text-base font-bold text-gray-900 mb-1">Discharge Patient</h3>
             <p className="text-sm text-gray-500 mb-4">Confirm discharge for <span className="font-semibold text-gray-800">{dischargeModal.full_name}</span> ({dischargeModal.patient_no})</p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={dischargeName} onChange={e => setDischargeName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter your username" value={dischargeName} onChange={e => setDischargeName(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showDischargePass ? 'text' : 'password'} placeholder="Your password" value={dischargePassword} onChange={e => setDischargePassword(e.target.value)} className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <button type="button" onClick={() => setShowDischargePass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Final Remarks <span className="text-red-500">*</span></label>
@@ -491,9 +516,20 @@ function AdminPatientList({ tab }) {
             <h3 className="text-base font-bold text-gray-900 mb-1">Mark as Pending</h3>
             <p className="text-sm text-gray-500 mb-4">Send <span className="font-semibold text-gray-800">{pendingModal.full_name}</span> ({pendingModal.patient_no}) back to cost center(s).</p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={pendingActor} onChange={e => setPendingActor(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter your username" value={pendingActor} onChange={e => setPendingActor(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showPendingPass ? 'text' : 'password'} placeholder="Your password" value={pendingPassword} onChange={e => setPendingPassword(e.target.value)} className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    <button type="button" onClick={() => setShowPendingPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cost Centers <span className="text-red-500">*</span> {pendingSelected.length > 0 && <span className="text-orange-500 normal-case font-normal ml-1">{pendingSelected.length} selected</span>}</label>

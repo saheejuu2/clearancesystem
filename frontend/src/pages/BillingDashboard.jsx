@@ -124,6 +124,10 @@ export default function BillingDashboard({ user, onLogout }) {
   const [reportPatient, setReport] = useState(null);
   const [dischargeRemarks, setDischargeRemarks] = useState("");
   const [dischargeName, setDischargeName] = useState("");
+  const [dischargePassword, setDischargePassword] = useState("");
+  const [showDischargePass, setShowDischargePass] = useState(false);
+  const [pendingPassword, setPendingPassword] = useState("");
+  const [showPendingPass, setShowPendingPass] = useState(false);
   const [clearanceForm, setClearanceForm] = useState(null);
   const [pendingModal, setPendingModal] = useState(null);
   const [pendingSelectedCCs, setPendingSelectedCCs] = useState([]);
@@ -265,20 +269,30 @@ export default function BillingDashboard({ user, onLogout }) {
   };
 
   const discharge = async () => {
-    if (!dischargeName.trim()) { alert("Please enter your name before discharging."); return; }
+    if (!dischargeName.trim()) { alert("Please enter your username before discharging."); return; }
+    if (!dischargePassword.trim()) { alert("Please enter your password before discharging."); return; }
+    try {
+      const verify = await api.post('/login.php', { username: dischargeName.trim(), password: dischargePassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     if (!dischargeRemarks.trim()) { alert("Please enter final remarks before discharging."); return; }
     const patient_id = dischargeModal.id;
     setActionId(patient_id);
     try {
       const res = await api.post("/update_clearance.php", { action: "discharge", patient_id, actor: dischargeName.trim(), remarks: dischargeRemarks });
-      if (res.data.success) { setDischargeSuccess({ full_name: dischargeModal.full_name, patient_no: dischargeModal.patient_no }); setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); fetchPatients(); setAuditKey(k => k + 1); }
+      if (res.data.success) { setDischargeSuccess({ full_name: dischargeModal.full_name, patient_no: dischargeModal.patient_no }); setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); setDischargePassword(""); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
 
   const submitPending = async () => {
     if (pendingSelectedCCs.length === 0) { alert('Please select at least one cost center.'); return; }
-    if (!pendingActor.trim()) { alert('Please enter your name.'); return; }
+    if (!pendingActor.trim()) { alert('Please enter your username.'); return; }
+    if (!pendingPassword.trim()) { alert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: pendingActor.trim(), password: pendingPassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     setPendingLoading(true);
     try {
       const res = await api.post('/send_back_clearance.php', {
@@ -292,6 +306,7 @@ export default function BillingDashboard({ user, onLogout }) {
         setPendingSelectedCCs([]);
         setPendingReason('');
         setPendingActor('');
+        setPendingPassword('');
         setPendingCCs([]);
         fetchPatients();
         setAuditKey(k => k + 1);
@@ -767,11 +782,24 @@ export default function BillingDashboard({ user, onLogout }) {
               Confirm discharge for <span className="font-semibold text-gray-800">{dischargeModal.full_name}</span> ({dischargeModal.patient_no})
             </p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={dischargeName}
-                  onChange={e => setDischargeName(e.target.value.replace(/[0-9]/g, ""))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter your username" value={dischargeName}
+                    onChange={e => setDischargeName(e.target.value)}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showDischargePass ? 'text' : 'password'} placeholder="Your password"
+                      value={dischargePassword} onChange={e => setDischargePassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <button type="button" onClick={() => setShowDischargePass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Final Remarks <span className="text-red-500">*</span></label>
@@ -826,11 +854,24 @@ export default function BillingDashboard({ user, onLogout }) {
               Select the cost center(s) to send <span className="font-semibold text-gray-800">{pendingModal.full_name}</span> ({pendingModal.patient_no}) back to.
             </p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={pendingActor}
-                  onChange={e => setPendingActor(e.target.value.replace(/[0-9]/g, ""))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter your username" value={pendingActor}
+                    onChange={e => setPendingActor(e.target.value)}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showPendingPass ? 'text' : 'password'} placeholder="Your password"
+                      value={pendingPassword} onChange={e => setPendingPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    <button type="button" onClick={() => setShowPendingPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -869,7 +910,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
                 {pendingLoading ? 'Sending...' : `Send Back${pendingSelectedCCs.length > 1 ? ` (${pendingSelectedCCs.length})` : ''}`}
               </button>
-              <button onClick={() => { setPendingModal(null); setPendingSelectedCCs([]); setPendingReason(''); setPendingActor(''); setPendingCCs([]); }}
+              <button onClick={() => { setPendingModal(null); setPendingSelectedCCs([]); setPendingReason(''); setPendingActor(''); setPendingPassword(''); setPendingCCs([]); }}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
                 Cancel
               </button>

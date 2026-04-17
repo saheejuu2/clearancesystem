@@ -34,6 +34,10 @@ export default function NurseDashboard({ user, onLogout }) {
   const [confirmForm, setConfirmForm] = useState(null);
   const [cancelForm, setCancelForm]   = useState(null);
   const [cancelling, setCancelling]   = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [cancelPassword, setCancelPassword]   = useState('');
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [showCancelPass, setShowCancelPass]   = useState(false);
   const [viewPatient, setViewPatient] = useState(null);
   const [viewClearances, setViewClearances] = useState([]);
   const [notifReport, setNotifReport] = useState(null);
@@ -49,7 +53,30 @@ export default function NurseDashboard({ user, onLogout }) {
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading] = useState(false);
 
-  // Search filters
+  // HIS patients from hospital_dbo
+  const [hisPatients, setHisPatients] = useState([]);
+  const [hisLoading, setHisLoading]   = useState(false);
+  const [hisPage, setHisPage]         = useState(1);
+  const [hisTotal, setHisTotal]       = useState(0);
+  const [hisTotalPages, setHisTotalPages] = useState(0);
+  const [hisViewPatient, setHisViewPatient] = useState(null);
+
+  const fetchHisPatients = async (date, page = 1) => {
+    setHisLoading(true);
+    const d = date || filterDate;
+    try {
+      const res = await api.get(`/get_hdb_patients.php?date=${d}&page=${page}`);
+      if (res.data && res.data.success) {
+        setHisPatients(res.data.patients || []);
+        setHisTotal(res.data.total || 0);
+        setHisTotalPages(res.data.total_pages || 0);
+        setHisPage(res.data.page || 1);
+      } else {
+        setHisPatients([]);
+      }
+    } catch { setHisPatients([]); }
+    finally { setHisLoading(false); }
+  };
   const [wardFilter, setWardFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -87,39 +114,38 @@ export default function NurseDashboard({ user, onLogout }) {
   };
 
   const submitMayGoHome = async () => {
-    if (!confirmForm.nurseName.trim()) {
-      alert('Please enter your name before confirming.');
-      return;
-    }
+    if (!confirmForm.nurseName.trim()) { alert('Please enter your username.'); return; }
+    if (!confirmPassword.trim()) { alert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: confirmForm.nurseName.trim(), password: confirmPassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     const { patientId, full_name, patient_no } = confirmForm;
     const actor = confirmForm.nurseName.trim();
     const remarks = confirmForm.remarks.trim();
-    // Close modal and optimistically update immediately
     setConfirmForm(null);
+    setConfirmPassword('');
     setPatients(prev => prev.map(p =>
       p.id === patientId ? { ...p, clearance_step: 'awaiting_billing' } : p
     ));
     setActionId(patientId);
     try {
-      const res = await api.post('/update_clearance.php', {
-        action:     'may_go_home',
-        patient_id: patientId,
-        actor,
-        remarks,
-      });
+      const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id: patientId, actor, remarks });
       if (res.data.success || res.data.message === 'Already marked as may go home.') {
         setMayGoHomeSuccess({ full_name, patient_no });
         fetchPatients();
         setAuditKey(k => k + 1);
-      } else {
-        alert(res.data.message);
-        fetchPatients();
-      }
+      } else { alert(res.data.message); fetchPatients(); }
     } finally { setActionId(null); }
   };
 
   const submitCancel = async () => {
-    if (!cancelForm.nurseName.trim()) { alert('Please enter your name before cancelling.'); return; }
+    if (!cancelForm.nurseName.trim()) { alert('Please enter your username.'); return; }
+    if (!cancelPassword.trim()) { alert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: cancelForm.nurseName.trim(), password: cancelPassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     setCancelling(true);
     try {
       const res = await api.post('/update_clearance.php', {
@@ -128,7 +154,7 @@ export default function NurseDashboard({ user, onLogout }) {
         actor:      cancelForm.nurseName.trim(),
         remarks:    cancelForm.remarks.trim() || 'Discharge cancelled by nurse',
       });
-      if (res.data.success) { setCancelForm(null); fetchPatients(); setAuditKey(k => k + 1); }
+      if (res.data.success) { setCancelForm(null); setCancelPassword(''); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setCancelling(false); }
   };
@@ -226,6 +252,14 @@ export default function NurseDashboard({ user, onLogout }) {
                 )}
               </button>
             ))}
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">HIS Integration</p>
+            <button onClick={() => { setTab("his"); setStatusFilter(""); fetchHisPatients(filterDate, 1); }}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "his" ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              HIS Patients
+            </button>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
             <button onClick={() => { setTab("audit"); setStatusFilter(""); fetchPatients(); setAuditKey(k => k + 1); }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "audit" ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
@@ -248,6 +282,77 @@ export default function NurseDashboard({ user, onLogout }) {
         <main className="flex-1 overflow-y-auto px-6 py-6">
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
         {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} patients={allPatients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} />}
+
+        {tab === 'his' && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">HIS Patients</h1>
+              <p className="text-sm text-gray-400 mt-0.5">Patient records from the Hospital Information System</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchHisPatients(d, 1); }} />
+              <span className="text-xs text-gray-400">{hisTotal} patient(s) found</span>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                      {['Account No.','Name','Age','Sex','Type','Admit Date',''].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {hisLoading ? (
+                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
+                    ) : hisPatients.length === 0 ? (
+                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found for this date.</td></tr>
+                    ) : hisPatients.map((p, i) => {
+                      let admitStr = '—';
+                      try {
+                        const d = new Date(p.encdate);
+                        if (!isNaN(d) && d.getFullYear() < 3000)
+                          admitStr = d.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+                      } catch { /* silent */ }
+                      return (
+                        <tr key={i} className="hover:bg-gray-50/70 transition-colors">
+                          <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.acctno || '—'}</td>
+                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name || '—'}</td>
+                          <td className="px-4 py-3.5 text-gray-500 text-center">{p.age ?? '—'}</td>
+                          <td className="px-4 py-3.5 text-gray-500">{p.patsex === 'M' ? 'Male' : p.patsex === 'F' ? 'Female' : '—'}</td>
+                          <td className="px-4 py-3.5">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.toecode === 'OPD' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
+                              {p.toecode === 'OPD' ? 'OPD' : p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">{admitStr}</td>
+                          <td className="px-4 py-3.5">
+                            <button onClick={() => setHisViewPatient(p)}
+                              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {hisTotalPages > 1 && (
+                <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">Page {hisPage} of {hisTotalPages} · {hisTotal} total</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => fetchHisPatients(filterDate, hisPage - 1)} disabled={hisPage <= 1 || hisLoading}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors">← Prev</button>
+                    <button onClick={() => fetchHisPatients(filterDate, hisPage + 1)} disabled={hisPage >= hisTotalPages || hisLoading}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors">Next →</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {tab === 'patients' && (
           <div className="flex flex-col gap-5">
             <div>
@@ -384,12 +489,25 @@ export default function NurseDashboard({ user, onLogout }) {
             <h3 className="text-base font-bold text-gray-900 mb-1">Confirm May Go Home</h3>
             <p className="text-sm text-gray-500 mb-5">Enter your name to confirm this patient is ready for discharge clearance.</p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name"
-                  value={confirmForm.nurseName}
-                  onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value.replace(/[0-9]/g, '') }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter your username"
+                    value={confirmForm.nurseName}
+                    onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showConfirmPass ? 'text' : 'password'} placeholder="Your password"
+                      value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <button type="button" onClick={() => setShowConfirmPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -584,15 +702,28 @@ export default function NurseDashboard({ user, onLogout }) {
               All clearance progress will be removed and the patient will restart from the beginning.
             </p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Your Name <span className="text-red-500">*</span>
-                </label>
-                <input type="text" placeholder="Enter your full name"
-                  value={cancelForm.nurseName}
-                  onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value.replace(/[0-9]/g, '') }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    Username <span className="text-red-500">*</span>
+                  </label>
+                  <input type="text" placeholder="Enter your username"
+                    value={cancelForm.nurseName}
+                    onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showCancelPass ? 'text' : 'password'} placeholder="Your password"
+                      value={cancelPassword} onChange={e => setCancelPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    <button type="button" onClick={() => setShowCancelPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -620,6 +751,45 @@ export default function NurseDashboard({ user, onLogout }) {
         </div>
       )}
       <ChatBox sender={user.costCenter} />
+
+      {/* HIS Patient Details Modal */}
+      {hisViewPatient && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-gray-900">Patient Details</h3>
+              <button onClick={() => setHisViewPatient(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              {[
+                ['Full Name',      hisViewPatient.full_name],
+                ['Account No.',    hisViewPatient.acctno || '—'],
+                ['Patient Number', hisViewPatient.hpercode],
+                ['Age',            hisViewPatient.age ?? '—'],
+                ['Sex',            hisViewPatient.patsex === 'M' ? 'Male' : hisViewPatient.patsex === 'F' ? 'Female' : '—'],
+                ['Birthdate',      hisViewPatient.patbdate ? new Date(hisViewPatient.patbdate).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'],
+                ['Civil Status',   hisViewPatient.patcstat || '—'],
+                ['Contact No.',    hisViewPatient.pattelno || '—'],
+                ['Type',           hisViewPatient.toecode],
+                ['Admit Date',     (() => { try { const d = new Date(hisViewPatient.encdate); return !isNaN(d) && d.getFullYear() < 3000 ? d.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'; } catch { return '—'; } })()],
+              ].map(([label, value]) => (
+                <div key={label} className="flex gap-3">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide w-36 shrink-0">{label}</span>
+                  <span className="text-sm text-gray-800">{value}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setHisViewPatient(null)}
+              className="w-full mt-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm rounded-lg transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
