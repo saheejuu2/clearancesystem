@@ -67,10 +67,26 @@ export default function NurseDashboard({ user, onLogout }) {
     try {
       const res = await api.get(`/get_hdb_patients.php?date=${d}&page=${page}`);
       if (res.data && res.data.success) {
-        setHisPatients(res.data.patients || []);
+        const patients = res.data.patients || [];
         setHisTotal(res.data.total || 0);
         setHisTotalPages(res.data.total_pages || 0);
         setHisPage(res.data.page || 1);
+        // Fetch names for each patient individually (fast — single row lookup)
+        const withNames = await Promise.all(patients.map(async p => {
+          try {
+            const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.hpercode)}`);
+            const person = nr.data?.person;
+            if (person) {
+              const suffix = person.patsuffix ? ' ' + person.patsuffix.trim() : '';
+              const age = person.patbdate ? (() => {
+                try { const a = Math.floor((Date.now() - new Date(person.patbdate)) / (365.25 * 24 * 3600 * 1000)); return a > 0 && a < 150 ? a : null; } catch { return null; }
+              })() : null;
+              return { ...p, full_name: `${person.patlast || ''}, ${person.patfirst || ''} ${person.patmiddle || ''}`.trim().replace(/,\s*$/, ''), age, patsex: person.patsex, patbdate: person.patbdate, patcstat: person.patcstat, pattelno: person.pattelno };
+            }
+          } catch { /* silent */ }
+          return p;
+        }));
+        setHisPatients(withNames);
       } else {
         setHisPatients([]);
       }
