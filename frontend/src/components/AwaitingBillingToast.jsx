@@ -65,9 +65,9 @@ export default function AwaitingBillingToast({ patients = [], enabled = true, on
       }
     };
 
-    // Poll immediately and then every 3 seconds
+    // Poll immediately and then every 5 seconds
     pollNotifications();
-    const interval = setInterval(pollNotifications, 3000);
+    const interval = setInterval(pollNotifications, 5000);
 
     return () => clearInterval(interval);
   }, [enabled]);

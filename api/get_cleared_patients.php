@@ -1,6 +1,5 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json");
+include 'cors_headers.php';
 include 'db_config.php';
 
 $cost_center = isset($_GET['cost_center']) ? trim($_GET['cost_center']) : '';

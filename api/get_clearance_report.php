@@ -1,6 +1,5 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json");
+include 'cors_headers.php';
 include 'db_config.php';
 
 $patient_id = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : 0;

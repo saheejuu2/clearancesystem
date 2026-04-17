@@ -26,7 +26,7 @@ export default function CostCenterChatBox({ sender }) {
 
   useEffect(() => {
     fetchUnread();
-    const t = setInterval(fetchUnread, 4000);
+    const t = setInterval(fetchUnread, 5000);
     return () => clearInterval(t);
   }, [fetchUnread]);
 
@@ -41,7 +41,7 @@ export default function CostCenterChatBox({ sender }) {
   useEffect(() => {
     if (view !== 'chat' || !selectedContact) return;
     fetchMessages();
-    pollRef.current = setInterval(fetchMessages, 3000);
+    pollRef.current = setInterval(fetchMessages, 5000);
     api.post('/chat_messages.php?action=read', { me: sender, other: selectedContact }).catch(() => {});
     return () => clearInterval(pollRef.current);
   }, [view, selectedContact, fetchMessages, sender]);

@@ -1,20 +1,7 @@
 ﻿<?php
 error_reporting(0);
 ini_set('display_errors', 0);
-// Get the origin from the request or hardcode your dev name
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : 'http://hesed-pc';
-
-header("Access-Control-Allow-Origin: $origin");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Credentials: true"); // Important if using sessions/cookies
-header("Content-Type: application/json");
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
+include 'cors_headers.php';
 include 'db_config.php';
 
 $data        = json_decode(file_get_contents("php://input"), true);

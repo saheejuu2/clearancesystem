@@ -38,7 +38,7 @@ export default function AdminChatBox() {
   useEffect(() => {
     if (view !== 'chat' || !selectedUser) return;
     fetchMessages();
-    pollRef.current = setInterval(fetchMessages, 3000);
+    pollRef.current = setInterval(fetchMessages, 5000);
     return () => clearInterval(pollRef.current);
   }, [view, selectedUser, fetchMessages]);
 

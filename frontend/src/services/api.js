@@ -12,8 +12,8 @@
 // export default api;
 import axios from 'axios';
 
-// CHANGE THIS: Match your frontend domain (hesed-pc)
-const API_BASE_URL = 'http://hesed-pc/hospital-clearance/api';
+// LOCAL DEVELOPMENT: PHP API running on port 8000
+const API_BASE_URL = 'http://localhost:8000';
 
 const api = axios.create({
     baseURL: API_BASE_URL,

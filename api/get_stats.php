@@ -1,8 +1,7 @@
 <?php
 error_reporting(0);
 ini_set('display_errors', 0);
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json");
+include 'cors_headers.php';
 include 'db_config.php';
 
 $discharged     = (int)$conn->query("SELECT COUNT(*) as c FROM clearance_requests WHERE final_status='discharged'")->fetch_assoc()['c'];
