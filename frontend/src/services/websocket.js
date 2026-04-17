@@ -7,6 +7,7 @@ class WebSocketService {
   constructor() {
     this.ws = null;
     this.url = null;
+    this.baseUrl = null; // Store base URL for reconnection
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 3000;
@@ -16,7 +17,7 @@ class WebSocketService {
 
   /**
    * Connect to WebSocket server
-   * @param {string} baseUrl - Base URL (e.g., 'http://hesed-pc/hospital-clearance')
+   * @param {string} baseUrl - Base URL (e.g., 'http://localhost:5173')
    */
   connect(baseUrl) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -25,9 +26,10 @@ class WebSocketService {
     }
 
     this.isIntentionallyClosed = false;
-    const protocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
-    const host = baseUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    this.url = `${protocol}://${host}/hospital-clearance/api/websocket.php`;
+    this.baseUrl = baseUrl; // Store for reconnection
+    // Connect to Node.js WebSocket server on port 8080
+    const host = baseUrl.replace(/^https?:\/\//, '').split(':')[0]; // Extract hostname
+    this.url = `ws://${host}:8080`;
 
     console.log('Connecting to WebSocket:', this.url);
 
@@ -83,8 +85,8 @@ class WebSocketService {
     console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
     setTimeout(() => {
-      if (!this.isIntentionallyClosed) {
-        this.connect(this.url.replace(/^wss?:\/\//, 'http://').replace(/\/hospital-clearance\/api\/websocket\.php$/, ''));
+      if (!this.isIntentionallyClosed && this.baseUrl) {
+        this.connect(this.baseUrl);
       }
     }, delay);
   }
