@@ -1,0 +1,11 @@
+# Terminal 1: WebSocket Server (from ROOT)
+cd C:\xampp\htdocs\clearancesystem
+npm run ws-server
+
+# Terminal 2: PHP API (from API folder)
+cd C:\xampp\htdocs\clearancesystem\api
+php -S localhost:8000
+
+# Terminal 3: Frontend Dev Server (from FRONTEND folder)
+cd C:\xampp\htdocs\clearancesystem\frontend
+npm run dev
