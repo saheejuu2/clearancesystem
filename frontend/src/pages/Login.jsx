@@ -13,6 +13,9 @@ const STATIC_COST_CENTERS = [
   'Laboratory',
   'Bloodbank',
   'Pharmacy',
+  'Endoscopy',
+  'Colonoscopy',
+  'Physical Therapy',
 ];
 
 export default function Login({ onLogin }) {
@@ -129,7 +132,7 @@ export default function Login({ onLogin }) {
               )}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="username" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Username
+                  Employee ID
                 </label>
                 <input
                   id="username"
@@ -137,7 +140,7 @@ export default function Login({ onLogin }) {
                   value={username}
                   onChange={e => { setUsername(e.target.value); setIsAdmin(false); }}
                   onBlur={handleUsernameBlur}
-                  placeholder="Enter your username"
+                  placeholder="Enter your Employee ID"
                   required
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                 />

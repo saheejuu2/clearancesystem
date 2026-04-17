@@ -95,7 +95,8 @@ const STEP_LABEL = {
   discharged:           { label: 'Discharged',   style: 'bg-emerald-100 text-emerald-700' },
 };
 
-const BASE_COST_CENTERS = [
+// Cost centers that are auto-checked
+const AUTO_CHECK_CENTERS = [
   'Pulmonary Department (MSA)',
   'Radiology',
   'Laboratory',
@@ -105,11 +106,21 @@ const BASE_COST_CENTERS = [
   'Billing - Window 2',
 ];
 
+// Cost centers that are NOT auto-checked (user must manually check)
+const NO_AUTO_CHECK_CENTERS = [
+  'Endoscopy',
+  'Colonoscopy',
+  'Physical Theraphy',
+];
+
+// Full list of all base cost centers
+const BASE_COST_CENTERS = [...AUTO_CHECK_CENTERS, ...NO_AUTO_CHECK_CENTERS];
+
 const SERVICE_COST_CENTERS = {
-  OB:       [...BASE_COST_CENTERS, 'Operating Room/Delivery Room'],
-  Surgery:  [...BASE_COST_CENTERS, 'Operating Room/Delivery Room'],
-  Medicine: [...BASE_COST_CENTERS, 'Operating Room/Delivery Room', 'Hemodialysis Unit'],
-  Pedia:    [...BASE_COST_CENTERS],
+  OB:       [...AUTO_CHECK_CENTERS, 'New Borne', 'Operating Room/Delivery Room'],
+  Surgery:  [...AUTO_CHECK_CENTERS, 'Operating Room/Delivery Room'],
+  Medicine: [...AUTO_CHECK_CENTERS, 'Operating Room/Delivery Room', 'Hemodialysis Unit'],
+  Pedia:    [...AUTO_CHECK_CENTERS],
 };
 
 export default function BillingDashboard({ user, onLogout }) {
@@ -242,7 +253,7 @@ export default function BillingDashboard({ user, onLogout }) {
   }, [tab, patients]);
 
   const openClearanceForm = (p) => {
-    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: "", isBaby: false, selected: [] });
+    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: "", isBaby: false, isOBNewborn: false, selected: [] });
   };
 
   const sendForClearance = async () => {
@@ -893,7 +904,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 onChange={e => {
                   const svc = e.target.value;
                   const base = svc ? [...SERVICE_COST_CENTERS[svc]] : [];
-                  setClearanceForm(f => ({ ...f, service: svc, isBaby: false, selected: base }));
+                  setClearanceForm(f => ({ ...f, service: svc, isBaby: false, isOBNewborn: false, selected: base }));
                 }}
                 className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
               >
@@ -923,19 +934,58 @@ export default function BillingDashboard({ user, onLogout }) {
               </label>
             )}
 
-            {/* Auto-populated cost center list */}
+            {clearanceForm.service === 'OB' && (
+              <label className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-purple-100 bg-purple-50 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={clearanceForm.isOBNewborn}
+                  onChange={e => {
+                    const newborn = e.target.checked;
+                    const base = [...SERVICE_COST_CENTERS.OB];
+                    if (newborn) base.push('Newborn Screening', 'Newborn Hearing Test');
+                    setClearanceForm(f => ({ ...f, isOBNewborn: newborn, selected: base }));
+                  }}
+                  className="w-4 h-4 accent-emerald-600"
+                />
+                <span className="text-sm font-medium text-purple-800">Patient have a newborn (add Newborn Screening & Hearing Test)</span>
+              </label>
+            )}
+
+            {/* Cost center selection with auto-check and manual options */}
             {clearanceForm.service && (
               <>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Cost Centers ({clearanceForm.selected.length})
                 </p>
-                <div className="flex flex-col gap-1.5 mb-4 max-h-60 overflow-y-auto">
-                  {clearanceForm.selected.map(cc => (
-                    <div key={cc} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-sm text-gray-700">{cc}</span>
+                <div className="flex flex-col gap-1.5 mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                  {/* Optional centers (can be manually checked) */}
+                  {NO_AUTO_CHECK_CENTERS.map(cc => (
+                    <label key={cc} className={`flex items-center gap-3 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                      clearanceForm.selected.includes(cc) 
+                        ? 'bg-blue-50 border border-blue-200' 
+                        : 'hover:bg-gray-50 border border-gray-100'
+                    }`}>
+                      <input 
+                        type="checkbox" 
+                        checked={clearanceForm.selected.includes(cc)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setClearanceForm(f => ({ ...f, selected: [...f.selected, cc] }));
+                          } else {
+                            setClearanceForm(f => ({ ...f, selected: f.selected.filter(c => c !== cc) }));
+                          }
+                        }}
+                        className="w-4 h-4 accent-blue-600 shrink-0"
+                      />
+                      <span className="text-xs text-gray-700 flex-1">{cc}</span>
+                    </label>
+                  ))}
+                  {/* Auto-checked centers */}
+                  {clearanceForm.selected.filter(cc => !NO_AUTO_CHECK_CENTERS.includes(cc)).map(cc => (
+                    <div key={cc} className="flex items-center gap-3 px-2 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100">
+                      <input type="checkbox" checked={true} disabled className="w-4 h-4 accent-emerald-600 shrink-0" />
+                      <span className="text-xs text-gray-700 flex-1">{cc}</span>
+                      <span className="text-[10px] text-emerald-600 font-medium">Auto</span>
                     </div>
                   ))}
                 </div>

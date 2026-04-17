@@ -29,6 +29,9 @@ $users = [
     
     ['billing',     'Billing Staff',             'Billing',                      'staff'],
     ['nurse',       'Nurse Staff',               'Nurse',                        'staff'],
+    ['endoscopy',   'Endoscopy Staff',           'Endoscopy',                    'staff'],
+    ['colonoscopy', 'Colonoscopy Staff',       'Colonoscopy',                  'staff'],
+    ['physicaltherapy', 'Physical Therapy Staff', 'Physical Therapy',              'staff'],
 ];
 
 foreach ($users as [$username, $full_name, $cost_center, $role]) {
