@@ -377,8 +377,8 @@ export default function NurseDashboard({ user, onLogout }) {
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Enter your username"
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID"
                     value={confirmForm.nurseName}
                     onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
@@ -517,7 +517,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                     Username <span className="text-red-500">*</span>
                   </label>
-                  <input type="text" placeholder="Enter your username"
+                  <input type="text" placeholder="Enter 4-digit employee ID"
                     value={cancelForm.nurseName}
                     onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"

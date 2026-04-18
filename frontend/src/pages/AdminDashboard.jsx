@@ -403,8 +403,8 @@ function AdminPatientList({ tab }) {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your username" value={clearName} onChange={e => setClearName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter 4-digit employee ID" value={clearName} onChange={e => setClearName(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -427,8 +427,8 @@ function AdminPatientList({ tab }) {
             <p className="text-sm text-gray-500 mb-4">Mark <span className="font-semibold text-gray-800">{mayGoHomeModal.full_name}</span> ({mayGoHomeModal.patient_no}) as ready for discharge clearance.</p>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your username" value={mghName} onChange={e => setMghName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter 4-digit employee ID" value={mghName} onChange={e => setMghName(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -483,8 +483,8 @@ function AdminPatientList({ tab }) {
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Enter your username" value={dischargeName} onChange={e => setDischargeName(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={dischargeName} onChange={e => setDischargeName(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
@@ -518,8 +518,8 @@ function AdminPatientList({ tab }) {
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Enter your username" value={pendingActor} onChange={e => setPendingActor(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={pendingActor} onChange={e => setPendingActor(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
@@ -1051,7 +1051,7 @@ export default function AdminDashboard({ user, onLogout }) {
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
                   <input type="text" value={profile.username} onChange={e => setProfile(p => ({ ...p, username: e.target.value }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
@@ -1102,8 +1102,8 @@ export default function AdminDashboard({ user, onLogout }) {
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter username" value={form.data.username} onChange={e => set('username', e.target.value)}
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter 4-digit employee ID" value={form.data.username} onChange={e => set('username', e.target.value)}
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">

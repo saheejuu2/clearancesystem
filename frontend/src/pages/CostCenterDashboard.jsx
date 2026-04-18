@@ -605,8 +605,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Enter your username" value={clearName}
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={clearName}
                     onChange={e => setClearName(e.target.value)}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
