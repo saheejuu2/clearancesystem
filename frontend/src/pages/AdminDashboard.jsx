@@ -484,7 +484,7 @@ function AdminPatientList({ tab }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Enter 4-digit employee ID" value={dischargeName} onChange={e => setDischargeName(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={dischargeName} onChange={e => setDischargeName(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
@@ -519,7 +519,7 @@ function AdminPatientList({ tab }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Enter 4-digit employee ID" value={pendingActor} onChange={e => setPendingActor(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={pendingActor} onChange={e => setPendingActor(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
@@ -1052,7 +1052,7 @@ export default function AdminDashboard({ user, onLogout }) {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
-                  <input type="text" value={profile.username} onChange={e => setProfile(p => ({ ...p, username: e.target.value }))}
+                  <input type="text" value={profile.username} onChange={e => setProfile(p => ({ ...p, username: e.target.value.replace(/[^0-9]/g, '').substring(0, 4) }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -1103,7 +1103,7 @@ export default function AdminDashboard({ user, onLogout }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter 4-digit employee ID" value={form.data.username} onChange={e => set('username', e.target.value)}
+                <input type="text" placeholder="Enter 4-digit employee ID" value={form.data.username} onChange={e => set('username', e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">

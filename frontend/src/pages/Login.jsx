@@ -129,15 +129,26 @@ export default function Login({ onLogin }) {
               )}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="username" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Username
+                  Employee ID
                 </label>
                 <input
                   id="username"
+                  autoComplete="username"
                   type="text"
                   value={username}
-                  onChange={e => { setUsername(e.target.value); setIsAdmin(false); }}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    const isTypingAdmin = 'admin'.startsWith(raw.toLowerCase()) && raw.length <= 5;
+                    const val = (raw === 'admin' || isTypingAdmin)
+                      ? raw
+                      : raw.replace(/[^0-9]/g, '').substring(0, 4);
+                    setUsername(val);
+                    setIsAdmin(false);
+                  }}
                   onBlur={handleUsernameBlur}
-                  placeholder="Enter your username"
+                  placeholder="Enter employee ID"
+                  style={username.length > 0 && 'admin'.startsWith(username.toLowerCase()) ? { color: 'transparent', caretColor: 'transparent' } : {}}
+                  maxLength={5}
                   required
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                 />
@@ -156,6 +167,7 @@ export default function Login({ onLogin }) {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Enter your password"
+                    autoComplete="current-password"
                     required
                     className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                   />

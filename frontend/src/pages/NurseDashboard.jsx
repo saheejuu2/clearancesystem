@@ -380,7 +380,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
                   <input type="text" placeholder="Enter 4-digit employee ID"
                     value={confirmForm.nurseName}
-                    onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value }))}
+                    onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value.replace(/[^0-9]/g, '').substring(0, 4) }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -519,7 +519,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   </label>
                   <input type="text" placeholder="Enter 4-digit employee ID"
                     value={cancelForm.nurseName}
-                    onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value }))}
+                    onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value.replace(/[^0-9]/g, '').substring(0, 4) }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
                   />
                 </div>

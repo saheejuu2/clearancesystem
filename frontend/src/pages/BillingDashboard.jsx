@@ -787,7 +787,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
                   <input type="text" placeholder="Enter 4-digit employee ID" value={dischargeName}
-                    onChange={e => setDischargeName(e.target.value)}
+                    onChange={e => setDischargeName(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -859,7 +859,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
                   <input type="text" placeholder="Enter 4-digit employee ID" value={pendingActor}
-                    onChange={e => setPendingActor(e.target.value)}
+                    onChange={e => setPendingActor(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
