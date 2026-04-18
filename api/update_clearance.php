@@ -267,6 +267,30 @@ if ($action === 'discharge') {
     exit();
 }
 
+// ADMIN: Return cleared patient back to clearance (reset all CC statuses to pending)
+if ($action === 'return_to_clearance') {
+    $req = get_request($conn, $patient_id);
+
+    if (!$req || $req['billing_status'] !== 'for_clearance') {
+        echo json_encode(["success" => false, "message" => "Patient is not in clearance."]);
+        exit();
+    }
+
+    // Reset all cost center clearances back to pending
+    $stmt = $conn->prepare("UPDATE cost_center_clearances SET status='pending', cleared_at=NULL, cleared_by=NULL, remarks=NULL WHERE clearance_request_id=?");
+    $stmt->bind_param("i", $req['id']);
+    $stmt->execute();
+
+    log_audit($conn, $patient_id, $patient, "Admin - Returned to Clearance", $actor, $remarks);
+
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, 'Admin', $today);
+
+    echo json_encode(["success" => true, "message" => "Patient returned to clearance processing."]);
+    exit();
+}
+
 // CANCEL: Nurse Cancel Discharge Process 
 if ($action === 'cancel_discharge') {
     $req = get_request($conn, $patient_id);
