@@ -75,10 +75,10 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
   const cfg = TAB_CONFIG[tab];
 
   const SERVICE_CC = {
-    OB:       ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
-    Surgery:  ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
-    Medicine: ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room','Hemodialysis Unit'],
-    Pedia:    ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2'],
+    OB:       ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
+    Surgery:  ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
+    Medicine: ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room','Hemodialysis Unit'],
+    Pedia:    ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2'],
   };
 
   const refetch = (date) => {

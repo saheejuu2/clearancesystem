@@ -95,6 +95,8 @@ const STEP_LABEL = {
   discharged:           { label: 'Discharged',   style: 'bg-emerald-100 text-emerald-700' },
 };
 
+const OPTIONAL_COST_CENTERS = ['Endoscopy', 'Colonoscopy', 'Physical Therapy'];
+
 const BASE_COST_CENTERS = [
   'Pulmonary Department (MSA)',
   'Radiology',
@@ -358,8 +360,7 @@ export default function BillingDashboard({ user, onLogout }) {
             <NavBtn tabKey="for_discharge" label="For Discharge" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             <NavBtn tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
-            <NavBtn tabKey="audit" label="Audit Trail" active={tab} setTab={() => { setTab("audit"); setAuditKey(k => k + 1); }} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            
           </nav>
           <div className="p-3 border-t border-gray-100 mt-auto">
             <button onClick={onLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors w-full">
@@ -377,8 +378,6 @@ export default function BillingDashboard({ user, onLogout }) {
         }} />}
 
         {tab === "discharged" && <DischargedList />}
-
-        {tab === "audit" && <AuditTrail key={auditKey} role={user.costCenter} />}
 
         {tab === 'clearance' && (
           <div className="flex flex-col gap-5">
@@ -974,21 +973,21 @@ export default function BillingDashboard({ user, onLogout }) {
               </select>
             </div>
 
-            {/* Pedia baby toggle */}
-            {clearanceForm.service === 'Pedia' && (
+            {/* Pedia/OB baby toggle */}
+            {(clearanceForm.service === 'Pedia' || clearanceForm.service === 'OB') && (
               <label className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-100 bg-amber-50 mb-4 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={clearanceForm.isBaby}
                   onChange={e => {
                     const baby = e.target.checked;
-                    const base = [...SERVICE_COST_CENTERS.Pedia];
+                    const base = [...SERVICE_COST_CENTERS[clearanceForm.service]];
                     if (baby) base.push('Newborn Screening', 'Newborn Hearing Test');
                     setClearanceForm(f => ({ ...f, isBaby: baby, selected: base }));
                   }}
                   className="w-4 h-4 accent-emerald-600"
                 />
-                <span className="text-sm font-medium text-amber-800">Patient is a newborn (add Newborn Screening & Hearing Test)</span>
+                <span className="text-sm font-medium text-amber-800">{clearanceForm.service === 'OB' ? 'Patient has a newborn (add Newborn Screening & Hearing Test)' : 'Patient has a newborn (add Newborn Screening & Hearing Test)'}</span>
               </label>
             )}
 
@@ -999,7 +998,24 @@ export default function BillingDashboard({ user, onLogout }) {
                   Cost Centers ({clearanceForm.selected.length})
                 </p>
                 <div className="flex flex-col gap-1.5 mb-4 max-h-60 overflow-y-auto">
-                  {clearanceForm.selected.map(cc => (
+                  {/* Optional CCs — checkboxes at top */}
+                  {OPTIONAL_COST_CENTERS.map(cc => (
+                    <label key={cc} className={`flex items-center gap-3 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${clearanceForm.selected.includes(cc) ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200 hover:bg-amber-50/50'}`}>
+                      <input type="checkbox"
+                        checked={clearanceForm.selected.includes(cc)}
+                        onChange={() => setClearanceForm(f => ({
+                          ...f,
+                          selected: f.selected.includes(cc)
+                            ? f.selected.filter(x => x !== cc)
+                            : [cc, ...f.selected]
+                        }))}
+                        className="w-4 h-4 accent-amber-500 shrink-0" />
+                      <span className="text-sm font-medium text-gray-700">{cc}</span>
+                      <span className="ml-auto text-[10px] text-amber-600 font-semibold uppercase">Optional</span>
+                    </label>
+                  ))}
+                  {/* Auto-selected CCs */}
+                  {clearanceForm.selected.filter(cc => !OPTIONAL_COST_CENTERS.includes(cc)).map(cc => (
                     <div key={cc} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
                       <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
