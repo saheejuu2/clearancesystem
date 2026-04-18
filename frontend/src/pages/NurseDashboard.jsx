@@ -42,57 +42,12 @@ export default function NurseDashboard({ user, onLogout }) {
   const [viewClearances, setViewClearances] = useState([]);
   const [notifReport, setNotifReport] = useState(null);
 
-  // Admission form
-  const [admitForm, setAdmitForm] = useState(null);
-  const [admitSaving, setAdmitSaving] = useState(false);
-  const [admitSuccess, setAdmitSuccess] = useState(null); // { full_name, patient_no }
-  const [mayGoHomeSuccess, setMayGoHomeSuccess] = useState(null); // { full_name, patient_no }
-
-  // Clearance progress tracker
+  const [admitSuccess, setAdmitSuccess] = useState(null);
+  const [mayGoHomeSuccess, setMayGoHomeSuccess] = useState(null);
   const [trackPatient, setTrackPatient] = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading] = useState(false);
 
-  // HIS patients from hospital_dbo
-  const [hisPatients, setHisPatients] = useState([]);
-  const [hisLoading, setHisLoading]   = useState(false);
-  const [hisPage, setHisPage]         = useState(1);
-  const [hisTotal, setHisTotal]       = useState(0);
-  const [hisTotalPages, setHisTotalPages] = useState(0);
-  const [hisViewPatient, setHisViewPatient] = useState(null);
-
-  const fetchHisPatients = async (date, page = 1) => {
-    setHisLoading(true);
-    const d = date || filterDate;
-    try {
-      const res = await api.get(`/get_hdb_patients.php?date=${d}&page=${page}`);
-      if (res.data && res.data.success) {
-        const patients = res.data.patients || [];
-        setHisTotal(res.data.total || 0);
-        setHisTotalPages(res.data.total_pages || 0);
-        setHisPage(res.data.page || 1);
-        // Fetch names for each patient individually (fast — single row lookup)
-        const withNames = await Promise.all(patients.map(async p => {
-          try {
-            const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.hpercode)}`);
-            const person = nr.data?.person;
-            if (person) {
-              const suffix = person.patsuffix ? ' ' + person.patsuffix.trim() : '';
-              const age = person.patbdate ? (() => {
-                try { const a = Math.floor((Date.now() - new Date(person.patbdate)) / (365.25 * 24 * 3600 * 1000)); return a > 0 && a < 150 ? a : null; } catch { return null; }
-              })() : null;
-              return { ...p, full_name: `${person.patlast || ''}, ${person.patfirst || ''} ${person.patmiddle || ''}`.trim().replace(/,\s*$/, ''), age, patsex: person.patsex, patbdate: person.patbdate, patcstat: person.patcstat, pattelno: person.pattelno };
-            }
-          } catch { /* silent */ }
-          return p;
-        }));
-        setHisPatients(withNames);
-      } else {
-        setHisPatients([]);
-      }
-    } catch { setHisPatients([]); }
-    finally { setHisLoading(false); }
-  };
   const [wardFilter, setWardFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -102,6 +57,9 @@ export default function NurseDashboard({ user, onLogout }) {
   const fetchPatients = async (date) => {
     setLoading(true);
     const d = date || filterDate;
+    // Auto-sync IHIS patients first, then fix ward/enccode
+    try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
+    try { await api.get(`/fix_ward_enccode.php?date=${d}`); } catch { /* silent */ }
     try {
       const [listRes, allRes] = await Promise.all([
         api.get(`/get_patients.php?role=Nurse&date=${d}`),
@@ -173,22 +131,6 @@ export default function NurseDashboard({ user, onLogout }) {
       if (res.data.success) { setCancelForm(null); setCancelPassword(''); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setCancelling(false); }
-  };
-
-  const submitAdmit = async () => {
-    if (!admitForm.patient_no || !admitForm.full_name || !admitForm.age || !admitForm.ward) {
-      alert('All fields are required.');
-      return;
-    }
-    setAdmitSaving(true);
-    try {
-      const res = await api.post('/add_patient.php', admitForm);
-      if (res.data.success) {
-        setAdmitSuccess({ full_name: admitForm.full_name, patient_no: admitForm.patient_no });
-        setAdmitForm(null);
-        fetchPatients();
-      } else alert(res.data.message);
-    } finally { setAdmitSaving(false); }
   };
 
   const openTracker = async (p) => {
@@ -268,14 +210,6 @@ export default function NurseDashboard({ user, onLogout }) {
                 )}
               </button>
             ))}
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">HIS Integration</p>
-            <button onClick={() => { setTab("his"); setStatusFilter(""); fetchHisPatients(filterDate, 1); }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "his" ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              HIS Patients
-            </button>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
             <button onClick={() => { setTab("audit"); setStatusFilter(""); fetchPatients(); setAuditKey(k => k + 1); }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "audit" ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
@@ -299,94 +233,17 @@ export default function NurseDashboard({ user, onLogout }) {
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
         {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} patients={allPatients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} />}
 
-        {tab === 'his' && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">HIS Patients</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Patient records from the Hospital Information System</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchHisPatients(d, 1); }} />
-              <span className="text-xs text-gray-400">{hisTotal} patient(s) found</span>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Account No.','Name','Age','Sex','Type','Admit Date',''].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {hisLoading ? (
-                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
-                    ) : hisPatients.length === 0 ? (
-                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients found for this date.</td></tr>
-                    ) : hisPatients.map((p, i) => {
-                      let admitStr = '—';
-                      try {
-                        const d = new Date(p.encdate);
-                        if (!isNaN(d) && d.getFullYear() < 3000)
-                          admitStr = d.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
-                      } catch { /* silent */ }
-                      return (
-                        <tr key={i} className="hover:bg-gray-50/70 transition-colors">
-                          <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.acctno || '—'}</td>
-                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name || '—'}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center">{p.age ?? '—'}</td>
-                          <td className="px-4 py-3.5 text-gray-500">{p.patsex === 'M' ? 'Male' : p.patsex === 'F' ? 'Female' : '—'}</td>
-                          <td className="px-4 py-3.5">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.toecode === 'OPD' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
-                              {p.toecode === 'OPD' ? 'OPD' : p.patient_type === 'er' ? 'ER' : 'In-Patient'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">{admitStr}</td>
-                          <td className="px-4 py-3.5">
-                            <button onClick={() => setHisViewPatient(p)}
-                              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {hisTotalPages > 1 && (
-                <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Page {hisPage} of {hisTotalPages} · {hisTotal} total</span>
-                  <div className="flex gap-1">
-                    <button onClick={() => fetchHisPatients(filterDate, hisPage - 1)} disabled={hisPage <= 1 || hisLoading}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors">← Prev</button>
-                    <button onClick={() => fetchHisPatients(filterDate, hisPage + 1)} disabled={hisPage >= hisTotalPages || hisLoading}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors">Next →</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
         {tab === 'patients' && (
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Patient List</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Click "May Go Home" to initiate discharge clearance</p>
+              <p className="text-sm text-gray-400 mt-0.5">Patients synced from IHIS — Click "May Go Home" to initiate discharge clearance</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
               <div className="flex items-center gap-2 shrink-0">
                 <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
-                <button onClick={() => setAdmitForm({ patient_no: '', full_name: '', age: '', ward: '', admit_date: new Date().toISOString().split('T')[0], patient_type: 'in-patient' })}
-                  className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap shrink-0">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Admit Patient
-                </button>
               </div>
             </div>
             {/* Filters */}
@@ -438,7 +295,7 @@ export default function NurseDashboard({ user, onLogout }) {
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                           <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                           <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward && p.ward.length <= 20 ? p.ward : '—'}</td>
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                             {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </td>
@@ -463,7 +320,20 @@ export default function NurseDashboard({ user, onLogout }) {
                                 </button>
                               )}
                               <button onClick={async () => {
-                                setViewPatient(p);
+                                // Fetch IHIS details using patient_no as hpercode
+                                let enriched = { ...p };
+                                try {
+                                  const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.patient_no)}&enccode=${encodeURIComponent(p.ward || '')}`);
+                                  if (nr.data?.person) {
+                                    const person = nr.data.person;
+                                    // Extract time from enccode (format ends with date+time e.g. "04/18/202614:23:00")
+                                    const enccode = p.ward || '';
+                                    const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
+                                    const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
+                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, ward: person.wardname || '—', admtxt: person.admtxt, admit_time: admTime };
+                                  }
+                                } catch { /* silent */ }
+                                setViewPatient(enriched);
                                 try {
                                   const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
                                   if (r.data.success) setViewClearances(r.data.clearances);
@@ -543,82 +413,6 @@ export default function NurseDashboard({ user, onLogout }) {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admit Patient Modal */}
-      {admitForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-5">Admit New Patient</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {[['patient_no','Patient No.','text'],['full_name','Full Name','text'],['age','Age','number'],['admit_date','Admit Date','date']].map(([k,l,t]) => (
-                <div key={k} className={`flex flex-col gap-1.5 ${k === 'full_name' ? 'col-span-2' : ''}`}>
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{l} <span className="text-red-500">*</span></label>
-                  <input type={t} value={admitForm[k]}
-                    onChange={e => {
-                      let val = e.target.value;
-                      if (k === 'full_name') val = val.replace(/[^a-zA-Z\s.,-]/g, '');
-                      if (k === 'age') val = val.replace(/[^0-9]/g, '');
-                      setAdmitForm(f => ({ ...f, [k]: val }));
-                    }}
-                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-                </div>
-              ))}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Ward <span className="text-red-500">*</span></label>
-                <select value={admitForm.ward} onChange={e => setAdmitForm(f => ({ ...f, ward: e.target.value }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-                  <option value="">Select ward…</option>
-                  {['OB', 'Medical', 'Surgery', 'Pediatrics'].map(w => <option key={w}>{w}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5 col-span-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Patient Type <span className="text-red-500">*</span></label>
-                <div className="flex gap-3">
-                  {['in-patient','er'].map(t => (
-                    <label key={t} className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="patient_type" value={t} checked={admitForm.patient_type === t}
-                        onChange={() => setAdmitForm(f => ({ ...f, patient_type: t }))} className="accent-emerald-600" />
-                      <span className="text-sm text-gray-700">{t === 'er' ? 'ER' : 'In-Patient'}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-5">
-              <button onClick={submitAdmit} disabled={admitSaving}
-                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
-                {admitSaving ? 'Admitting...' : 'Admit Patient'}
-              </button>
-              <button onClick={() => setAdmitForm(null)}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admit Success Modal */}
-      {admitSuccess && (
-        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Patient Admitted</h3>
-            <p className="text-sm text-gray-500 mb-1">
-              <span className="font-semibold text-gray-800">{admitSuccess.full_name}</span>
-            </p>
-            <p className="text-xs text-gray-400 mb-6">{admitSuccess.patient_no} has been successfully admitted.</p>
-            <button onClick={() => setAdmitSuccess(null)}
-              className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm rounded-lg transition-colors">
-              Done
-            </button>
           </div>
         </div>
       )}
@@ -768,44 +562,6 @@ export default function NurseDashboard({ user, onLogout }) {
       )}
       <ChatBox sender={user.costCenter} />
 
-      {/* HIS Patient Details Modal */}
-      {hisViewPatient && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-gray-900">Patient Details</h3>
-              <button onClick={() => setHisViewPatient(null)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              {[
-                ['Full Name',      hisViewPatient.full_name],
-                ['Account No.',    hisViewPatient.acctno || '—'],
-                ['Patient Number', hisViewPatient.hpercode],
-                ['Age',            hisViewPatient.age ?? '—'],
-                ['Sex',            hisViewPatient.patsex === 'M' ? 'Male' : hisViewPatient.patsex === 'F' ? 'Female' : '—'],
-                ['Birthdate',      hisViewPatient.patbdate ? new Date(hisViewPatient.patbdate).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'],
-                ['Civil Status',   hisViewPatient.patcstat || '—'],
-                ['Contact No.',    hisViewPatient.pattelno || '—'],
-                ['Type',           hisViewPatient.toecode],
-                ['Admit Date',     (() => { try { const d = new Date(hisViewPatient.encdate); return !isNaN(d) && d.getFullYear() < 3000 ? d.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'; } catch { return '—'; } })()],
-              ].map(([label, value]) => (
-                <div key={label} className="flex gap-3">
-                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide w-36 shrink-0">{label}</span>
-                  <span className="text-sm text-gray-800">{value}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setHisViewPatient(null)}
-              className="w-full mt-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm rounded-lg transition-colors">
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

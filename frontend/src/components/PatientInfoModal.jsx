@@ -1,13 +1,26 @@
 export default function PatientInfoModal({ patient, clearances, onClose }) {
   if (!patient) return null;
 
+  // Parse enccode stored in ward: fhud(7) + hpercode(15) + date(10) + time(8)
+  const enccode = (patient.ward && patient.ward.length > 20) ? patient.ward : '';
+  const facilityCode = enccode ? enccode.substring(0, 7) : '—';
+  const patientCode  = enccode ? enccode.substring(7, 22) : (patient.patient_no || '—');
+  const timeMatch    = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
+  const admitTime    = patient.admit_time || (timeMatch ? timeMatch[1].substring(0, 5) : '—');
+
   const rows = [
-    ['Patient No.',  patient.patient_no],
-    ['Full Name',    patient.full_name],
-    ['Age',          patient.age],
-    ['Ward',         patient.ward],
-    ['Admit Date',   patient.admit_date],
-    ['Patient Type', patient.patient_type === 'er' ? 'ER' : 'In-Patient'],
+    ['Account No.',    patient.patient_no],
+    ['Full Name',      patient.full_name],
+    ['Age',            patient.age ?? '—'],
+    ['Sex',            patient.patsex === 'M' ? 'Male' : patient.patsex === 'F' ? 'Female' : '—'],
+    ['Birthdate',      patient.patbdate ? (() => { try { return new Date(patient.patbdate).toLocaleDateString('en-PH', { dateStyle: 'medium' }); } catch { return '—'; } })() : '—'],
+    ['Contact No.',    patient.pattelno || '—'],
+    ['Facility Code',  facilityCode],
+    ['Patient Code',   patientCode],
+    ['Admission Dx',   patient.admtxt || '—'],
+    ['Admit Date',     patient.admit_date],
+    ['Admit Time',     admitTime],
+    ['Patient Type',   patient.patient_type === 'er' ? 'ER' : 'In-Patient'],
   ];
 
   return (

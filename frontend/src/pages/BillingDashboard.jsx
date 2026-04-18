@@ -208,6 +208,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const fetchPatients = async (date) => {
     setLoading(true);
     const d = date || filterDate;
+    try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
     try {
       const res = await api.get(`/get_patients.php?role=Billing&date=${d}`);
       setPatients(res.data || []);
