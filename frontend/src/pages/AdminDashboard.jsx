@@ -34,7 +34,7 @@ function AdminPatientList({ tab }) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
-  const [trackPatient, setTrackPatient]     = useState(null);
+  const [typeFilter, setTypeFilter] = useState('');  const [trackPatient, setTrackPatient]     = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading]     = useState(false);
   const [clearModal, setClearModal]         = useState(null);
@@ -172,6 +172,7 @@ function AdminPatientList({ tab }) {
 
   const filtered = patients
     .filter(cfg.filter)
+    .filter(p => (!typeFilter || p.patient_type === typeFilter))
     .filter(p => p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()));
   const { paged, page, setPage, totalPages, total, start, pageSize } = usePagination(filtered);
 
@@ -227,7 +228,15 @@ function AdminPatientList({ tab }) {
         )}
         </div>
       </div>
-      <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
+      <div className="flex items-center gap-3">
+        <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" /></div>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+          <option value="">All Types</option>
+          <option value="in-patient">In-Patient</option>
+          <option value="er">ER</option>
+        </select>
+      </div>
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

@@ -12,8 +12,7 @@
 // export default api;
 import axios from 'axios';
 
-// CHANGE THIS: Match your frontend domain (hesed-pc)
-const API_BASE_URL = 'http://hesed-pc/hospital-clearance/api';
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}/hospital-clearance/api`;
 
 const api = axios.create({
     baseURL: API_BASE_URL,

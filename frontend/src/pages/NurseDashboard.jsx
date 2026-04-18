@@ -50,6 +50,7 @@ export default function NurseDashboard({ user, onLogout }) {
 
   const [wardFilter, setWardFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -153,6 +154,7 @@ export default function NurseDashboard({ user, onLogout }) {
     const q = search.toLowerCase();
     const matchQ = !q || p.full_name.toLowerCase().includes(q) || p.patient_no.toLowerCase().includes(q);
     const matchWard = !wardFilter || p.ward === wardFilter;
+    const matchType = !typeFilter || p.patient_type === typeFilter;
     const matchStatus = !statusFilter
       ? true
       : statusFilter === 'pending'
@@ -160,7 +162,7 @@ export default function NurseDashboard({ user, onLogout }) {
         : p.clearance_step === statusFilter;
     const matchFrom = !dateFrom || p.admit_date >= dateFrom;
     const matchTo = !dateTo || p.admit_date <= dateTo;
-    return matchQ && matchWard && matchStatus && matchFrom && matchTo;
+    return matchQ && matchWard && matchType && matchStatus && matchFrom && matchTo;
   });
   const { paged: pagedPatients, page: nursePage, setPage: setNursePage, totalPages: nurseTotalPages, total: nurseTotal, start: nurseStart, pageSize: nursePageSize } = usePagination(filtered);
 
@@ -267,6 +269,12 @@ export default function NurseDashboard({ user, onLogout }) {
                 <option value="cost_center_clearing">Clearance</option>
                 <option value="pending">Pending</option>
               </select>
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+              </select>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-gray-400 shrink-0">From</span>
                 <input type="date" value={dateFrom} onChange={e => { const v = e.target.value; setDateFrom(v); fetchPatients(filterDate, v, dateTo); }}
@@ -279,8 +287,8 @@ export default function NurseDashboard({ user, onLogout }) {
                   min={dateFrom || undefined}
                   className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
               </div>
-              {(wardFilter || statusFilter || dateFrom || dateTo) && (
-                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); fetchPatients(filterDate, '', ''); }}
+              {(wardFilter || statusFilter || typeFilter || dateFrom || dateTo) && (
+                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); fetchPatients(filterDate, '', ''); }}
                   className="text-xs text-gray-400 hover:text-gray-600 font-medium px-2">Clear filters</button>
               )}
             </div>

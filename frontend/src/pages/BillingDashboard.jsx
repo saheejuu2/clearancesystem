@@ -142,6 +142,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [toastEnabled, setToastEnabled] = useState(true);
   const [pendingFilter, setPendingFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('');
   const [pendingRemarks, setPendingRemarks] = useState({}); // { [patient_id]: [{ cost_center, remarks }] }
 
   const openFollowUpModal = async (p) => {
@@ -318,6 +319,7 @@ export default function BillingDashboard({ user, onLogout }) {
   };
   const filtered = patients.filter(p =>
     p.clearance_step === 'awaiting_billing' &&
+    (!typeFilter || p.patient_type === typeFilter) &&
     (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
@@ -680,6 +682,12 @@ export default function BillingDashboard({ user, onLogout }) {
             <div className="flex items-center gap-3">
               <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient" /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+              </select>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
