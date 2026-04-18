@@ -42,6 +42,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [remarksModal, setRemarksModal] = useState(null);
   const [toastEnabled, setToastEnabled] = useState(true);
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [typeFilter, setTypeFilter] = useState('');
 
   const fetchPatients = async (date) => {
     setLoading(true);
@@ -190,8 +191,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
   };
 
   const filtered = patients.filter(p =>
-    p.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    p.patient_no.toLowerCase().includes(search.toLowerCase())
+    (!typeFilter || p.patient_type === typeFilter) &&
+    (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
   const { paged: pagedCC, page: ccPage, setPage: setCcPage, totalPages: ccTotalPages, total: ccTotal, start: ccStart, pageSize: ccPageSize } = usePagination(filtered);
 
@@ -471,6 +473,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
         <div className="flex items-center gap-3">
           <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
           <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+            <option value="">All Types</option>
+            <option value="in-patient">In-Patient</option>
+            <option value="er">ER</option>
+            <option value="opd">OPD</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -504,8 +513,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
                         {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                          {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">

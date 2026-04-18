@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import websocketService from '../services/websocket';
 import PhClock from '../components/PhClock';
@@ -24,7 +24,7 @@ const STEP_LABELS = {
 const TAB_CONFIG = {
   total:           { title: 'Total Patients',    subtitle: 'All patients in the system',                   filter: p => true },
   admitted:        { title: 'Admitted',          subtitle: 'Patients not yet in discharge process',        filter: p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse' },
-  awaiting_billing:{ title: 'Awaiting Billing',  subtitle: 'Nurse approved — waiting for billing',         filter: p => p.clearance_step === 'awaiting_billing' },
+  awaiting_billing:{ title: 'Awaiting Billing',  subtitle: 'Nurse approved � waiting for billing',         filter: p => p.clearance_step === 'awaiting_billing' },
   in_clearance:    { title: 'Clearance (Processing)',      subtitle: 'Currently being cleared by cost centers',      filter: p => p.clearance_step === 'cost_center_clearing' },
   pending:         { title: 'Missing Requirements', subtitle: 'Patients with missing requirements sent back',  filter: p => p.has_pending && p.clearance_step === 'cost_center_clearing' },  cleared:         { title: 'Cleared Patients',  subtitle: 'All cost centers have cleared these patients',  filter: p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 },
   discharged:      { title: 'Discharged',        subtitle: 'Successfully discharged patients',             filter: p => p.clearance_step === 'discharged' },
@@ -229,12 +229,13 @@ function AdminPatientList({ tab }) {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" /></div>
+        <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID�" /></div>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
           <option value="">All Types</option>
           <option value="in-patient">In-Patient</option>
           <option value="er">ER</option>
+          <option value="opd">OPD</option>
         </select>
       </div>
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -277,11 +278,11 @@ function AdminPatientList({ tab }) {
                     <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
                     <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
                     <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                      {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                        {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
@@ -347,7 +348,7 @@ function AdminPatientList({ tab }) {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Clearance Progress</h3>
-                <p className="text-sm text-gray-500">{trackPatient.full_name} — {trackPatient.patient_no}</p>
+                <p className="text-sm text-gray-500">{trackPatient.full_name} � {trackPatient.patient_no}</p>
               </div>
               <button onClick={() => setTrackPatient(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -457,7 +458,7 @@ function AdminPatientList({ tab }) {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
-            <p className="text-sm text-gray-500 mb-4"><span className="font-semibold text-gray-700">{forClearanceModal.patient.full_name}</span> — select service to load cost centers.</p>
+            <p className="text-sm text-gray-500 mb-4"><span className="font-semibold text-gray-700">{forClearanceModal.patient.full_name}</span> � select service to load cost centers.</p>
             <div className="flex flex-col gap-1.5 mb-4">
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Service</label>
               <select value={forClearanceModal.service} onChange={e => { const svc = e.target.value; setForClearanceModal(f => ({ ...f, service: svc, selected: svc ? [...SERVICE_CC[svc]] : [] })); }} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
@@ -862,7 +863,7 @@ export default function AdminDashboard({ user, onLogout }) {
                               <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                               <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
                               <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
-                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                               </td>
                               <td className="px-5 py-4">
                                 <span className="text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-1 rounded-full">
@@ -905,7 +906,7 @@ export default function AdminDashboard({ user, onLogout }) {
                                                     className="font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors">
                                                     View
                                                   </button>
-                                                : <span className="text-gray-300">—</span>
+                                                : <span className="text-gray-300">�</span>
                                               }
                                             </td>
                                             <td className="px-4 py-2.5">
@@ -945,7 +946,7 @@ export default function AdminDashboard({ user, onLogout }) {
                 <p className="text-sm text-gray-400 mt-0.5">Manage all staff accounts across every cost center</p>
               </div>
               <div className="flex gap-3 items-center">
-                <SearchBar value={search} onChange={setSearch} placeholder="Search by name, username, or cost center…" />
+                <SearchBar value={search} onChange={setSearch} placeholder="Search by name, username, or cost center�" />
                 <div className="relative w-64 shrink-0" ref={ccRef}>
                   <button onClick={() => setCcOpen(v => !v)}
                     className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
@@ -1009,7 +1010,7 @@ export default function AdminDashboard({ user, onLogout }) {
                                 </button>
                               );
                             })() : (
-                              <span className="text-xs text-gray-300">—</span>
+                              <span className="text-xs text-gray-300">�</span>
                             )}
                           </td>
                           <td className="px-5 py-4">
@@ -1179,7 +1180,7 @@ export default function AdminDashboard({ user, onLogout }) {
       {adminClearModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-1">Admin Override — Clear Patient</h3>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Admin Override � Clear Patient</h3>
             <p className="text-sm text-gray-500 mb-4">
               Clear <span className="font-semibold text-gray-800">{adminClearModal.patient.full_name}</span> ({adminClearModal.patient.patient_no}) at{' '}
               <span className="font-semibold text-emerald-700">{adminClearModal.cost_center}</span>
@@ -1209,7 +1210,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Balance Remarks</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{adminRemarksModal.full_name} · {adminRemarksModal.patient_no}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{adminRemarksModal.full_name} � {adminRemarksModal.patient_no}</p>
                 <p className="text-xs text-emerald-600 font-medium mt-0.5">{adminRemarksModal.cost_center}</p>
               </div>
               <button onClick={() => setAdminRemarksModal(null)} className="text-gray-300 hover:text-gray-500 transition-colors">

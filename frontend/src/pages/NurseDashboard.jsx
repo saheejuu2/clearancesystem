@@ -274,6 +274,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <option value="">All Types</option>
                 <option value="in-patient">In-Patient</option>
                 <option value="er">ER</option>
+                <option value="opd">OPD</option>
               </select>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-gray-400 shrink-0">From</span>
@@ -322,8 +323,8 @@ export default function NurseDashboard({ user, onLogout }) {
                             {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </td>
                           <td className="px-4 py-3.5">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                              {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                             </span>
                           </td>
                           <td className="px-4 py-3.5">

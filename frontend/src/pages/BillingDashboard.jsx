@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import websocketService from '../services/websocket';
 import ClearanceReport from '../components/ClearanceReport';
@@ -62,10 +62,10 @@ function DischargedList() {
                   <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                   <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
                   <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                    {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                   </td>
                   <td className="px-5 py-4 text-gray-500 text-xs">
-                    {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                    {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '�'}
                   </td>
                   <td className="px-5 py-4">
                     {p.request_id && (
@@ -389,6 +389,13 @@ export default function BillingDashboard({ user, onLogout }) {
             <div className="flex items-center gap-3">
               <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+                <option value="opd">OPD</option>
+              </select>
             </div>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -405,11 +412,13 @@ export default function BillingDashboard({ user, onLogout }) {
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                     ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
                         !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0) &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).length === 0 ? (
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients currently in clearance processing.</td></tr>
                     ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
                         !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0) &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).map(p => {
                         const allCleared = parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0;
@@ -420,11 +429,11 @@ export default function BillingDashboard({ user, onLogout }) {
                             <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
                             <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                             </td>
                             <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                               </span>
                             </td>
                             <td className="px-5 py-4">
@@ -435,8 +444,8 @@ export default function BillingDashboard({ user, onLogout }) {
                                 </div>
                                 <span className={`text-xs font-medium whitespace-nowrap ${isPending ? 'text-orange-500' : allCleared ? 'text-emerald-600' : 'text-gray-400'}`}>
                                   {p.total_cc - p.pending_count}/{p.total_cc}
-                                  {isPending && ' ⚠'}
-                                  {allCleared && ' ✓'}
+                                  {isPending && ' ?'}
+                                  {allCleared && ' ?'}
                                 </span>
                               </div>
                             </td>
@@ -476,6 +485,13 @@ export default function BillingDashboard({ user, onLogout }) {
             <div className="flex items-center gap-3">
               <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+                <option value="opd">OPD</option>
+              </select>
             </div>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -494,6 +510,7 @@ export default function BillingDashboard({ user, onLogout }) {
                         p.clearance_step === 'cost_center_clearing' &&
                         parseInt(p.pending_count) === 0 &&
                         parseInt(p.total_cc) > 0 &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).length === 0 ? (
                       <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients ready for discharge.</td></tr>
@@ -501,6 +518,7 @@ export default function BillingDashboard({ user, onLogout }) {
                         p.clearance_step === 'cost_center_clearing' &&
                         parseInt(p.pending_count) === 0 &&
                         parseInt(p.total_cc) > 0 &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
@@ -508,11 +526,11 @@ export default function BillingDashboard({ user, onLogout }) {
                         <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                         <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
                         <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                            {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                           </span>
                         </td>
                         <td className="px-5 py-4">
@@ -613,7 +631,7 @@ export default function BillingDashboard({ user, onLogout }) {
                               <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                               <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
                               <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                               </td>
                               <td className="px-5 py-4">
                                 {cat === 'mismatched' ? (
@@ -624,7 +642,7 @@ export default function BillingDashboard({ user, onLogout }) {
                               </td>
                               <td className="px-5 py-4 max-w-[200px]">
                                 {remarks.length === 0 ? (
-                                  <span className="text-xs text-gray-300">—</span>
+                                  <span className="text-xs text-gray-300">�</span>
                                 ) : (
                                   <div className="flex flex-col gap-1">
                                     {remarks.map((r, i) => (
@@ -687,6 +705,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <option value="">All Types</option>
                 <option value="in-patient">In-Patient</option>
                 <option value="er">ER</option>
+                <option value="opd">OPD</option>
               </select>
             </div>
 
@@ -715,11 +734,11 @@ export default function BillingDashboard({ user, onLogout }) {
                             <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                             </td>
                             <td className="px-4 py-3.5">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                               </span>
                             </td>
                             <td className="px-4 py-3.5">
@@ -738,7 +757,7 @@ export default function BillingDashboard({ user, onLogout }) {
                                   </div>
                                   <span className="text-xs text-gray-400 whitespace-nowrap">{p.total_cc - p.pending_count}/{p.total_cc}</span>
                                 </div>
-                              ) : <span className="text-xs text-gray-300">—</span>}
+                              ) : <span className="text-xs text-gray-300">�</span>}
                             </td>
                             <td className="px-4 py-3.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
@@ -932,7 +951,7 @@ export default function BillingDashboard({ user, onLogout }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-semibold text-gray-700">{clearanceForm.patientName}</span> — select the service to auto-load cost centers.
+              <span className="font-semibold text-gray-700">{clearanceForm.patientName}</span> � select the service to auto-load cost centers.
             </p>
 
             {/* Service dropdown */}
