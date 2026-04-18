@@ -54,16 +54,22 @@ export default function NurseDashboard({ user, onLogout }) {
   const [dateTo, setDateTo] = useState('');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  const fetchPatients = async (date) => {
+  const fetchPatients = async (date, from, to) => {
     setLoading(true);
     const d = date || filterDate;
+    const df = from !== undefined ? from : dateFrom;
+    const dt = to   !== undefined ? to   : dateTo;
     // Auto-sync IHIS patients first, then fix ward/enccode
     try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
     try { await api.get(`/fix_ward_enccode.php?date=${d}`); } catch { /* silent */ }
+    // Build query — use date range if filters are set, else single date
+    const rangeParams = (df && dt)
+      ? `date_from=${df}&date_to=${dt}`
+      : (df ? `date_from=${df}` : (dt ? `date_to=${dt}` : `date=${d}`));
     try {
       const [listRes, allRes] = await Promise.all([
-        api.get(`/get_patients.php?role=Nurse&date=${d}`),
-        api.get(`/get_patients.php?role=Billing&date=${d}`),
+        api.get(`/get_patients.php?role=Nurse&${rangeParams}`),
+        api.get(`/get_patients.php?role=Billing&${rangeParams}`),
       ]);
       setPatients(listRes.data);
       setAllPatients(allRes.data.filter(p =>
@@ -261,12 +267,20 @@ export default function NurseDashboard({ user, onLogout }) {
                 <option value="cost_center_clearing">Clearance</option>
                 <option value="pending">Pending</option>
               </select>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" placeholder="From" />
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" placeholder="To" />
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400 shrink-0">From</span>
+                <input type="date" value={dateFrom} onChange={e => { const v = e.target.value; setDateFrom(v); fetchPatients(filterDate, v, dateTo); }}
+                  max={dateTo || undefined}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400 shrink-0">To</span>
+                <input type="date" value={dateTo} onChange={e => { const v = e.target.value; setDateTo(v); fetchPatients(filterDate, dateFrom, v); }}
+                  min={dateFrom || undefined}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
+              </div>
               {(wardFilter || statusFilter || dateFrom || dateTo) && (
-                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); }}
+                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); fetchPatients(filterDate, '', ''); }}
                   className="text-xs text-gray-400 hover:text-gray-600 font-medium px-2">Clear filters</button>
               )}
             </div>
