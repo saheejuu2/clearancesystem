@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS patients (
     age             INT,
     ward            VARCHAR(100),
     admit_date      DATE,
-    patient_type    ENUM('in-patient','er') NOT NULL DEFAULT 'in-patient',
+    patient_type    ENUM('in-patient','er','opd') NOT NULL DEFAULT 'in-patient',
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
