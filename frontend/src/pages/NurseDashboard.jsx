@@ -346,7 +346,7 @@ export default function NurseDashboard({ user, onLogout }) {
                                     const enccode = p.ward || '';
                                     const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
                                     const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
-                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, ward: person.wardname || '—', admtxt: person.admtxt, admit_time: admTime };
+                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, ward: person.wardname || '—', admtxt: person.admtxt, admit_time: admTime };
                                   }
                                 } catch { /* silent */ }
                                 setViewPatient(enriched);

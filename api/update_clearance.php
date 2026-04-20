@@ -48,7 +48,7 @@ function log_audit($conn, $patient_id, $patient, $action_label, $actor, $remarks
 
 function notify($conn, $recipient, $patient_id, $patient, $message) {
     $stmt = $conn->prepare("INSERT INTO notifications (recipient, patient_id, patient_no, patient_name, message) VALUES (?, ?, ?, ?, ?)");
-    if (!$stmt) return; // Table doesn't exist yet ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fail silently
+    if (!$stmt) return; // Table doesn't exist yet — fail silently
     $stmt->bind_param("sisss", $recipient, $patient_id, $patient['patient_no'], $patient['full_name'], $message);
     $stmt->execute();
 }
@@ -93,7 +93,7 @@ $COST_CENTERS = array_unique(array_merge($COST_CENTERS_INPATIENT, $COST_CENTERS_
 
 $patient = get_patient($conn, $patient_id);
 
-//STEP 1: Nurse ÃƒÆ’Ã‚Â¢
+//STEP 1: Nurse →
 if ($action === 'may_go_home') {
     $req = get_request($conn, $patient_id);
 

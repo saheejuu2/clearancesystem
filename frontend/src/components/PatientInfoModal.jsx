@@ -11,20 +11,24 @@ export default function PatientInfoModal({ patient, clearances, onClose }) {
   const rows = [
     ['Hospital No.',   patient.patient_no],
     ['Name of Patient',patient.full_name],
-    ['Age',            patient.age ?? '—'],
+    ['Age',            patient.patbdate ? Math.floor((new Date() - new Date(patient.patbdate)) / (365.25 * 24 * 60 * 60 * 1000)) : (patient.age ?? '—')],
     ['Sex',            patient.patsex === 'M' ? 'Male' : patient.patsex === 'F' ? 'Female' : '—'],
     ['Birthdate',      patient.patbdate ? (() => { try { return new Date(patient.patbdate).toLocaleDateString('en-PH', { dateStyle: 'medium' }); } catch { return '—'; } })() : '—'],
-    ['Contact No.',    patient.contact || patient.pattelno || '—'],
     ['Address',        patient.address || '—'],
     ['Admitting Diagnosis ',   patient.admtxt || '—'],
-    ['Admission Date',     patient.admit_date],
-    ['Admission Time',     admitTime],
+    ['Admission Date',  patient.admit_date ? new Date(patient.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'],
+    ['Admission Time',  admitTime && admitTime !== '—' ? (() => { try { const [h, m] = admitTime.split(':'); const d = new Date(); d.setHours(+h, +m); return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true }); } catch { return admitTime; } })() : '—'],
     ['Patient Type',   patient.patient_type === 'er' ? 'ER' : patient.patient_type === 'opd' ? 'OPD' : 'In-Patient'],
+    ['Service',        (() => {
+      const t = (patient.toecode || '').toUpperCase();
+      const map = { ADM: 'Admitted', ER: 'Emergency Room', ERADM: 'ER → Admitted', OPD: 'Out-Patient (OPD)', OPDAD: 'OPD → Admitted' };
+      return map[t] || (t || '—');
+    })()],
   ];
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-bold text-gray-900">Patient Information</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -35,11 +39,11 @@ export default function PatientInfoModal({ patient, clearances, onClose }) {
         </div>
 
         {/* Patient details */}
-        <div className="flex flex-col gap-0 mb-5">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-0 mb-5">
           {rows.map(([label, value]) => (
-            <div key={label} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+            <div key={label} className="flex flex-col gap-0.5 py-2 border-b border-gray-50">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</span>
-              <span className="text-sm font-semibold text-gray-800">{value ?? '—'}</span>
+              <span className="text-sm font-semibold text-gray-800 break-words">{value ?? '—'}</span>
             </div>
           ))}
         </div>

@@ -21,6 +21,8 @@ mysqli_report(MYSQLI_REPORT_OFF); // Disable exceptions for remote connection
 $remote_conn = new mysqli($remote_host, $remote_user, $remote_pass, $remote_db);
 if ($remote_conn->connect_error) {
     $remote_conn = null;
+} else {
+    $remote_conn->set_charset('utf8');
 }
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Re-enable for local
 ?>
