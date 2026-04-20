@@ -261,7 +261,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                       className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
                   </th>
                 )}
-                {['Hospital No.','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -898,7 +898,7 @@ export default function AdminDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Hospital No.','Name','Ward','Admit Date','Flagged Depts',''].map(h => (
+                          {['Hospital No.','Name of Patient','Ward','Admit Date','Flagged Depts',''].map(h => (
                             <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>

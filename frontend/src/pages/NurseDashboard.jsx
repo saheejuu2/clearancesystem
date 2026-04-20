@@ -292,7 +292,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                      {['Hospital No.','Name of Patient ','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                         <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>

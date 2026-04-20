@@ -401,7 +401,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.','Name','Ward','Admit Date','Type','Progress','Action'].map(h => (
+                      {['Hospital No.','Name of Patient','Ward','Admit Date','Type','Progress','Action'].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -497,7 +497,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.','Name','Ward','Admit Date','Type','Action'].map(h => (
+                      {['Hospital No.','Name of Patient','Ward','Admit Date','Type','Action'].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -613,7 +613,7 @@ export default function BillingDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Hospital No.','Name','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
+                          {['Hospital No.','Name of Patient','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
                             <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -713,7 +713,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.', 'Name', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
+                      {['Hospital No.', 'Name of Patient', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
