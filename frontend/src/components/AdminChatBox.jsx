@@ -30,7 +30,7 @@ export default function AdminChatBox() {
 
   const fetchMessages = useCallback(() => {
     if (!selectedUser) return;
-    api.get(`/chat_messages.php?action=list&me=Admin&other=${encodeURIComponent(selectedUser.username)}`)
+    api.get(`/chat_messages.php?action=list&me=Admin&other=${encodeURIComponent(selectedUser.cost_center)}`)
       .then(res => setMessages(res.data || []))
       .catch(() => {});
   }, [selectedUser]);
@@ -39,6 +39,8 @@ export default function AdminChatBox() {
     if (view !== 'chat' || !selectedUser) return;
     fetchMessages();
     pollRef.current = setInterval(fetchMessages, 3000);
+    // Mark messages from this CC as read
+    api.post('/chat_messages.php?action=read', { me: 'Admin', other: selectedUser.cost_center }).catch(() => {});
     return () => clearInterval(pollRef.current);
   }, [view, selectedUser, fetchMessages]);
 
@@ -46,28 +48,18 @@ export default function AdminChatBox() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const openCC = async (cc) => {
-    setSelectedCC(cc);
-    setCcUsers([]);
-    setView('cc');
-    // For Nurse/Billing, list users under that cost_center
-    try {
-      const res = await api.get(`/manage_users.php?action=list&cost_center=${encodeURIComponent(cc)}`);
-      setCcUsers(res.data || []);
-    } catch { setCcUsers([]); }
-  };
-
-  const openChat = (user) => {
-    setSelectedUser(user);
+  const openCC = (cc) => {
+    // Open chat directly with the cost center (no need to pick individual user)
+    setSelectedUser({ cost_center: cc, full_name: cc });
     setMessages([]);
     setView('chat');
   };
 
-  const send = async (recipientUsername, msg) => {
+  const send = async (recipientCC, msg) => {
     if (!msg.trim()) return;
     await api.post('/chat_messages.php?action=send', {
       sender: 'Admin',
-      recipient: recipientUsername,
+      recipient: recipientCC,
       message: msg.trim(),
     }).catch(() => {});
   };
@@ -78,16 +70,16 @@ export default function AdminChatBox() {
     setInput('');
     setSending(true);
     try {
-      await send(selectedUser.username, msg);
+      await send(selectedUser.cost_center, msg);
       fetchMessages();
     } finally { setSending(false); }
   };
 
   const broadcastCC = async (msg) => {
-    if (!msg.trim() || ccUsers.length === 0) return;
+    if (!msg.trim() || !selectedCC) return;
     setSending(true);
     try {
-      await Promise.all(ccUsers.map(u => send(u.username, msg)));
+      await send(selectedCC, msg);
     } finally { setSending(false); }
   };
 
@@ -95,9 +87,7 @@ export default function AdminChatBox() {
     if (!msg.trim()) return;
     setSending(true);
     try {
-      const res = await api.get('/manage_users.php?action=list_all');
-      const users = (res.data || []).filter(u => u.role === 'staff');
-      await Promise.all(users.map(u => send(u.username, msg)));
+      await Promise.all(COST_CENTERS.map(cc => send(cc, msg)));
     } finally { setSending(false); }
   };
 

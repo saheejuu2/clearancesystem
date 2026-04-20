@@ -701,7 +701,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      <CostCenterChatBox sender={user.username} />
+      <CostCenterChatBox sender={user.costCenter} />
     </div>
   );
 }

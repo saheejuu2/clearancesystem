@@ -1,14 +1,22 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../services/api";
+import { playNotificationSound } from "../utils/sounds";
 
 export default function NotificationBell({ recipient, onNotificationClick }) {
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const prevUnreadRef = useRef(0);
 
   const fetchNotifications = useCallback(() => {
     api.get("/notifications.php?action=list&recipient=" + encodeURIComponent(recipient))
-      .then(res => setNotifications(Array.isArray(res.data) ? res.data : []))
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        const newUnread = data.filter(n => !n.is_read).length;
+        if (newUnread > prevUnreadRef.current) playNotificationSound();
+        prevUnreadRef.current = newUnread;
+        setNotifications(data);
+      })
       .catch(() => {});
   }, [recipient]);
 

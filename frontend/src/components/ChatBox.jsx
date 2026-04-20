@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
+import { playMessageSound } from '../utils/sounds';
 
 const COST_CENTERS = [
   'Nurse',
@@ -30,10 +31,18 @@ export default function ChatBox({ sender }) {
   const messagesEndRef                = useRef(null);
   const pollRef                       = useRef(null);
 
+  const prevTotalRef = useRef(0);
+
   // Poll unread counts
   const fetchUnread = useCallback(() => {
     api.get(`/chat_messages.php?action=unread&me=${encodeURIComponent(sender)}`)
-      .then(res => setUnread(res.data || {}))
+      .then(res => {
+        const data = res.data || {};
+        const total = Object.values(data).reduce((a, b) => a + b, 0);
+        if (total > prevTotalRef.current) playMessageSound();
+        prevTotalRef.current = total;
+        setUnread(data);
+      })
       .catch(() => {});
   }, [sender]);
 
@@ -46,7 +55,7 @@ export default function ChatBox({ sender }) {
   // Poll messages in open conversation
   const fetchMessages = useCallback(() => {
     if (!selectedUser) return;
-    api.get(`/chat_messages.php?action=list&me=${encodeURIComponent(sender)}&other=${encodeURIComponent(selectedUser.username)}`)
+    api.get(`/chat_messages.php?action=list&me=${encodeURIComponent(sender)}&other=${encodeURIComponent(selectedUser.cost_center)}`)
       .then(res => setMessages(res.data || []))
       .catch(() => {});
   }, [sender, selectedUser]);
@@ -55,8 +64,10 @@ export default function ChatBox({ sender }) {
     if (view !== 'chat' || !selectedUser) return;
     fetchMessages();
     pollRef.current = setInterval(fetchMessages, 3000);
-    // Mark read
-    api.post('/chat_messages.php?action=read', { me: sender, other: selectedUser.username }).catch(() => {});
+    // Mark read and update local unread state immediately
+    api.post('/chat_messages.php?action=read', { me: sender, other: selectedUser.cost_center }).catch(() => {});
+    setUnread(prev => { const next = { ...prev }; delete next[selectedUser.cost_center]; return next; });
+    prevTotalRef.current = Math.max(0, prevTotalRef.current - 1);
     return () => clearInterval(pollRef.current);
   }, [view, selectedUser, fetchMessages]);
 
@@ -64,14 +75,11 @@ export default function ChatBox({ sender }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const openCC = async (cc) => {
-    setSelectedCC(cc);
-    setCcUsers([]);
-    setView('cc');
-    try {
-      const res = await api.get(`/manage_users.php?action=list&cost_center=${encodeURIComponent(cc)}`);
-      setCcUsers(res.data || []);
-    } catch { setCcUsers([]); }
+  const openCC = (cc) => {
+    setSelectedUser({ cost_center: cc, full_name: cc });
+    setMessages([]);
+    setView('chat');
+    setUnread(prev => { const next = { ...prev }; delete next[cc]; return next; });
   };
 
   const openChat = (user) => {
@@ -80,18 +88,18 @@ export default function ChatBox({ sender }) {
     setView('chat');
     setUnread(prev => {
       const next = { ...prev };
-      delete next[user.username];
+      delete next[user.cost_center];
       return next;
     });
   };
 
-  const sendMessage = async (recipientUsername, msg) => {
+  const sendMessage = async (recipientCC, msg) => {
     if (!msg.trim()) return;
     setSending(true);
     try {
       await api.post('/chat_messages.php?action=send', {
         sender,
-        recipient: recipientUsername,
+        recipient: recipientCC,
         message: msg.trim(),
       });
     } catch { /* silent */ }
@@ -102,7 +110,7 @@ export default function ChatBox({ sender }) {
     if (!input.trim() || !selectedUser) return;
     const msg = input;
     setInput('');
-    await sendMessage(selectedUser.username, msg);
+    await sendMessage(selectedUser.cost_center, msg);
     fetchMessages();
   };
 
@@ -112,9 +120,8 @@ export default function ChatBox({ sender }) {
     setInput('');
     setSending(true);
     try {
-      await Promise.all(ccUsers.map(u =>
-        api.post('/chat_messages.php?action=send', { sender, recipient: u.username, message: msg }).catch(() => {})
-      ));
+      // Send to the cost center as a whole (one message to the CC name)
+      await api.post('/chat_messages.php?action=send', { sender, recipient: broadcastCC, message: msg }).catch(() => {});
     } finally { setSending(false); }
   };
 
@@ -122,10 +129,10 @@ export default function ChatBox({ sender }) {
     if (!msg.trim()) return;
     setSending(true);
     try {
-      const res = await api.get('/manage_users.php?action=list_all');
-      const users = (res.data || []).filter(u => u.cost_center && u.role === 'staff');
-      await Promise.all(users.map(u =>
-        api.post('/chat_messages.php?action=send', { sender, recipient: u.username, message: msg }).catch(() => {})
+      // Broadcast to all cost centers by name
+      const allCC = [...COST_CENTERS];
+      await Promise.all(allCC.map(cc =>
+        api.post('/chat_messages.php?action=send', { sender, recipient: cc, message: msg }).catch(() => {})
       ));
     } finally { setSending(false); }
   };
@@ -142,7 +149,7 @@ export default function ChatBox({ sender }) {
           {/* Header */}
           <div className="bg-emerald-700 px-4 py-3 flex items-center gap-2">
             {view !== 'list' && (
-              <button onClick={() => { setView(view === 'chat' ? 'cc' : 'list'); setSelectedUser(null); }}
+              <button onClick={() => { setView('list'); setSelectedUser(null); }}
                 className="text-white/70 hover:text-white mr-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -173,7 +180,7 @@ export default function ChatBox({ sender }) {
               {(() => {
                 const adminUnread = unread['Admin'] || 0;
                 return (
-                  <button onClick={() => { setSelectedUser({ username: 'Admin', full_name: 'Admin', cost_center: 'System' }); setMessages([]); setView('chat'); }}
+                  <button onClick={() => { setSelectedUser({ full_name: 'Admin', cost_center: 'Admin' }); setMessages([]); setView('chat'); }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-b border-amber-100 bg-amber-50/40">
                     <div className="relative">
                       <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
@@ -193,13 +200,20 @@ export default function ChatBox({ sender }) {
                 );
               })()}
               <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Cost Centers</div>
-              {COST_CENTERS.map(cc => {
-                const ccUnread = 0; // aggregate per CC not tracked at this level
+              {COST_CENTERS.filter(cc => cc !== sender).map(cc => {
+                const ccUnread = unread[cc] || 0;
                 return (
                   <button key={cc} onClick={() => openCC(cc)}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-bold text-emerald-700">{cc[0]}</span>
+                    <div className="relative">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold text-emerald-700">{cc[0]}</span>
+                      </div>
+                      {ccUnread > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {ccUnread > 9 ? '9+' : ccUnread}
+                        </span>
+                      )}
                     </div>
                     <span className="flex-1 text-sm text-gray-700 truncate">{cc}</span>
                     <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +291,7 @@ export default function ChatBox({ sender }) {
                 })}
                 <div ref={messagesEndRef} />
               </div>
-              {selectedUser?.username !== 'Admin' ? (
+              {selectedUser?.cost_center !== 'Admin' ? (
                 <div className="px-3 py-2 border-t border-gray-100 flex gap-2 bg-white">
                   <input
                     type="text"

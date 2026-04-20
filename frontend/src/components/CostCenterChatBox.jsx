@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
+import { playMessageSound } from '../utils/sounds';
 
 // Cost centers can only message Nurse and Billing. Admin is read-only.
 const CONTACTS = ['Nurse', 'Billing'];
@@ -17,10 +18,18 @@ export default function CostCenterChatBox({ sender }) {
   const messagesEndRef                = useRef(null);
   const pollRef                       = useRef(null);
 
+  const prevTotalRef = useRef(0);
+
   // Poll unread counts
   const fetchUnread = useCallback(() => {
     api.get(`/chat_messages.php?action=unread&me=${encodeURIComponent(sender)}`)
-      .then(res => setUnread(res.data || {}))
+      .then(res => {
+        const data = res.data || {};
+        const total = Object.values(data).reduce((a, b) => a + b, 0);
+        if (total > prevTotalRef.current) playMessageSound();
+        prevTotalRef.current = total;
+        setUnread(data);
+      })
       .catch(() => {});
   }, [sender]);
 
@@ -43,6 +52,7 @@ export default function CostCenterChatBox({ sender }) {
     fetchMessages();
     pollRef.current = setInterval(fetchMessages, 3000);
     api.post('/chat_messages.php?action=read', { me: sender, other: selectedContact }).catch(() => {});
+    setUnread(prev => { const next = { ...prev }; delete next[selectedContact]; return next; });
     return () => clearInterval(pollRef.current);
   }, [view, selectedContact, fetchMessages, sender]);
 

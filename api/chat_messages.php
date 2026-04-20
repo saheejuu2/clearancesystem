@@ -73,6 +73,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
         echo json_encode(["success" => false, "message" => "Cannot reply to Admin."]);
         exit();
     }
+    // Block self-messages
+    if ($sender === $recipient) {
+        echo json_encode(["success" => true]); // silent ignore
+        exit();
+    }
     $stmt = $conn->prepare("INSERT INTO chat_messages (sender, recipient, message) VALUES (?, ?, ?)");
     $stmt->bind_param("sss", $sender, $recipient, $message);
     $stmt->execute();
