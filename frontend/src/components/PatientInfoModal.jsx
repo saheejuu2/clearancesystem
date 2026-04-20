@@ -9,18 +9,17 @@ export default function PatientInfoModal({ patient, clearances, onClose }) {
   const admitTime    = patient.admit_time || (timeMatch ? timeMatch[1].substring(0, 5) : '—');
 
   const rows = [
-    ['Account No.',    patient.patient_no],
-    ['Full Name',      patient.full_name],
+    ['Hospital No.',   patient.patient_no],
+    ['Name of Patient',patient.full_name],
     ['Age',            patient.age ?? '—'],
     ['Sex',            patient.patsex === 'M' ? 'Male' : patient.patsex === 'F' ? 'Female' : '—'],
     ['Birthdate',      patient.patbdate ? (() => { try { return new Date(patient.patbdate).toLocaleDateString('en-PH', { dateStyle: 'medium' }); } catch { return '—'; } })() : '—'],
-    ['Contact No.',    patient.pattelno || '—'],
-    ['Facility Code',  facilityCode],
-    ['Patient Code',   patientCode],
-    ['Admission Dx',   patient.admtxt || '—'],
-    ['Admit Date',     patient.admit_date],
-    ['Admit Time',     admitTime],
-    ['Patient Type',   patient.patient_type === 'er' ? 'ER' : 'In-Patient'],
+    ['Contact No.',    patient.contact || patient.pattelno || '—'],
+    ['Address',        patient.address || '—'],
+    ['Admitting Diagnosis ',   patient.admtxt || '—'],
+    ['Admission Date',     patient.admit_date],
+    ['Admission Time',     admitTime],
+    ['Patient Type',   patient.patient_type === 'er' ? 'ER' : patient.patient_type === 'opd' ? 'OPD' : 'In-Patient'],
   ];
 
   return (

@@ -240,7 +240,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+        <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
           <option value="">All Types</option>
@@ -261,7 +261,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                       className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
                   </th>
                 )}
-                {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                {['Hospital No.','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -898,7 +898,7 @@ export default function AdminDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Patient ID','Name','Ward','Admit Date','Flagged Depts',''].map(h => (
+                          {['Hospital No.','Name','Ward','Admit Date','Flagged Depts',''].map(h => (
                             <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>

@@ -60,7 +60,7 @@ export default function AuditTrail({ role, patients = [], cancelForm, setCancelF
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-left">
-                {['Patient ID', 'Name', 'Ward', 'Status', ''].map(h => (
+                {['Hospital No.', 'Name', 'Ward', 'Status', ''].map(h => (
                   <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -104,7 +104,7 @@ export default function AuditTrail({ role, patients = [], cancelForm, setCancelF
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                {['Date & Time', 'Patient ID', 'Patient Name', 'Ward', 'Action', 'Performed By', 'Remarks', ...(role === 'Nurse' ? [''] : [])].map(h => (
+                {['Date & Time', 'Hospital No.', 'Patient Name', 'Ward', 'Action', 'Performed By', 'Remarks', ...(role === 'Nurse' ? [''] : [])].map(h => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>

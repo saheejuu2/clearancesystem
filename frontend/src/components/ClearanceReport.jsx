@@ -126,7 +126,7 @@ export default function ClearanceReport({ patientId, onClose, onAction, userRole
               {/* Patient info */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
                 {[
-                  ['Patient No.',   data.patient.patient_no],
+                  ['Hospital No.',   data.patient.patient_no],
                   ['Full Name',     data.patient.full_name],
                   ['Age',           data.patient.age],
                   ['Ward',          data.patient.ward],

@@ -40,13 +40,13 @@ function DischargedList() {
         <h1 className="text-xl font-bold text-gray-800">Discharged Patients</h1>
         <p className="text-sm text-gray-400 mt-0.5">All patients that have been discharged</p>
       </div>
-      <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID..." />
+      <SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no...." />
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                {['Patient ID','Name','Ward','Admit Date','Discharged At',''].map(h => (
+                {['Hospital No.','Name','Ward','Admit Date','Discharged At',''].map(h => (
                   <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -386,7 +386,7 @@ export default function BillingDashboard({ user, onLogout }) {
               <p className="text-sm text-gray-400 mt-0.5">Patients referred by Billing currently undergoing cost center clearance</p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
               <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
@@ -401,7 +401,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Ward','Admit Date','Type','Progress','Action'].map(h => (
+                      {['Hospital No.','Name','Ward','Admit Date','Type','Progress','Action'].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -482,7 +482,7 @@ export default function BillingDashboard({ user, onLogout }) {
               <p className="text-sm text-gray-400 mt-0.5">Patients fully cleared by all cost centers and ready for discharge</p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
               <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
@@ -497,7 +497,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Ward','Admit Date','Type','Action'].map(h => (
+                      {['Hospital No.','Name','Ward','Admit Date','Type','Action'].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -568,7 +568,7 @@ export default function BillingDashboard({ user, onLogout }) {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
               <select value={pendingFilter} onChange={e => setPendingFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
                 <option value="all">All Categories</option>
@@ -613,7 +613,7 @@ export default function BillingDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Patient ID','Name','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
+                          {['Hospital No.','Name','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
                             <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -713,7 +713,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID', 'Name', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
+                      {['Hospital No.', 'Name', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>

@@ -242,7 +242,7 @@ export default function NurseDashboard({ user, onLogout }) {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-              <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
+              <SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." />
               <div className="flex items-center gap-2 shrink-0">
                 <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
               </div>
@@ -292,7 +292,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                      {['Hospital No.','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                         <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -346,7 +346,7 @@ export default function NurseDashboard({ user, onLogout }) {
                                     const enccode = p.ward || '';
                                     const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
                                     const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
-                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, ward: person.wardname || '—', admtxt: person.admtxt, admit_time: admTime };
+                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, ward: person.wardname || '—', admtxt: person.admtxt, admit_time: admTime };
                                   }
                                 } catch { /* silent */ }
                                 setViewPatient(enriched);

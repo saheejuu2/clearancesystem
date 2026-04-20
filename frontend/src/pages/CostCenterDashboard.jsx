@@ -292,7 +292,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Reason from Billing','Action'].map(h => (
+                      {['Hospital No.','Name','Age','Ward','Admit Date','Reason from Billing','Action'].map(h => (
                         <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -342,7 +342,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Flagged By','Remarks','Action'].map(h => (                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.','Name','Age','Ward','Admit Date','Flagged By','Remarks','Action'].map(h => (                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -397,13 +397,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 while this list shows only patients cleared specifically by <span className="font-semibold text-gray-600">{user.costCenter}</span>.
               </p>
             </div>
-            <SearchBar value={clearedSearch} onChange={setClearedSearch} placeholder="Search by name or patient ID..." />
+            <SearchBar value={clearedSearch} onChange={setClearedSearch} placeholder="Search by name or hospital no." />
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Cleared By','Cleared At','Remarks',''].map(h => (
+                      {['Hospital No.','Name','Age','Ward','Admit Date','Cleared By','Cleared At','Remarks',''].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -463,7 +463,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
         {/* Search */}
         <div className="flex items-center gap-3">
-          <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+          <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
           <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
@@ -480,7 +480,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                  {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                  {['Hospital No.','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                     <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
