@@ -34,20 +34,33 @@ $encWhere = $enccode ? "e.enccode = '$enccode'" : "e.hpercode = '$hpercode'";
 $r2 = $remote_conn->query("
     SELECT e.toecode, e.encdate, e.enctime, e.enccode,
            w.wardname,
-           (SELECT diagtext FROM hencdiag
-            WHERE enccode = e.enccode AND tdcode = 'ADMDX' AND edstat = 'A'
-            ORDER BY encdate ASC LIMIT 1) AS admtxt
+           al.admtxt
     FROM henctr e
     LEFT JOIN hward w ON w.wardcode = (
         SELECT pr.wardcode FROM hpatroom pr
         WHERE pr.enccode = e.enccode
         ORDER BY pr.datemod DESC LIMIT 1
     )
+    LEFT JOIN hadmlog al ON al.enccode = e.enccode
     WHERE $encWhere
     ORDER BY e.encdate DESC
     LIMIT 1
 ");
 if ($r2) $enc = $r2->fetch_assoc();
+
+// Fallback: try hadmlog by hpercode if admtxt is empty
+if (empty($enc['admtxt'])) {
+    $r3 = $remote_conn->query("
+        SELECT admtxt FROM hadmlog
+        WHERE hpercode = '$hpercode' AND admtxt IS NOT NULL AND admtxt != '' AND admtxt != '.'
+        ORDER BY admdate DESC LIMIT 1
+    ");
+    if ($r3) {
+        $row3 = $r3->fetch_assoc();
+        if ($row3 && $enc) $enc['admtxt'] = $row3['admtxt'];
+        elseif ($row3) $enc = ['admtxt' => $row3['admtxt']];
+    }
+}
 
 echo json_encode([
     "person" => [

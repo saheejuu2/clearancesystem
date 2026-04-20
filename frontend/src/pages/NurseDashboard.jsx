@@ -311,7 +311,7 @@ export default function NurseDashboard({ user, onLogout }) {
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                           <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                           <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward && p.ward.length <= 20 ? p.ward : '—'}</td>
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                             {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </td>
@@ -346,7 +346,7 @@ export default function NurseDashboard({ user, onLogout }) {
                                     const enccode = p.ward || '';
                                     const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
                                     const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
-                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, ward: person.wardname || '—', admtxt: person.admtxt, admit_time: admTime };
+                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', admtxt: person.admtxt, admit_time: admTime };
                                   }
                                 } catch { /* silent */ }
                                 setViewPatient(enriched);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import websocketService from '../services/websocket';
 import PhClock from '../components/PhClock';
@@ -287,7 +287,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                     <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                     <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                     <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                    <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                    <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || p.ward}</td>
                     <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                       {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                     </td>
@@ -915,7 +915,7 @@ export default function AdminDashboard({ user, onLogout }) {
                               className="hover:bg-gray-50/70 transition-colors cursor-pointer border-b border-gray-50">
                               <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                               <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || p.ward}</td>
                               <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
                                 {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                               </td>

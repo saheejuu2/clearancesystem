@@ -13,7 +13,7 @@ $date_condition = "AND DATE(p.admit_date) = '$date'";
 
 $sql = "
     SELECT 
-        p.id, p.patient_no, p.full_name, p.age, p.ward, p.admit_date, p.patient_type,
+        p.id, p.patient_no, p.full_name, p.age, p.ward, p.ward_name, p.admitting_dx, p.admit_date, p.patient_type,
         cr.id AS request_id,
         cr.nurse_status,
         cr.billing_status,
@@ -71,7 +71,7 @@ $pending_only = isset($_GET['pending_only']) && $_GET['pending_only'] === '1';
 // For pending_only mode: return patients where this CC has status=pending AND remarks set (sent back by billing)
 if ($pending_only && $role && !in_array($role, ['Nurse', 'Billing'])) {
     $stmt_p = $conn->prepare("
-        SELECT p.id, p.patient_no, p.full_name, p.age, p.ward, p.admit_date, p.patient_type,
+        SELECT p.id, p.patient_no, p.full_name, p.age, p.ward, p.ward_name, p.admitting_dx, p.admit_date, p.patient_type,
                ccc.remarks AS cc_remarks
         FROM patients p
         JOIN clearance_requests cr ON cr.patient_id = p.id
