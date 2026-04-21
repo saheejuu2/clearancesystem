@@ -97,5 +97,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'read') {
     exit();
 }
 
+// POST: delete message (admin only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete') {
+    $id = (int)($data['id'] ?? 0);
+    if (!$id) { echo json_encode(["success" => false]); exit(); }
+    $stmt = $conn->prepare("DELETE FROM chat_messages WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    echo json_encode(["success" => true]);
+    exit();
+}
+
 echo json_encode(["success" => false, "message" => "Unknown action."]);
 ?>
