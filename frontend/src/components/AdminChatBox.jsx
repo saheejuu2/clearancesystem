@@ -187,29 +187,35 @@ export default function AdminChatBox() {
                 {messages.length === 0 && (
                   <p className="text-center text-gray-300 text-xs mt-4">No messages sent yet.</p>
                 )}
-                {messages.map(m => {
+                {messages.map((m, idx) => {
                   const isMine = m.sender === 'Admin';
+                  const isLastMine = isMine && messages.slice(idx + 1).every(x => x.sender !== 'Admin');
                   return (
-                    <div key={m.id} className={`flex group ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      {isMine && (
-                        <button onClick={() => setDeleteConfirm(m.id)}
-                          className="opacity-0 group-hover:opacity-100 self-center mr-1 text-gray-300 hover:text-red-400 transition-all">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      )}
-                      <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${isMine ? 'bg-emerald-700 text-white rounded-br-sm' : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'}`}>
-                        <p>{m.message}</p>
-                        <p className={`text-[10px] mt-0.5 text-right ${isMine ? 'text-emerald-200' : 'text-gray-400'}`}>{fmt(m.created_at)}</p>
+                    <div key={m.id} className={`flex flex-col group ${isMine ? 'items-end' : 'items-start'}`}>
+                      <div className={`flex ${isMine ? 'flex-row-reverse' : 'flex-row'} items-end gap-1`}>
+                        {isMine && (
+                          <button onClick={() => setDeleteConfirm(m.id)}
+                            className="opacity-0 group-hover:opacity-100 self-center mr-1 text-gray-300 hover:text-red-400 transition-all">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm break-words whitespace-pre-wrap ${isMine ? 'bg-emerald-700 text-white rounded-br-sm' : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'}`}>
+                          <p>{m.message}</p>
+                          <p className={`text-[10px] mt-0.5 text-right ${isMine ? 'text-emerald-200' : 'text-gray-400'}`}>{fmt(m.created_at)}</p>
+                        </div>
+                        {!isMine && (
+                          <button onClick={() => setDeleteConfirm(m.id)}
+                            className="opacity-0 group-hover:opacity-100 self-center ml-1 text-gray-300 hover:text-red-400 transition-all">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
-                      {!isMine && (
-                        <button onClick={() => setDeleteConfirm(m.id)}
-                          className="opacity-0 group-hover:opacity-100 self-center ml-1 text-gray-300 hover:text-red-400 transition-all">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                      {isMine && isLastMine && (
+                        <MessageStatus delivered={m.is_delivered} seen={m.is_seen} />
                       )}
                     </div>
                   );
@@ -256,6 +262,31 @@ export default function AdminChatBox() {
       {portal}
       {deleteConfirm && <DeleteConfirmModal onConfirm={() => deleteMsg(deleteConfirm)} onCancel={() => setDeleteConfirm(null)} />}
     </>
+  );
+}
+
+function MessageStatus({ delivered, seen }) {
+  if (seen) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-blue-400 mt-0.5 mr-0.5">
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/></svg>
+        Seen
+      </span>
+    );
+  }
+  if (delivered) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-gray-400 mt-0.5 mr-0.5">
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/></svg>
+        Delivered
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] text-gray-300 mt-0.5 mr-0.5">
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      Sent
+    </span>
   );
 }
 

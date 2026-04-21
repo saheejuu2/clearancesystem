@@ -12,13 +12,18 @@ include 'db_config.php';
 
 // Create table if not exists
 $conn->query("CREATE TABLE IF NOT EXISTS chat_messages (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    sender      VARCHAR(100) NOT NULL,
-    recipient   VARCHAR(100) NOT NULL,
-    message     TEXT NOT NULL,
-    is_read     TINYINT(1) DEFAULT 0,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    sender          VARCHAR(100) NOT NULL,
+    recipient       VARCHAR(100) NOT NULL,
+    message         TEXT NOT NULL,
+    is_read         TINYINT(1) DEFAULT 0,
+    is_delivered    TINYINT(1) DEFAULT 0,
+    is_seen         TINYINT(1) DEFAULT 0,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
+// Add columns if upgrading from old schema
+$conn->query("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS is_delivered TINYINT(1) DEFAULT 0");
+$conn->query("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS is_seen TINYINT(1) DEFAULT 0");
 
 $action = $_GET['action'] ?? 'list';
 
@@ -78,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
         echo json_encode(["success" => true]); // silent ignore
         exit();
     }
-    $stmt = $conn->prepare("INSERT INTO chat_messages (sender, recipient, message) VALUES (?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO chat_messages (sender, recipient, message, is_delivered) VALUES (?, ?, ?, 1)");
     $stmt->bind_param("sss", $sender, $recipient, $message);
     $stmt->execute();
     echo json_encode(["success" => true, "id" => $conn->insert_id]);
@@ -90,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'read') {
     $me    = trim($data['me']    ?? '');
     $other = trim($data['other'] ?? '');
     if (!$me || !$other) { echo json_encode(["success" => false]); exit(); }
-    $stmt = $conn->prepare("UPDATE chat_messages SET is_read=1 WHERE recipient=? AND sender=?");
+    $stmt = $conn->prepare("UPDATE chat_messages SET is_read=1, is_seen=1 WHERE recipient=? AND sender=?");
     $stmt->bind_param("ss", $me, $other);
     $stmt->execute();
     echo json_encode(["success" => true]);
