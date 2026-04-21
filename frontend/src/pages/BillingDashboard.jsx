@@ -47,7 +47,7 @@ function DischargedList() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-left">
                 {['Hospital No.','Name','Ward','Admit Date','Discharged At',''].map(h => (
-                  <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -58,10 +58,11 @@ function DischargedList() {
                 <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No discharged patients.</td></tr>
               ) : paged.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                  <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                  <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || p.ward}</td>
-                  <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                  <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                  <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                  <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                  <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                     {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                   </td>
                   <td className="px-5 py-4 text-gray-500 text-xs">
@@ -401,8 +402,8 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.','Name of Patient','Ward','Admit Date','Type','Progress','Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Progress','Action'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -424,10 +425,11 @@ export default function BillingDashboard({ user, onLogout }) {
                         const isPending = p.has_pending;
                         return (
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                            <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || p.ward}</td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                            <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                            <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                               {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                             </td>
                             <td className="px-5 py-4">
@@ -497,8 +499,8 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.','Name of Patient','Ward','Admit Date','Type','Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Action'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -521,10 +523,11 @@ export default function BillingDashboard({ user, onLogout }) {
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                        <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || p.ward}</td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                        <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                           {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                         </td>
                         <td className="px-5 py-4">
@@ -613,8 +616,8 @@ export default function BillingDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Hospital No.','Name of Patient','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
-                            <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
+                            <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -626,10 +629,11 @@ export default function BillingDashboard({ user, onLogout }) {
                           const remarks = pendingRemarks[p.id] || [];
                           return (
                             <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                              <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                              <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || p.ward}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
+                              <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                              <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                              <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                              <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                                 {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                               </td>
                               <td className="px-5 py-4">
@@ -713,8 +717,8 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.', 'Name of Patient', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.', 'Name of Patient', 'Age', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -731,7 +735,8 @@ export default function BillingDashboard({ user, onLogout }) {
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                             <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || p.ward}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                               {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                             </td>
