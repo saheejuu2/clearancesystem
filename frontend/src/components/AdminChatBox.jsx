@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 
@@ -25,12 +25,13 @@ export default function AdminChatBox() {
   const [messages, setMessages]     = useState([]);
   const [input, setInput]           = useState('');
   const [sending, setSending]       = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // message id to delete
   const messagesEndRef              = useRef(null);
   const pollRef                     = useRef(null);
 
   const fetchMessages = useCallback(() => {
     if (!selectedUser) return;
-    api.get(`/chat_messages.php?action=list&me=Admin&other=${encodeURIComponent(selectedUser.username)}`)
+    api.get(`/chat_messages.php?action=list&me=Admin&other=${encodeURIComponent(selectedUser.cost_center)}`)
       .then(res => setMessages(res.data || []))
       .catch(() => {});
   }, [selectedUser]);
@@ -38,7 +39,9 @@ export default function AdminChatBox() {
   useEffect(() => {
     if (view !== 'chat' || !selectedUser) return;
     fetchMessages();
-    pollRef.current = setInterval(fetchMessages, 5000);
+    pollRef.current = setInterval(fetchMessages, 3000);
+    // Mark messages from this CC as read
+    api.post('/chat_messages.php?action=read', { me: 'Admin', other: selectedUser.cost_center }).catch(() => {});
     return () => clearInterval(pollRef.current);
   }, [view, selectedUser, fetchMessages]);
 
@@ -46,30 +49,26 @@ export default function AdminChatBox() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const openCC = async (cc) => {
-    setSelectedCC(cc);
-    setCcUsers([]);
-    setView('cc');
-    // For Nurse/Billing, list users under that cost_center
-    try {
-      const res = await api.get(`/manage_users.php?action=list&cost_center=${encodeURIComponent(cc)}`);
-      setCcUsers(res.data || []);
-    } catch { setCcUsers([]); }
-  };
-
-  const openChat = (user) => {
-    setSelectedUser(user);
+  const openCC = (cc) => {
+    // Open chat directly with the cost center (no need to pick individual user)
+    setSelectedUser({ cost_center: cc, full_name: cc });
     setMessages([]);
     setView('chat');
   };
 
-  const send = async (recipientUsername, msg) => {
+  const send = async (recipientCC, msg) => {
     if (!msg.trim()) return;
     await api.post('/chat_messages.php?action=send', {
       sender: 'Admin',
-      recipient: recipientUsername,
+      recipient: recipientCC,
       message: msg.trim(),
     }).catch(() => {});
+  };
+
+  const deleteMsg = async (id) => {
+    await api.post('/chat_messages.php?action=delete', { id }).catch(() => {});
+    setMessages(prev => prev.filter(m => m.id !== id));
+    setDeleteConfirm(null);
   };
 
   const handleSend = async () => {
@@ -78,16 +77,16 @@ export default function AdminChatBox() {
     setInput('');
     setSending(true);
     try {
-      await send(selectedUser.username, msg);
+      await send(selectedUser.cost_center, msg);
       fetchMessages();
     } finally { setSending(false); }
   };
 
   const broadcastCC = async (msg) => {
-    if (!msg.trim() || ccUsers.length === 0) return;
+    if (!msg.trim() || !selectedCC) return;
     setSending(true);
     try {
-      await Promise.all(ccUsers.map(u => send(u.username, msg)));
+      await send(selectedCC, msg);
     } finally { setSending(false); }
   };
 
@@ -95,15 +94,13 @@ export default function AdminChatBox() {
     if (!msg.trim()) return;
     setSending(true);
     try {
-      const res = await api.get('/manage_users.php?action=list_all');
-      const users = (res.data || []).filter(u => u.role === 'staff');
-      await Promise.all(users.map(u => send(u.username, msg)));
+      await Promise.all(COST_CENTERS.map(cc => send(cc, msg)));
     } finally { setSending(false); }
   };
 
   const fmt = (dt) => new Date(dt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
 
-  return createPortal(
+  const portal = createPortal(
     <div className="fixed bottom-5 right-5 z-[9999] flex flex-col items-end gap-2">
       {open && (
         <div className="w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden" style={{ height: '460px' }}>
@@ -190,14 +187,39 @@ export default function AdminChatBox() {
                 {messages.length === 0 && (
                   <p className="text-center text-gray-300 text-xs mt-4">No messages sent yet.</p>
                 )}
-                {messages.filter(m => m.sender === 'Admin').map(m => (
-                  <div key={m.id} className="flex justify-end">
-                    <div className="max-w-[80%] px-3 py-2 rounded-2xl rounded-br-sm bg-emerald-700 text-white text-sm">
-                      <p>{m.message}</p>
-                      <p className="text-[10px] text-emerald-200 mt-0.5 text-right">{fmt(m.created_at)}</p>
+                {messages.map((m, idx) => {
+                  const isMine = m.sender === 'Admin';
+                  const isLastMine = isMine && messages.slice(idx + 1).every(x => x.sender !== 'Admin');
+                  return (
+                    <div key={m.id} className={`flex flex-col group ${isMine ? 'items-end' : 'items-start'}`}>
+                      <div className={`flex ${isMine ? 'flex-row-reverse' : 'flex-row'} items-end gap-1`}>
+                        {isMine && (
+                          <button onClick={() => setDeleteConfirm(m.id)}
+                            className="opacity-0 group-hover:opacity-100 self-center mr-1 text-gray-300 hover:text-red-400 transition-all">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm break-words whitespace-pre-wrap ${isMine ? 'bg-emerald-700 text-white rounded-br-sm' : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'}`}>
+                          <p>{m.message}</p>
+                          <p className={`text-[10px] mt-0.5 text-right ${isMine ? 'text-emerald-200' : 'text-gray-400'}`}>{fmt(m.created_at)}</p>
+                        </div>
+                        {!isMine && (
+                          <button onClick={() => setDeleteConfirm(m.id)}
+                            className="opacity-0 group-hover:opacity-100 self-center ml-1 text-gray-300 hover:text-red-400 transition-all">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {isMine && isLastMine && (
+                        <MessageStatus delivered={m.is_delivered} seen={m.is_seen} />
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={messagesEndRef} />
               </div>
               <div className="px-3 py-2 border-t border-gray-100 flex gap-2 bg-white">
@@ -232,6 +254,58 @@ export default function AdminChatBox() {
           </svg>
         )}
       </button>
+    </div>,
+    document.body
+  );
+  return (
+    <>
+      {portal}
+      {deleteConfirm && <DeleteConfirmModal onConfirm={() => deleteMsg(deleteConfirm)} onCancel={() => setDeleteConfirm(null)} />}
+    </>
+  );
+}
+
+function MessageStatus({ delivered, seen }) {
+  if (seen) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-blue-400 mt-0.5 mr-0.5">
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/></svg>
+        Seen
+      </span>
+    );
+  }
+  if (delivered) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-gray-400 mt-0.5 mr-0.5">
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/></svg>
+        Delivered
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] text-gray-300 mt-0.5 mr-0.5">
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      Sent
+    </span>
+  );
+}
+
+function DeleteConfirmModal({ onConfirm, onCancel }) {
+  return createPortal(
+    <div className="fixed inset-0 bg-black/40 z-[99999] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-6 text-center">
+        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3">
+          <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </div>
+        <p className="text-sm font-semibold text-gray-800 mb-1">Delete this message?</p>
+        <p className="text-xs text-gray-400 mb-5">This cannot be undone.</p>
+        <div className="flex gap-2">
+          <button onClick={onConfirm} className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">Delete</button>
+          <button onClick={onCancel} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded-lg transition-colors">Cancel</button>
+        </div>
+      </div>
     </div>,
     document.body
   );

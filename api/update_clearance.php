@@ -42,7 +42,7 @@ function log_audit($conn, $patient_id, $patient, $action_label, $actor, $remarks
 
 function notify($conn, $recipient, $patient_id, $patient, $message) {
     $stmt = $conn->prepare("INSERT INTO notifications (recipient, patient_id, patient_no, patient_name, message) VALUES (?, ?, ?, ?, ?)");
-    if (!$stmt) return; // Table doesn't exist yet ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fail silently
+    if (!$stmt) return; // Table doesn't exist yet — fail silently
     $stmt->bind_param("sisss", $recipient, $patient_id, $patient['patient_no'], $patient['full_name'], $message);
     $stmt->execute();
 }
@@ -57,6 +57,9 @@ $COST_CENTERS_INPATIENT = [
     'Laboratory',
     'Bloodbank',
     'Pharmacy',
+    'Endoscopy',
+    'Colonoscopy',
+    'Physical Therapy',
     'Benefits - Window 3A',
     'Billing - Window 2',
 ];
@@ -71,6 +74,9 @@ $COST_CENTERS_ER = [
     'Laboratory',
     'Bloodbank',
     'Pharmacy',
+    'Endoscopy',
+    'Colonoscopy',
+    'Physical Therapy',
     'Benefits - Window 3B',
     'Benefits - Window 6',
     'Billing - Window 1',
@@ -81,7 +87,7 @@ $COST_CENTERS = array_unique(array_merge($COST_CENTERS_INPATIENT, $COST_CENTERS_
 
 $patient = get_patient($conn, $patient_id);
 
-//STEP 1: Nurse ÃƒÆ’Ã‚Â¢
+//STEP 1: Nurse →
 if ($action === 'may_go_home') {
     $req = get_request($conn, $patient_id);
 
@@ -258,6 +264,30 @@ if ($action === 'discharge') {
     fetchAndBroadcastPatients($conn, 'Admin', $today);
     
     echo json_encode(["success" => true, "message" => "Patient successfully discharged."]);
+    exit();
+}
+
+// ADMIN: Return cleared patient back to clearance (reset all CC statuses to pending)
+if ($action === 'return_to_clearance') {
+    $req = get_request($conn, $patient_id);
+
+    if (!$req || $req['billing_status'] !== 'for_clearance') {
+        echo json_encode(["success" => false, "message" => "Patient is not in clearance."]);
+        exit();
+    }
+
+    // Reset all cost center clearances back to pending
+    $stmt = $conn->prepare("UPDATE cost_center_clearances SET status='pending', cleared_at=NULL, cleared_by=NULL, remarks=NULL WHERE clearance_request_id=?");
+    $stmt->bind_param("i", $req['id']);
+    $stmt->execute();
+
+    log_audit($conn, $patient_id, $patient, "Admin - Returned to Clearance", $actor, $remarks);
+
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, 'Admin', $today);
+
+    echo json_encode(["success" => true, "message" => "Patient returned to clearance processing."]);
     exit();
 }
 

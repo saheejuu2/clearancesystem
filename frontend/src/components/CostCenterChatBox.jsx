@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
+import { playMessageSound } from '../utils/sounds';
 
 // Cost centers can only message Nurse and Billing. Admin is read-only.
 const CONTACTS = ['Nurse', 'Billing'];
@@ -17,10 +18,28 @@ export default function CostCenterChatBox({ sender }) {
   const messagesEndRef                = useRef(null);
   const pollRef                       = useRef(null);
 
+  const prevTotalRef = useRef(0);
+  const prevUnreadRef = useRef({});
+  const [recentOrder, setRecentOrder] = useState([]);
+
   // Poll unread counts
   const fetchUnread = useCallback(() => {
     api.get(`/chat_messages.php?action=unread&me=${encodeURIComponent(sender)}`)
-      .then(res => setUnread(res.data || {}))
+      .then(res => {
+        const data = res.data || {};
+        const total = Object.values(data).reduce((a, b) => a + b, 0);
+        if (total > prevTotalRef.current) playMessageSound();
+        const withUnread = Object.keys(data).filter(k => (data[k] || 0) > 0 && (data[k] || 0) >= (prevUnreadRef.current[k] || 0));
+        if (withUnread.length > 0) {
+          setRecentOrder(prev => {
+            const newOnes = withUnread.filter(s => !prev.includes(s));
+            return newOnes.length > 0 ? [...newOnes, ...prev] : prev;
+          });
+        }
+        prevTotalRef.current = total;
+        prevUnreadRef.current = data;
+        setUnread(data);
+      })
       .catch(() => {});
   }, [sender]);
 
@@ -43,6 +62,7 @@ export default function CostCenterChatBox({ sender }) {
     fetchMessages();
     pollRef.current = setInterval(fetchMessages, 5000);
     api.post('/chat_messages.php?action=read', { me: sender, other: selectedContact }).catch(() => {});
+    setUnread(prev => { const next = { ...prev }; delete next[selectedContact]; return next; });
     return () => clearInterval(pollRef.current);
   }, [view, selectedContact, fetchMessages, sender]);
 
@@ -134,7 +154,14 @@ export default function CostCenterChatBox({ sender }) {
                   </button>
                 );
               })()}
-              {CONTACTS.map(contact => {
+              {[...CONTACTS].sort((a, b) => {
+                const ra = recentOrder.indexOf(a);
+                const rb = recentOrder.indexOf(b);
+                if (ra !== -1 && rb !== -1) return ra - rb;
+                if (ra !== -1) return -1;
+                if (rb !== -1) return 1;
+                return 0;
+              }).map(contact => {
                 const uUnread = unread[contact] || 0;
                 return (
                   <button key={contact} onClick={() => openChat(contact)}
@@ -178,17 +205,21 @@ export default function CostCenterChatBox({ sender }) {
                 {messages.length === 0 && (
                   <p className="text-center text-gray-300 text-xs mt-8">No messages yet.</p>
                 )}
-                {messages.map(m => {
+                {messages.map((m, idx) => {
                   const isMine = m.sender === sender;
+                  const isLastMine = isMine && messages.slice(idx + 1).every(x => x.sender !== sender);
                   return (
-                    <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm ${isMine ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'}`}>
+                    <div key={m.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                      <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm break-words whitespace-pre-wrap ${isMine ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'}`}>
                         {!isMine && (
                           <p className="text-[10px] font-semibold text-emerald-600 mb-0.5">{m.sender}</p>
                         )}
                         <p>{m.message}</p>
                         <p className={`text-[10px] mt-0.5 ${isMine ? 'text-emerald-200' : 'text-gray-400'} text-right`}>{fmt(m.created_at)}</p>
                       </div>
+                      {isMine && isLastMine && (
+                        <MessageStatus delivered={m.is_delivered} seen={m.is_seen} />
+                      )}
                     </div>
                   );
                 })}
@@ -235,5 +266,30 @@ export default function CostCenterChatBox({ sender }) {
       </button>
     </div>,
     document.body
+  );
+}
+
+function MessageStatus({ delivered, seen }) {
+  if (seen) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-blue-400 mt-0.5 mr-0.5">
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/></svg>
+        Seen
+      </span>
+    );
+  }
+  if (delivered) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-gray-400 mt-0.5 mr-0.5">
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/></svg>
+        Delivered
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] text-gray-300 mt-0.5 mr-0.5">
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      Sent
+    </span>
   );
 }

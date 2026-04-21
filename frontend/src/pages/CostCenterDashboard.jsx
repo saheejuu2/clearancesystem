@@ -42,10 +42,12 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [remarksModal, setRemarksModal] = useState(null);
   const [toastEnabled, setToastEnabled] = useState(true);
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [typeFilter, setTypeFilter] = useState('');
 
   const fetchPatients = async (date) => {
     setLoading(true);
     const d = date || filterDate;
+    try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
     try {
       const res = await api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&date=${d}`);
       setPatients(res.data);
@@ -189,8 +191,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
   };
 
   const filtered = patients.filter(p =>
-    p.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    p.patient_no.toLowerCase().includes(search.toLowerCase())
+    (!typeFilter || p.patient_type === typeFilter) &&
+    (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
   const { paged: pagedCC, page: ccPage, setPage: setCcPage, totalPages: ccTotalPages, total: ccTotal, start: ccStart, pageSize: ccPageSize } = usePagination(filtered);
 
@@ -264,14 +267,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 </span>
               )}
             </button>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
-            <button onClick={() => { setTab('audit'); setAuditKey(k => k + 1); }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === 'audit' ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Audit Trail
-            </button>
+          
           </nav>
           <div className="p-3 border-t border-gray-100">
             <button onClick={onLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors w-full">
@@ -285,7 +281,6 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
         <main className="flex-1 overflow-y-auto px-6 py-6">
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
-        {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} />}
         {tab === 'pending' && (
           <div className="flex flex-col gap-5">
             <div>
@@ -297,7 +292,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Reason from Billing','Action'].map(h => (
+                      {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Reason from Billing','Action'].map(h => (
                         <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -312,7 +307,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                         <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                         <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                           {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                         </td>
@@ -347,7 +342,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Flagged By','Remarks','Action'].map(h => (                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Flagged By','Remarks','Action'].map(h => (                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -361,7 +356,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                         <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                         <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                           {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                         </td>
@@ -402,13 +397,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 while this list shows only patients cleared specifically by <span className="font-semibold text-gray-600">{user.costCenter}</span>.
               </p>
             </div>
-            <SearchBar value={clearedSearch} onChange={setClearedSearch} placeholder="Search by name or patient ID..." />
+            <SearchBar value={clearedSearch} onChange={setClearedSearch} placeholder="Search by name or hospital no." />
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Cleared By','Cleared At','Remarks',''].map(h => (
+                      {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Cleared By','Cleared At','Remarks',''].map(h => (
                         <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -423,7 +418,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                             <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                             <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
                               {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                             </td>
@@ -468,8 +463,15 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
         {/* Search */}
         <div className="flex items-center gap-3">
-          <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+          <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
           <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+            <option value="">All Types</option>
+            <option value="in-patient">In-Patient</option>
+            <option value="er">ER</option>
+            <option value="opd">OPD</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -478,7 +480,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                  {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                  {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                     <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -498,13 +500,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                       <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                      <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                      <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                       <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                         {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                          {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -602,11 +604,31 @@ export default function CostCenterDashboard({ user, onLogout }) {
             </div>
 
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={clearName}
-                  onChange={e => setClearName(e.target.value.replace(/[0-9]/g, ""))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={clearName}
+                    onChange={e => setClearName(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showClearPass ? 'text' : 'password'} placeholder="Your password"
+                      value={clearPassword} onChange={e => { setClearPassword(e.target.value); setClearPriceError(''); }}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <button type="button" onClick={() => setShowClearPass(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showClearPass
+                        ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                        : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      }
+                    </button>
+                  </div>
+                  {clearPriceError && clearPriceError.includes('password') && (
+                    <p className="text-xs text-red-500">{clearPriceError}</p>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -633,25 +655,6 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 <textarea placeholder="e.g. no outstanding balance" value={clearRemarks}
                   onChange={e => setClearRemarks(e.target.value)}
                   rows={2} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input type={showClearPass ? 'text' : 'password'} placeholder="Enter your password to confirm"
-                    value={clearPassword} onChange={e => { setClearPassword(e.target.value); setClearPriceError(''); }}
-                    className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-                  <button type="button" onClick={() => setShowClearPass(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showClearPass
-                      ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                      : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    }
-                  </button>
-                </div>
-                {clearPriceError && clearPriceError.includes('password') && (
-                  <p className="text-xs text-red-500">{clearPriceError}</p>
-                )}
               </div>
             </div>
 
@@ -698,7 +701,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      <CostCenterChatBox sender={user.username} />
+      <CostCenterChatBox sender={user.costCenter} />
     </div>
   );
 }

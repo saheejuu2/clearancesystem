@@ -12,8 +12,7 @@
 // export default api;
 import axios from 'axios';
 
-// LOCAL DEVELOPMENT: PHP API running on port 8000
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}/hospital-clearance/api`;
 
 const api = axios.create({
     baseURL: API_BASE_URL,

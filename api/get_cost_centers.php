@@ -21,6 +21,8 @@ if (empty($centers)) {
     $centers = [
         'Billing',
         'Bloodbank',
+        'Colonoscopy',
+        'Endoscopy',
         'Hemodialysis Unit',
         'Laboratory',
         'Newborn Hearing Test',
@@ -28,6 +30,7 @@ if (empty($centers)) {
         'Nurse',
         'Operating Room/Delivery Room',
         'Pharmacy',
+        'Physical Therapy',
         'Pulmonary Department (MSA)',
         'Radiology',
     ];

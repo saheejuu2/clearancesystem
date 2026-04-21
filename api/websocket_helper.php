@@ -30,6 +30,11 @@ function broadcastToAllRoles($date, $patients) {
     'Laboratory',
     'Bloodbank',
     'Pharmacy',
+    'Endoscopy',
+    'Colonoscopy',
+    'Physical Therapy',
+    'Bloodbank',
+    'Pharmacy',
     'Benefits - Window 3A',
     'Billing - Window 2',
     'Admin'

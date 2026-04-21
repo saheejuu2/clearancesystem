@@ -40,14 +40,14 @@ function DischargedList() {
         <h1 className="text-xl font-bold text-gray-800">Discharged Patients</h1>
         <p className="text-sm text-gray-400 mt-0.5">All patients that have been discharged</p>
       </div>
-      <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID..." />
+      <SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no...." />
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                {['Patient ID','Name','Ward','Admit Date','Discharged At',''].map(h => (
-                  <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                {['Hospital No.','Name','Ward','Admit Date','Discharged At',''].map(h => (
+                  <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -58,14 +58,15 @@ function DischargedList() {
                 <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No discharged patients.</td></tr>
               ) : paged.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                  <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                  <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
-                  <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                    {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                  <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                  <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                  <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                  <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                    {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                   </td>
                   <td className="px-5 py-4 text-gray-500 text-xs">
-                    {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                    {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '�'}
                   </td>
                   <td className="px-5 py-4">
                     {p.request_id && (
@@ -94,6 +95,8 @@ const STEP_LABEL = {
   cost_center_clearing: { label: 'In Clearance', style: 'bg-amber-100 text-amber-600'     },
   discharged:           { label: 'Discharged',   style: 'bg-emerald-100 text-emerald-700' },
 };
+
+const OPTIONAL_COST_CENTERS = ['Endoscopy', 'Colonoscopy', 'Physical Therapy'];
 
 // Cost centers that are auto-checked
 const AUTO_CHECK_CENTERS = [
@@ -135,6 +138,10 @@ export default function BillingDashboard({ user, onLogout }) {
   const [reportPatient, setReport] = useState(null);
   const [dischargeRemarks, setDischargeRemarks] = useState("");
   const [dischargeName, setDischargeName] = useState("");
+  const [dischargePassword, setDischargePassword] = useState("");
+  const [showDischargePass, setShowDischargePass] = useState(false);
+  const [pendingPassword, setPendingPassword] = useState("");
+  const [showPendingPass, setShowPendingPass] = useState(false);
   const [clearanceForm, setClearanceForm] = useState(null);
   const [pendingModal, setPendingModal] = useState(null);
   const [pendingSelectedCCs, setPendingSelectedCCs] = useState([]);
@@ -149,6 +156,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [toastEnabled, setToastEnabled] = useState(true);
   const [pendingFilter, setPendingFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('');
   const [pendingRemarks, setPendingRemarks] = useState({}); // { [patient_id]: [{ cost_center, remarks }] }
 
   const openFollowUpModal = async (p) => {
@@ -215,6 +223,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const fetchPatients = async (date) => {
     setLoading(true);
     const d = date || filterDate;
+    try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
     try {
       const res = await api.get(`/get_patients.php?role=Billing&date=${d}`);
       setPatients(res.data || []);
@@ -276,20 +285,30 @@ export default function BillingDashboard({ user, onLogout }) {
   };
 
   const discharge = async () => {
-    if (!dischargeName.trim()) { alert("Please enter your name before discharging."); return; }
+    if (!dischargeName.trim()) { alert("Please enter your username before discharging."); return; }
+    if (!dischargePassword.trim()) { alert("Please enter your password before discharging."); return; }
+    try {
+      const verify = await api.post('/login.php', { username: dischargeName.trim(), password: dischargePassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     if (!dischargeRemarks.trim()) { alert("Please enter final remarks before discharging."); return; }
     const patient_id = dischargeModal.id;
     setActionId(patient_id);
     try {
       const res = await api.post("/update_clearance.php", { action: "discharge", patient_id, actor: dischargeName.trim(), remarks: dischargeRemarks });
-      if (res.data.success) { setDischargeSuccess({ full_name: dischargeModal.full_name, patient_no: dischargeModal.patient_no }); setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); fetchPatients(); setAuditKey(k => k + 1); }
+      if (res.data.success) { setDischargeSuccess({ full_name: dischargeModal.full_name, patient_no: dischargeModal.patient_no }); setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); setDischargePassword(""); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setActionId(null); }
   };
 
   const submitPending = async () => {
     if (pendingSelectedCCs.length === 0) { alert('Please select at least one cost center.'); return; }
-    if (!pendingActor.trim()) { alert('Please enter your name.'); return; }
+    if (!pendingActor.trim()) { alert('Please enter your username.'); return; }
+    if (!pendingPassword.trim()) { alert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: pendingActor.trim(), password: pendingPassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     setPendingLoading(true);
     try {
       const res = await api.post('/send_back_clearance.php', {
@@ -303,6 +322,7 @@ export default function BillingDashboard({ user, onLogout }) {
         setPendingSelectedCCs([]);
         setPendingReason('');
         setPendingActor('');
+        setPendingPassword('');
         setPendingCCs([]);
         fetchPatients();
         setAuditKey(k => k + 1);
@@ -313,6 +333,7 @@ export default function BillingDashboard({ user, onLogout }) {
   };
   const filtered = patients.filter(p =>
     p.clearance_step === 'awaiting_billing' &&
+    (!typeFilter || p.patient_type === typeFilter) &&
     (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
@@ -351,8 +372,7 @@ export default function BillingDashboard({ user, onLogout }) {
             <NavBtn tabKey="for_discharge" label="For Discharge" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             <NavBtn tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
-            <NavBtn tabKey="audit" label="Audit Trail" active={tab} setTab={() => { setTab("audit"); setAuditKey(k => k + 1); }} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            
           </nav>
           <div className="p-3 border-t border-gray-100 mt-auto">
             <button onClick={onLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors w-full">
@@ -371,8 +391,6 @@ export default function BillingDashboard({ user, onLogout }) {
 
         {tab === "discharged" && <DischargedList />}
 
-        {tab === "audit" && <AuditTrail key={auditKey} role={user.costCenter} />}
-
         {tab === 'clearance' && (
           <div className="flex flex-col gap-5">
             <div>
@@ -380,16 +398,23 @@ export default function BillingDashboard({ user, onLogout }) {
               <p className="text-sm text-gray-400 mt-0.5">Patients referred by Billing currently undergoing cost center clearance</p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+                <option value="opd">OPD</option>
+              </select>
             </div>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Ward','Admit Date','Type','Progress','Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Progress','Action'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -398,26 +423,29 @@ export default function BillingDashboard({ user, onLogout }) {
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                     ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
                         !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0) &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).length === 0 ? (
                       <tr><td colSpan={7} className="text-center py-12 text-gray-300 text-sm">No patients currently in clearance processing.</td></tr>
                     ) : patients.filter(p => p.clearance_step === 'cost_center_clearing' &&
                         !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0) &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).map(p => {
                         const allCleared = parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0;
                         const isPending = p.has_pending;
                         return (
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                            <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                            <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                             </td>
                             <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                               </span>
                             </td>
                             <td className="px-5 py-4">
@@ -428,8 +456,8 @@ export default function BillingDashboard({ user, onLogout }) {
                                 </div>
                                 <span className={`text-xs font-medium whitespace-nowrap ${isPending ? 'text-orange-500' : allCleared ? 'text-emerald-600' : 'text-gray-400'}`}>
                                   {p.total_cc - p.pending_count}/{p.total_cc}
-                                  {isPending && ' ⚠'}
-                                  {allCleared && ' ✓'}
+                                  {isPending && ' ?'}
+                                  {allCleared && ' ?'}
                                 </span>
                               </div>
                             </td>
@@ -467,16 +495,23 @@ export default function BillingDashboard({ user, onLogout }) {
               <p className="text-sm text-gray-400 mt-0.5">Patients fully cleared by all cost centers and ready for discharge</p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+                <option value="opd">OPD</option>
+              </select>
             </div>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Ward','Admit Date','Type','Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Action'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -487,6 +522,7 @@ export default function BillingDashboard({ user, onLogout }) {
                         p.clearance_step === 'cost_center_clearing' &&
                         parseInt(p.pending_count) === 0 &&
                         parseInt(p.total_cc) > 0 &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).length === 0 ? (
                       <tr><td colSpan={6} className="text-center py-12 text-gray-300 text-sm">No patients ready for discharge.</td></tr>
@@ -494,18 +530,20 @@ export default function BillingDashboard({ user, onLogout }) {
                         p.clearance_step === 'cost_center_clearing' &&
                         parseInt(p.pending_count) === 0 &&
                         parseInt(p.total_cc) > 0 &&
+                        (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                        <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                        <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                            {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                           </span>
                         </td>
                         <td className="px-5 py-4">
@@ -544,7 +582,7 @@ export default function BillingDashboard({ user, onLogout }) {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" /></div>
+              <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
               <select value={pendingFilter} onChange={e => setPendingFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
                 <option value="all">All Categories</option>
@@ -589,8 +627,8 @@ export default function BillingDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Patient ID','Name','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
-                            <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
+                            <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -602,11 +640,12 @@ export default function BillingDashboard({ user, onLogout }) {
                           const remarks = pendingRemarks[p.id] || [];
                           return (
                             <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
-                              <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                              <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                              <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
+                              <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                              <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                              <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                               </td>
                               <td className="px-5 py-4">
                                 {cat === 'mismatched' ? (
@@ -617,7 +656,7 @@ export default function BillingDashboard({ user, onLogout }) {
                               </td>
                               <td className="px-5 py-4 max-w-[200px]">
                                 {remarks.length === 0 ? (
-                                  <span className="text-xs text-gray-300">—</span>
+                                  <span className="text-xs text-gray-300">�</span>
                                 ) : (
                                   <div className="flex flex-col gap-1">
                                     {remarks.map((r, i) => (
@@ -675,6 +714,13 @@ export default function BillingDashboard({ user, onLogout }) {
             <div className="flex items-center gap-3">
               <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient" /></div>
               <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+                <option value="opd">OPD</option>
+              </select>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -682,8 +728,8 @@ export default function BillingDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID', 'Name', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      {['Hospital No.', 'Name of Patient', 'Age', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -700,13 +746,14 @@ export default function BillingDashboard({ user, onLogout }) {
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                             <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
+                            <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                             </td>
                             <td className="px-4 py-3.5">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                                {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                               </span>
                             </td>
                             <td className="px-4 py-3.5">
@@ -725,7 +772,7 @@ export default function BillingDashboard({ user, onLogout }) {
                                   </div>
                                   <span className="text-xs text-gray-400 whitespace-nowrap">{p.total_cc - p.pending_count}/{p.total_cc}</span>
                                 </div>
-                              ) : <span className="text-xs text-gray-300">—</span>}
+                              ) : <span className="text-xs text-gray-300">�</span>}
                             </td>
                             <td className="px-4 py-3.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
@@ -778,11 +825,24 @@ export default function BillingDashboard({ user, onLogout }) {
               Confirm discharge for <span className="font-semibold text-gray-800">{dischargeModal.full_name}</span> ({dischargeModal.patient_no})
             </p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={dischargeName}
-                  onChange={e => setDischargeName(e.target.value.replace(/[0-9]/g, ""))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={dischargeName}
+                    onChange={e => setDischargeName(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showDischargePass ? 'text' : 'password'} placeholder="Your password"
+                      value={dischargePassword} onChange={e => setDischargePassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <button type="button" onClick={() => setShowDischargePass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Final Remarks <span className="text-red-500">*</span></label>
@@ -837,11 +897,24 @@ export default function BillingDashboard({ user, onLogout }) {
               Select the cost center(s) to send <span className="font-semibold text-gray-800">{pendingModal.full_name}</span> ({pendingModal.patient_no}) back to.
             </p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={pendingActor}
-                  onChange={e => setPendingActor(e.target.value.replace(/[0-9]/g, ""))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID" value={pendingActor}
+                    onChange={e => setPendingActor(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showPendingPass ? 'text' : 'password'} placeholder="Your password"
+                      value={pendingPassword} onChange={e => setPendingPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    <button type="button" onClick={() => setShowPendingPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -880,7 +953,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
                 {pendingLoading ? 'Sending...' : `Send Back${pendingSelectedCCs.length > 1 ? ` (${pendingSelectedCCs.length})` : ''}`}
               </button>
-              <button onClick={() => { setPendingModal(null); setPendingSelectedCCs([]); setPendingReason(''); setPendingActor(''); setPendingCCs([]); }}
+              <button onClick={() => { setPendingModal(null); setPendingSelectedCCs([]); setPendingReason(''); setPendingActor(''); setPendingPassword(''); setPendingCCs([]); }}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
                 Cancel
               </button>
@@ -893,7 +966,7 @@ export default function BillingDashboard({ user, onLogout }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-semibold text-gray-700">{clearanceForm.patientName}</span> — select the service to auto-load cost centers.
+              <span className="font-semibold text-gray-700">{clearanceForm.patientName}</span> � select the service to auto-load cost centers.
             </p>
 
             {/* Service dropdown */}
@@ -916,21 +989,21 @@ export default function BillingDashboard({ user, onLogout }) {
               </select>
             </div>
 
-            {/* Pedia baby toggle */}
-            {clearanceForm.service === 'Pedia' && (
+            {/* Pedia/OB baby toggle */}
+            {(clearanceForm.service === 'Pedia' || clearanceForm.service === 'OB') && (
               <label className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-100 bg-amber-50 mb-4 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={clearanceForm.isBaby}
                   onChange={e => {
                     const baby = e.target.checked;
-                    const base = [...SERVICE_COST_CENTERS.Pedia];
+                    const base = [...SERVICE_COST_CENTERS[clearanceForm.service]];
                     if (baby) base.push('Newborn Screening', 'Newborn Hearing Test');
                     setClearanceForm(f => ({ ...f, isBaby: baby, selected: base }));
                   }}
                   className="w-4 h-4 accent-emerald-600"
                 />
-                <span className="text-sm font-medium text-amber-800">Patient is a newborn (add Newborn Screening & Hearing Test)</span>
+                <span className="text-sm font-medium text-amber-800">{clearanceForm.service === 'OB' ? 'Patient has a newborn (add Newborn Screening & Hearing Test)' : 'Patient has a newborn (add Newborn Screening & Hearing Test)'}</span>
               </label>
             )}
 
@@ -957,35 +1030,30 @@ export default function BillingDashboard({ user, onLogout }) {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Cost Centers ({clearanceForm.selected.length})
                 </p>
-                <div className="flex flex-col gap-1.5 mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                  {/* Optional centers (can be manually checked) */}
-                  {NO_AUTO_CHECK_CENTERS.map(cc => (
-                    <label key={cc} className={`flex items-center gap-3 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
-                      clearanceForm.selected.includes(cc) 
-                        ? 'bg-blue-50 border border-blue-200' 
-                        : 'hover:bg-gray-50 border border-gray-100'
-                    }`}>
-                      <input 
-                        type="checkbox" 
+                <div className="flex flex-col gap-1.5 mb-4 max-h-60 overflow-y-auto">
+                  {/* Optional CCs — checkboxes at top */}
+                  {OPTIONAL_COST_CENTERS.map(cc => (
+                    <label key={cc} className={`flex items-center gap-3 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${clearanceForm.selected.includes(cc) ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200 hover:bg-amber-50/50'}`}>
+                      <input type="checkbox"
                         checked={clearanceForm.selected.includes(cc)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setClearanceForm(f => ({ ...f, selected: [...f.selected, cc] }));
-                          } else {
-                            setClearanceForm(f => ({ ...f, selected: f.selected.filter(c => c !== cc) }));
-                          }
-                        }}
-                        className="w-4 h-4 accent-blue-600 shrink-0"
-                      />
-                      <span className="text-xs text-gray-700 flex-1">{cc}</span>
+                        onChange={() => setClearanceForm(f => ({
+                          ...f,
+                          selected: f.selected.includes(cc)
+                            ? f.selected.filter(x => x !== cc)
+                            : [cc, ...f.selected]
+                        }))}
+                        className="w-4 h-4 accent-amber-500 shrink-0" />
+                      <span className="text-sm font-medium text-gray-700">{cc}</span>
+                      <span className="ml-auto text-[10px] text-amber-600 font-semibold uppercase">Optional</span>
                     </label>
                   ))}
-                  {/* Auto-checked centers */}
-                  {clearanceForm.selected.filter(cc => !NO_AUTO_CHECK_CENTERS.includes(cc)).map(cc => (
-                    <div key={cc} className="flex items-center gap-3 px-2 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100">
-                      <input type="checkbox" checked={true} disabled className="w-4 h-4 accent-emerald-600 shrink-0" />
-                      <span className="text-xs text-gray-700 flex-1">{cc}</span>
-                      <span className="text-[10px] text-emerald-600 font-medium">Auto</span>
+                  {/* Auto-selected CCs */}
+                  {clearanceForm.selected.filter(cc => !OPTIONAL_COST_CENTERS.includes(cc)).map(cc => (
+                    <div key={cc} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-sm text-gray-700">{cc}</span>
                     </div>
                   ))}
                 </div>

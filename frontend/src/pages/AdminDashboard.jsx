@@ -24,22 +24,21 @@ const STEP_LABELS = {
 const TAB_CONFIG = {
   total:           { title: 'Total Patients',    subtitle: 'All patients in the system',                   filter: p => true },
   admitted:        { title: 'Admitted',          subtitle: 'Patients not yet in discharge process',        filter: p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse' },
-  awaiting_billing:{ title: 'Awaiting Billing',  subtitle: 'Nurse approved — waiting for billing',         filter: p => p.clearance_step === 'awaiting_billing' },
-  in_clearance:    { title: 'Clearance (Processing)',      subtitle: 'Currently being cleared by cost centers',      filter: p => p.clearance_step === 'cost_center_clearing' },
+  awaiting_billing:{ title: 'Awaiting Billing',  subtitle: 'Nurse approved waiting for billing',         filter: p => p.clearance_step === 'awaiting_billing' },
+  in_clearance:    { title: 'Clearance (Processing)', subtitle: 'Currently being cleared by cost centers', filter: p => p.clearance_step === 'cost_center_clearing' && !(parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0) },
   pending:         { title: 'Missing Requirements', subtitle: 'Patients with missing requirements sent back',  filter: p => p.has_pending && p.clearance_step === 'cost_center_clearing' },  cleared:         { title: 'Cleared Patients',  subtitle: 'All cost centers have cleared these patients',  filter: p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 },
   discharged:      { title: 'Discharged',        subtitle: 'Successfully discharged patients',             filter: p => p.clearance_step === 'discharged' },
 };
 
-function AdminPatientList({ tab }) {
+function AdminPatientList({ tab, onPatientsLoaded }) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
-  const [trackPatient, setTrackPatient]     = useState(null);
+  const [typeFilter, setTypeFilter] = useState('');  const [trackPatient, setTrackPatient]     = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading]     = useState(false);
   const [clearModal, setClearModal]         = useState(null);
-  const [clearCC, setClearCC]               = useState('');
-  const [clearName, setClearName]           = useState('');
+  const [clearSelected, setClearSelected]   = useState([]);
   const [clearRemarks, setClearRemarks]     = useState('');
   const [clearing, setClearing]             = useState(false);
   // Nurse actions
@@ -51,6 +50,8 @@ function AdminPatientList({ tab }) {
   const [forClearanceModal, setForClearanceModal] = useState(null); // { patient, selected[] }
   const [dischargeModal, setDischargeModal] = useState(null);
   const [dischargeName, setDischargeName]   = useState('');
+  const [dischargePassword, setDischargePassword] = useState('');
+  const [showDischargePass, setShowDischargePass] = useState(false);
   const [dischargeRemarks, setDischargeRemarks] = useState('');
   const [dischargeSaving, setDischargeSaving] = useState(false);
   const [pendingModal, setPendingModal]     = useState(null);
@@ -58,31 +59,40 @@ function AdminPatientList({ tab }) {
   const [pendingSelected, setPendingSelected] = useState([]);
   const [pendingReason, setPendingReason]   = useState('');
   const [pendingActor, setPendingActor]     = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
+  const [showPendingPass, setShowPendingPass] = useState(false);
   const [pendingSaving, setPendingSaving]   = useState(false);
   const [selectMode, setSelectMode]         = useState(false);
   const [selected, setSelectedIds]          = useState(new Set());
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [deleting, setDeleting]             = useState(false);
   const [filterDate, setFilterDate]         = useState(() => new Date().toISOString().split('T')[0]);
+  // Return to admitted
+  const [returnModal, setReturnModal]       = useState(null);
+  const [returnName, setReturnName]         = useState('');
+  const [returnRemarks, setReturnRemarks]   = useState('');
+  const [returnSaving, setReturnSaving]     = useState(false);
   const cfg = TAB_CONFIG[tab];
 
   const SERVICE_CC = {
-    OB:       ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
-    Surgery:  ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
-    Medicine: ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room','Hemodialysis Unit'],
-    Pedia:    ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Benefits - Window 3A','Billing - Window 2'],
+    OB:       ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
+    Surgery:  ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room'],
+    Medicine: ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2','Operating Room/Delivery Room','Hemodialysis Unit'],
+    Pedia:    ['Pulmonary Department (MSA)','Radiology','Laboratory','Bloodbank','Pharmacy','Endoscopy','Colonoscopy','Physical Therapy','Benefits - Window 3A','Billing - Window 2'],
   };
 
   const refetch = (date) => {
     setLoading(true);
     const d = date || filterDate;
     api.get(`/get_patients.php?role=Admin&date=${d}`)
-      .then(res => setPatients(res.data || []))
+      .then(res => { const p = res.data || []; setPatients(p); onPatientsLoaded && onPatientsLoaded(p); })
       .finally(() => setLoading(false));
   };
   useEffect(() => { refetch(); }, [tab]);
   useWebSocketPatients('Admin', filterDate, (updatedPatients) => {
-    setPatients(updatedPatients || []);
+    const p = updatedPatients || [];
+    setPatients(p);
+    onPatientsLoaded && onPatientsLoaded(p);
   }, true, [tab, filterDate]);
 
   const openTracker = async (p) => {
@@ -95,29 +105,46 @@ function AdminPatientList({ tab }) {
   };
 
   const openClearModal = async (p) => {
-    setClearModal({ patient: p, clearances: [] }); setClearCC(''); setClearName(''); setClearRemarks('');
+    setClearModal({ patient: p, clearances: [] }); setClearSelected([]); setClearRemarks('');
     try {
       const r = await api.get(`/get_clearance_report.php?patient_id=${p.id}`);
       if (r.data.success) setClearModal({ patient: p, clearances: r.data.clearances.filter(c => c.status === 'pending') });
     } catch { /* silent */ }
   };
   const submitClear = async () => {
-    if (!clearCC) { alert('Select a cost center.'); return; }
-    if (!clearName.trim()) { alert('Enter your name.'); return; }
+    if (!clearSelected.length) { alert('Select at least one cost center.'); return; }
     setClearing(true);
     try {
-      const res = await api.post('/update_clearance.php', { action: 'cost_center_clear', patient_id: clearModal.patient.id, cost_center: clearCC, actor: clearName.trim(), remarks: clearRemarks.trim() });
-      if (res.data.success) { setClearModal(null); refetch(); } else alert(res.data.message);
-    } finally { setClearing(false); }
+      for (const cc of clearSelected) {
+        await api.post('/update_clearance.php', { action: 'cost_center_clear', patient_id: clearModal.patient.id, cost_center: cc, actor: 'Admin', remarks: clearRemarks.trim() });
+      }
+      setClearModal(null); refetch();
+    } catch { alert('An error occurred.'); }
+    finally { setClearing(false); }
   };
 
   const submitMayGoHome = async () => {
-    if (!mghName.trim()) { alert('Enter your name.'); return; }
     setMghSaving(true);
     try {
-      const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id: mayGoHomeModal.id, actor: mghName.trim(), remarks: mghRemarks.trim() });
-      if (res.data.success) { setMayGoHomeModal(null); setMghName(''); setMghRemarks(''); refetch(); } else alert(res.data.message);
+      const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id: mayGoHomeModal.id, actor: 'Admin', remarks: mghRemarks.trim() });
+      if (res.data.success) { setMayGoHomeModal(null); setMghRemarks(''); refetch(); } else alert(res.data.message);
     } finally { setMghSaving(false); }
+  };
+
+  const submitReturn = async (returnType) => {
+    setReturnSaving(true);
+    try {
+      const action = returnType === 'clearance' ? 'return_to_clearance' : 'cancel_discharge';
+      const defaultRemarks = returnType === 'clearance' ? 'Returned to clearance by Admin' : 'Returned to admitted by Admin';
+      const res = await api.post('/update_clearance.php', {
+        action,
+        patient_id: returnModal.id,
+        actor: 'Admin',
+        remarks: returnRemarks.trim() || defaultRemarks,
+      });
+      if (res.data.success) { setReturnModal(null); setReturnRemarks(''); refetch(); }
+      else alert(res.data.message);
+    } finally { setReturnSaving(false); }
   };
 
   const openForClearance = (p) => setForClearanceModal({ patient: p, service: '', selected: [] });
@@ -130,12 +157,11 @@ function AdminPatientList({ tab }) {
   };
 
   const submitDischarge = async () => {
-    if (!dischargeName.trim()) { alert('Enter your name.'); return; }
     if (!dischargeRemarks.trim()) { alert('Enter final remarks.'); return; }
     setDischargeSaving(true);
     try {
-      const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id: dischargeModal.id, actor: dischargeName.trim(), remarks: dischargeRemarks });
-      if (res.data.success) { setDischargeModal(null); setDischargeName(''); setDischargeRemarks(''); refetch(); } else alert(res.data.message);
+      const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id: dischargeModal.id, actor: 'Admin', remarks: dischargeRemarks });
+      if (res.data.success) { setDischargeModal(null); setDischargeRemarks(''); refetch(); } else alert(res.data.message);
     } finally { setDischargeSaving(false); }
   };
 
@@ -148,16 +174,16 @@ function AdminPatientList({ tab }) {
   };
   const submitPending = async () => {
     if (!pendingSelected.length) { alert('Select at least one cost center.'); return; }
-    if (!pendingActor.trim()) { alert('Enter your name.'); return; }
     setPendingSaving(true);
     try {
-      const res = await api.post('/send_back_clearance.php', { patient_id: pendingModal.id, actor: pendingActor.trim(), cost_centers: pendingSelected, reason: pendingReason.trim() || 'Missing requirements' });
+      const res = await api.post('/send_back_clearance.php', { patient_id: pendingModal.id, actor: 'Admin', cost_centers: pendingSelected, reason: pendingReason.trim() || 'Missing requirements' });
       if (res.data.success) { setPendingModal(null); refetch(); } else alert(res.data.message);
     } finally { setPendingSaving(false); }
   };
 
   const filtered = patients
     .filter(cfg.filter)
+    .filter(p => (!typeFilter || p.patient_type === typeFilter))
     .filter(p => p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()));
   const { paged, page, setPage, totalPages, total, start, pageSize } = usePagination(filtered);
 
@@ -213,7 +239,16 @@ function AdminPatientList({ tab }) {
         )}
         </div>
       </div>
-      <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID…" />
+      <div className="flex items-center gap-3">
+        <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
+          <option value="">All Types</option>
+          <option value="in-patient">In-Patient</option>
+          <option value="er">ER</option>
+          <option value="opd">OPD</option>
+        </select>
+      </div>
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -226,7 +261,7 @@ function AdminPatientList({ tab }) {
                       className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
                   </th>
                 )}
-                {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -252,13 +287,13 @@ function AdminPatientList({ tab }) {
                     <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                     <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                     <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                    <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                    <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                     <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                      {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                        {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
@@ -280,6 +315,13 @@ function AdminPatientList({ tab }) {
                           <button onClick={() => openForClearance(p)}
                             className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             For Clearance
+                          </button>
+                        )}
+                        {/* Return button — available for any step past may_go_home */}
+                        {(p.clearance_step === 'awaiting_billing' || p.clearance_step === 'cost_center_clearing') && (
+                          <button onClick={() => { setReturnModal(p); setReturnName(''); setReturnRemarks(''); }}
+                            className="text-xs font-semibold bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                            Return
                           </button>
                         )}
                         {p.clearance_step === 'cost_center_clearing' && (
@@ -324,7 +366,7 @@ function AdminPatientList({ tab }) {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Clearance Progress</h3>
-                <p className="text-sm text-gray-500">{trackPatient.full_name} — {trackPatient.patient_no}</p>
+                <p className="text-sm text-gray-500">{trackPatient.full_name} {trackPatient.patient_no}</p>
               </div>
               <button onClick={() => setTrackPatient(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -379,18 +421,36 @@ function AdminPatientList({ tab }) {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Clear Patient</h3>
-            <p className="text-sm text-gray-500 mb-4">Clear a cost center for <span className="font-semibold text-gray-800">{clearModal.patient.full_name}</span> ({clearModal.patient.patient_no})</p>
+            <p className="text-sm text-gray-500 mb-4">
+              Select cost centers to clear for <span className="font-semibold text-gray-800">{clearModal.patient.full_name}</span> ({clearModal.patient.patient_no})
+            </p>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cost Center <span className="text-red-500">*</span></label>
-                <select value={clearCC} onChange={e => setClearCC(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-                  <option value="">-- Select pending cost center --</option>
-                  {clearModal.clearances.length === 0 ? <option disabled>Loading...</option> : clearModal.clearances.map(c => <option key={c.cost_center} value={c.cost_center}>{c.cost_center}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={clearName} onChange={e => setClearName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    Cost Centers <span className="text-red-500">*</span>
+                    {clearSelected.length > 0 && <span className="text-emerald-600 normal-case font-normal ml-1">{clearSelected.length} selected</span>}
+                  </label>
+                  {clearModal.clearances.length > 0 && (
+                    <button onClick={() => setClearSelected(
+                      clearSelected.length === clearModal.clearances.length ? [] : clearModal.clearances.map(c => c.cost_center)
+                    )} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                      {clearSelected.length === clearModal.clearances.length ? 'Deselect all' : 'Select all'}
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1 max-h-52 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                  {clearModal.clearances.length === 0 ? (
+                    <p className="text-xs text-gray-400 py-2 text-center">Loading...</p>
+                  ) : clearModal.clearances.map(c => (
+                    <label key={c.cost_center} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${clearSelected.includes(c.cost_center) ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-gray-50'}`}>
+                      <input type="checkbox" checked={clearSelected.includes(c.cost_center)}
+                        onChange={() => setClearSelected(prev => prev.includes(c.cost_center) ? prev.filter(x => x !== c.cost_center) : [...prev, c.cost_center])}
+                        className="w-4 h-4 accent-emerald-600 shrink-0" />
+                      <span className="text-sm text-gray-700">{c.cost_center}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -398,7 +458,10 @@ function AdminPatientList({ tab }) {
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={submitClear} disabled={clearing} className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">{clearing ? 'Clearing...' : 'Confirm Cleared'}</button>
+              <button onClick={submitClear} disabled={clearing || !clearSelected.length}
+                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {clearing ? 'Clearing...' : `Clear${clearSelected.length > 1 ? ` (${clearSelected.length})` : ''}`}
+              </button>
               <button onClick={() => setClearModal(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
             </div>
           </div>
@@ -411,19 +474,48 @@ function AdminPatientList({ tab }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Confirm May Go Home</h3>
             <p className="text-sm text-gray-500 mb-4">Mark <span className="font-semibold text-gray-800">{mayGoHomeModal.full_name}</span> ({mayGoHomeModal.patient_no}) as ready for discharge clearance.</p>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={mghName} onChange={e => setMghName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
-                <textarea rows={2} value={mghRemarks} onChange={e => setMghRemarks(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+              <textarea rows={2} value={mghRemarks} onChange={e => setMghRemarks(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={submitMayGoHome} disabled={mghSaving} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">{mghSaving ? 'Confirming...' : 'Confirm May Go Home'}</button>
               <button onClick={() => setMayGoHomeModal(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return to Admitted Modal */}
+      {returnModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Return Patient</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              <span className="font-semibold text-gray-800">{returnModal.full_name}</span> ({returnModal.patient_no}) — choose where to return this patient.
+            </p>
+            <div className="flex flex-col gap-1.5 mb-5">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Reason <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+              <textarea rows={2} placeholder="e.g. Patient condition changed" value={returnRemarks}
+                onChange={e => setReturnRemarks(e.target.value)}
+                className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none" />
+            </div>
+            <div className="flex flex-col gap-2">
+              {/* Return to Clearance — only if patient is fully cleared (all CCs done) */}
+              {returnModal.clearance_step === 'cost_center_clearing' && parseInt(returnModal.pending_count) === 0 && parseInt(returnModal.total_cc) > 0 && (
+                <button onClick={() => submitReturn('clearance')} disabled={returnSaving}
+                  className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                  {returnSaving ? 'Processing...' : 'Return to Clearance (reset CC statuses)'}
+                </button>
+              )}
+              <button onClick={() => submitReturn('admitted')} disabled={returnSaving}
+                className="w-full py-2.5 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {returnSaving ? 'Processing...' : 'Return to Admitted (full reset)'}
+              </button>
+              <button onClick={() => setReturnModal(null)}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -434,7 +526,7 @@ function AdminPatientList({ tab }) {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
-            <p className="text-sm text-gray-500 mb-4"><span className="font-semibold text-gray-700">{forClearanceModal.patient.full_name}</span> — select service to load cost centers.</p>
+            <p className="text-sm text-gray-500 mb-4"><span className="font-semibold text-gray-700">{forClearanceModal.patient.full_name}</span> � select service to load cost centers.</p>
             <div className="flex flex-col gap-1.5 mb-4">
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Service</label>
               <select value={forClearanceModal.service} onChange={e => { const svc = e.target.value; setForClearanceModal(f => ({ ...f, service: svc, selected: svc ? [...SERVICE_CC[svc]] : [] })); }} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
@@ -466,15 +558,9 @@ function AdminPatientList({ tab }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Discharge Patient</h3>
             <p className="text-sm text-gray-500 mb-4">Confirm discharge for <span className="font-semibold text-gray-800">{dischargeModal.full_name}</span> ({dischargeModal.patient_no})</p>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={dischargeName} onChange={e => setDischargeName(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Final Remarks <span className="text-red-500">*</span></label>
-                <textarea rows={2} value={dischargeRemarks} onChange={e => setDischargeRemarks(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Final Remarks <span className="text-red-500">*</span></label>
+              <textarea rows={2} value={dischargeRemarks} onChange={e => setDischargeRemarks(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={submitDischarge} disabled={dischargeSaving} className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">{dischargeSaving ? 'Discharging...' : 'Confirm Discharge'}</button>
@@ -491,10 +577,6 @@ function AdminPatientList({ tab }) {
             <h3 className="text-base font-bold text-gray-900 mb-1">Mark as Pending</h3>
             <p className="text-sm text-gray-500 mb-4">Send <span className="font-semibold text-gray-800">{pendingModal.full_name}</span> ({pendingModal.patient_no}) back to cost center(s).</p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" value={pendingActor} onChange={e => setPendingActor(e.target.value.replace(/[0-9]/g, ''))} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-              </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cost Centers <span className="text-red-500">*</span> {pendingSelected.length > 0 && <span className="text-orange-500 normal-case font-normal ml-1">{pendingSelected.length} selected</span>}</label>
                 <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
@@ -568,6 +650,7 @@ export default function AdminDashboard({ user, onLogout }) {
   const [auditKey, setAuditKey]   = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [adminStats, setAdminStats]     = useState({});
+  const [patientCounts, setPatientCounts] = useState({});
   const [allStaff, setAllStaff]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
@@ -614,6 +697,18 @@ export default function AdminDashboard({ user, onLogout }) {
     } finally { setAdminClearSaving(false); }
   };
 
+  const handlePatientsLoaded = (patients) => {
+    setPatientCounts({
+      total:            patients.length,
+      admitted:         patients.filter(p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse').length,
+      awaiting_billing: patients.filter(p => p.clearance_step === 'awaiting_billing').length,
+      in_clearance:     patients.filter(p => p.clearance_step === 'cost_center_clearing' && !(parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0)).length,
+      pending:          patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length,
+      cleared:          patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length,
+      discharged:       patients.filter(p => p.clearance_step === 'discharged').length,
+    });
+  };
+
   const fetchAdminPendingBalance = () => {
     setAdminPendingBalanceLoading(true);
     api.get('/pending_balance.php?cost_center=all')
@@ -650,6 +745,11 @@ export default function AdminDashboard({ user, onLogout }) {
       setPendingCount(d.pending_count || 0);
       setAdminStats(d);
     }).catch(() => {});
+    // Load patient counts for badges on initial render (date = today)
+    const today = new Date().toISOString().split('T')[0];
+    api.get(`/get_patients.php?role=Admin&date=${today}`)
+      .then(r => handlePatientsLoaded(r.data || []))
+      .catch(() => {});
   }, []);
   useEffect(() => {
     if (!ccOpen) return;
@@ -739,13 +839,13 @@ export default function AdminDashboard({ user, onLogout }) {
             <NavBtn compact tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Patients</p>
             <NavBtn compact tabKey="total"            label="Total Patients"   active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            <NavBtn compact tabKey="admitted"         label="Admitted"         active={tab} setTab={setTab} badge={(adminStats.total_patients || 0) - (adminStats.awaiting_billing || 0) - (adminStats.in_progress || 0) - (adminStats.discharged || 0) - (adminStats.pending_count || 0)} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTab} badge={adminStats.awaiting_billing} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="in_clearance"     label="Clearance (Processing)"     active={tab} setTab={setTab} badge={adminStats.in_progress} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            <NavBtn compact tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={pendingCount} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <NavBtn compact tabKey="admitted"         label="Admitted"         active={tab} setTab={setTab} badge={patientCounts.admitted || undefined} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTab} badge={patientCounts.awaiting_billing || undefined} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <NavBtn compact tabKey="in_clearance"     label="Clearance (Processing)"     active={tab} setTab={setTab} badge={patientCounts.in_clearance || undefined} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <NavBtn compact tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patientCounts.pending || undefined} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <NavBtn compact tabKey="pending_balance" label="Pending Balance" active={tab} setTab={() => { setTab('pending_balance'); fetchAdminPendingBalance(); }} badge={[...new Set(adminPendingBalance.filter(r => r.status === 'pending_balance').map(r => r.id))].length || undefined} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="discharged"       label="Discharged"       active={tab} setTab={setTab} d="M5 13l4 4L19 7" />
+            <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTab} badge={patientCounts.cleared || undefined} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <NavBtn compact tabKey="discharged"       label="Discharged"       active={tab} setTab={setTab} badge={patientCounts.discharged || undefined} d="M5 13l4 4L19 7" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Management</p>
             <NavBtn compact tabKey="staff" label="Account Management" active={tab} setTab={setTab} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Records</p>
@@ -763,7 +863,7 @@ export default function AdminDashboard({ user, onLogout }) {
         <main className="flex-1 overflow-y-auto px-6 py-6">
           {tab === "dashboard" && <DashboardOverview title="Admin Dashboard" subtitle="System-wide overview" onCardClick={t => setTab(t)} />}
           {tab === 'audit' && <AuditTrail key={auditKey} role="admin" />}
-          {PATIENT_TABS.includes(tab) && <AdminPatientList tab={tab} />}
+          {PATIENT_TABS.includes(tab) && <AdminPatientList tab={tab} onPatientsLoaded={handlePatientsLoaded} />}
 
           {tab === 'pending_balance' && (() => {
             // Group flat list by patient_id
@@ -798,7 +898,7 @@ export default function AdminDashboard({ user, onLogout }) {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                          {['Patient ID','Name','Ward','Admit Date','Flagged Depts',''].map(h => (
+                          {['Hospital No.','Name of Patient','Ward','Admit Date','Flagged Depts',''].map(h => (
                             <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -815,9 +915,9 @@ export default function AdminDashboard({ user, onLogout }) {
                               className="hover:bg-gray-50/70 transition-colors cursor-pointer border-b border-gray-50">
                               <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                               <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                               <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
-                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                               </td>
                               <td className="px-5 py-4">
                                 <span className="text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-1 rounded-full">
@@ -860,7 +960,7 @@ export default function AdminDashboard({ user, onLogout }) {
                                                     className="font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors">
                                                     View
                                                   </button>
-                                                : <span className="text-gray-300">—</span>
+                                                : <span className="text-gray-300">�</span>
                                               }
                                             </td>
                                             <td className="px-4 py-2.5">
@@ -900,7 +1000,7 @@ export default function AdminDashboard({ user, onLogout }) {
                 <p className="text-sm text-gray-400 mt-0.5">Manage all staff accounts across every cost center</p>
               </div>
               <div className="flex gap-3 items-center">
-                <SearchBar value={search} onChange={setSearch} placeholder="Search by name, username, or cost center…" />
+                <SearchBar value={search} onChange={setSearch} placeholder="Search by name, username, or cost center�" />
                 <div className="relative w-64 shrink-0" ref={ccRef}>
                   <button onClick={() => setCcOpen(v => !v)}
                     className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
@@ -964,7 +1064,7 @@ export default function AdminDashboard({ user, onLogout }) {
                                 </button>
                               );
                             })() : (
-                              <span className="text-xs text-gray-300">—</span>
+                              <span className="text-xs text-gray-300">�</span>
                             )}
                           </td>
                           <td className="px-5 py-4">
@@ -1015,8 +1115,8 @@ export default function AdminDashboard({ user, onLogout }) {
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                  <input type="text" value={profile.username} onChange={e => setProfile(p => ({ ...p, username: e.target.value }))}
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" value={profile.username} onChange={e => setProfile(p => ({ ...p, username: e.target.value.replace(/[^0-9]/g, '').substring(0, 4) }))}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -1066,8 +1166,8 @@ export default function AdminDashboard({ user, onLogout }) {
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Username <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter username" value={form.data.username} onChange={e => set('username', e.target.value)}
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="Enter 4-digit employee ID" value={form.data.username} onChange={e => set('username', e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
                   className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -1134,7 +1234,7 @@ export default function AdminDashboard({ user, onLogout }) {
       {adminClearModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-1">Admin Override — Clear Patient</h3>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Admin Override � Clear Patient</h3>
             <p className="text-sm text-gray-500 mb-4">
               Clear <span className="font-semibold text-gray-800">{adminClearModal.patient.full_name}</span> ({adminClearModal.patient.patient_no}) at{' '}
               <span className="font-semibold text-emerald-700">{adminClearModal.cost_center}</span>
@@ -1164,7 +1264,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Balance Remarks</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{adminRemarksModal.full_name} · {adminRemarksModal.patient_no}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{adminRemarksModal.full_name} � {adminRemarksModal.patient_no}</p>
                 <p className="text-xs text-emerald-600 font-medium mt-0.5">{adminRemarksModal.cost_center}</p>
               </div>
               <button onClick={() => setAdminRemarksModal(null)} className="text-gray-300 hover:text-gray-500 transition-colors">

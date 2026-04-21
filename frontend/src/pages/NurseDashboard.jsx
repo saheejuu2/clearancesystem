@@ -34,35 +34,43 @@ export default function NurseDashboard({ user, onLogout }) {
   const [confirmForm, setConfirmForm] = useState(null);
   const [cancelForm, setCancelForm]   = useState(null);
   const [cancelling, setCancelling]   = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [cancelPassword, setCancelPassword]   = useState('');
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [showCancelPass, setShowCancelPass]   = useState(false);
   const [viewPatient, setViewPatient] = useState(null);
   const [viewClearances, setViewClearances] = useState([]);
   const [notifReport, setNotifReport] = useState(null);
 
-  // Admission form
-  const [admitForm, setAdmitForm] = useState(null);
-  const [admitSaving, setAdmitSaving] = useState(false);
-  const [admitSuccess, setAdmitSuccess] = useState(null); // { full_name, patient_no }
-  const [mayGoHomeSuccess, setMayGoHomeSuccess] = useState(null); // { full_name, patient_no }
-
-  // Clearance progress tracker
+  const [admitSuccess, setAdmitSuccess] = useState(null);
+  const [mayGoHomeSuccess, setMayGoHomeSuccess] = useState(null);
   const [trackPatient, setTrackPatient] = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading] = useState(false);
 
-  // Search filters
   const [wardFilter, setWardFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  const fetchPatients = async (date) => {
+  const fetchPatients = async (date, from, to) => {
     setLoading(true);
     const d = date || filterDate;
+    const df = from !== undefined ? from : dateFrom;
+    const dt = to   !== undefined ? to   : dateTo;
+    // Auto-sync IHIS patients first, then fix ward/enccode
+    try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
+    try { await api.get(`/fix_ward_enccode.php?date=${d}`); } catch { /* silent */ }
+    // Build query — use date range if filters are set, else single date
+    const rangeParams = (df && dt)
+      ? `date_from=${df}&date_to=${dt}`
+      : (df ? `date_from=${df}` : (dt ? `date_to=${dt}` : `date=${d}`));
     try {
       const [listRes, allRes] = await Promise.all([
-        api.get(`/get_patients.php?role=Nurse&date=${d}`),
-        api.get(`/get_patients.php?role=Billing&date=${d}`),
+        api.get(`/get_patients.php?role=Nurse&${rangeParams}`),
+        api.get(`/get_patients.php?role=Billing&${rangeParams}`),
       ]);
       setPatients(listRes.data);
       setAllPatients(allRes.data.filter(p =>
@@ -83,43 +91,43 @@ export default function NurseDashboard({ user, onLogout }) {
       .catch(() => {});
   }, true, [filterDate]);
   const openForm = (patient) => {
-    setConfirmForm({ patientId: patient.id, full_name: patient.full_name, patient_no: patient.patient_no, nurseName: '', remarks: '' });
+    setConfirmForm({ patientId: patient.id, full_name: patient.full_name, patient_no: patient.patient_no, nurseName: '', remarks: '', disposition: '' });
   };
 
   const submitMayGoHome = async () => {
-    if (!confirmForm.nurseName.trim()) {
-      alert('Please enter your name before confirming.');
-      return;
-    }
+    if (!confirmForm.disposition) { alert('Please select a disposition.'); return; }
+    if (!confirmForm.nurseName.trim()) { alert('Please enter your username.'); return; }
+    if (!confirmPassword.trim()) { alert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: confirmForm.nurseName.trim(), password: confirmPassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     const { patientId, full_name, patient_no } = confirmForm;
     const actor = confirmForm.nurseName.trim();
-    const remarks = confirmForm.remarks.trim();
-    // Close modal and optimistically update immediately
+    const remarks = [confirmForm.disposition, confirmForm.remarks.trim()].filter(Boolean).join(' — ');
     setConfirmForm(null);
+    setConfirmPassword('');
     setPatients(prev => prev.map(p =>
       p.id === patientId ? { ...p, clearance_step: 'awaiting_billing' } : p
     ));
     setActionId(patientId);
     try {
-      const res = await api.post('/update_clearance.php', {
-        action:     'may_go_home',
-        patient_id: patientId,
-        actor,
-        remarks,
-      });
+      const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id: patientId, actor, remarks });
       if (res.data.success || res.data.message === 'Already marked as may go home.') {
         setMayGoHomeSuccess({ full_name, patient_no });
         fetchPatients();
         setAuditKey(k => k + 1);
-      } else {
-        alert(res.data.message);
-        fetchPatients();
-      }
+      } else { alert(res.data.message); fetchPatients(); }
     } finally { setActionId(null); }
   };
 
   const submitCancel = async () => {
-    if (!cancelForm.nurseName.trim()) { alert('Please enter your name before cancelling.'); return; }
+    if (!cancelForm.nurseName.trim()) { alert('Please enter your username.'); return; }
+    if (!cancelPassword.trim()) { alert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: cancelForm.nurseName.trim(), password: cancelPassword, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
     setCancelling(true);
     try {
       const res = await api.post('/update_clearance.php', {
@@ -128,25 +136,9 @@ export default function NurseDashboard({ user, onLogout }) {
         actor:      cancelForm.nurseName.trim(),
         remarks:    cancelForm.remarks.trim() || 'Discharge cancelled by nurse',
       });
-      if (res.data.success) { setCancelForm(null); fetchPatients(); setAuditKey(k => k + 1); }
+      if (res.data.success) { setCancelForm(null); setCancelPassword(''); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setCancelling(false); }
-  };
-
-  const submitAdmit = async () => {
-    if (!admitForm.patient_no || !admitForm.full_name || !admitForm.age || !admitForm.ward) {
-      alert('All fields are required.');
-      return;
-    }
-    setAdmitSaving(true);
-    try {
-      const res = await api.post('/add_patient.php', admitForm);
-      if (res.data.success) {
-        setAdmitSuccess({ full_name: admitForm.full_name, patient_no: admitForm.patient_no });
-        setAdmitForm(null);
-        fetchPatients();
-      } else alert(res.data.message);
-    } finally { setAdmitSaving(false); }
   };
 
   const openTracker = async (p) => {
@@ -163,6 +155,7 @@ export default function NurseDashboard({ user, onLogout }) {
     const q = search.toLowerCase();
     const matchQ = !q || p.full_name.toLowerCase().includes(q) || p.patient_no.toLowerCase().includes(q);
     const matchWard = !wardFilter || p.ward === wardFilter;
+    const matchType = !typeFilter || p.patient_type === typeFilter;
     const matchStatus = !statusFilter
       ? true
       : statusFilter === 'pending'
@@ -170,7 +163,7 @@ export default function NurseDashboard({ user, onLogout }) {
         : p.clearance_step === statusFilter;
     const matchFrom = !dateFrom || p.admit_date >= dateFrom;
     const matchTo = !dateTo || p.admit_date <= dateTo;
-    return matchQ && matchWard && matchStatus && matchFrom && matchTo;
+    return matchQ && matchWard && matchType && matchStatus && matchFrom && matchTo;
   });
   const { paged: pagedPatients, page: nursePage, setPage: setNursePage, totalPages: nurseTotalPages, total: nurseTotal, start: nurseStart, pageSize: nursePageSize } = usePagination(filtered);
 
@@ -226,14 +219,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 )}
               </button>
             ))}
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Records</p>
-            <button onClick={() => { setTab("audit"); setStatusFilter(""); fetchPatients(); setAuditKey(k => k + 1); }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "audit" ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Audit Trail
-            </button>
+        
           </nav>
           <div className="p-3 border-t border-gray-100 mt-auto">
             <button onClick={onLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors w-full">
@@ -247,25 +233,18 @@ export default function NurseDashboard({ user, onLogout }) {
 
         <main className="flex-1 overflow-y-auto px-6 py-6">
         {tab === 'staff' && <StaffManager costCenter={user.costCenter} />}
-        {tab === 'audit' && <AuditTrail key={auditKey} role={user.costCenter} patients={allPatients} cancelForm={cancelForm} setCancelForm={setCancelForm} submitCancel={submitCancel} cancelling={cancelling} />}
+
         {tab === 'patients' && (
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Patient List</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Click "May Go Home" to initiate discharge clearance</p>
+              <p className="text-sm text-gray-400 mt-0.5">Patients synced from IHIS — Click "May Go Home" to initiate discharge clearance</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-              <SearchBar value={search} onChange={setSearch} placeholder="Search by name or patient ID" />
+              <SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." />
               <div className="flex items-center gap-2 shrink-0">
                 <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
-                <button onClick={() => setAdmitForm({ patient_no: '', full_name: '', age: '', ward: '', admit_date: new Date().toISOString().split('T')[0], patient_type: 'in-patient' })}
-                  className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap shrink-0">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Admit Patient
-                </button>
               </div>
             </div>
             {/* Filters */}
@@ -283,12 +262,27 @@ export default function NurseDashboard({ user, onLogout }) {
                 <option value="cost_center_clearing">Clearance</option>
                 <option value="pending">Pending</option>
               </select>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" placeholder="From" />
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" placeholder="To" />
-              {(wardFilter || statusFilter || dateFrom || dateTo) && (
-                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); }}
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+                <option value="">All Types</option>
+                <option value="in-patient">In-Patient</option>
+                <option value="er">ER</option>
+                <option value="opd">OPD</option>
+              </select>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400 shrink-0">From</span>
+                <input type="date" value={dateFrom} onChange={e => { const v = e.target.value; setDateFrom(v); fetchPatients(filterDate, v, dateTo); }}
+                  max={dateTo || undefined}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400 shrink-0">To</span>
+                <input type="date" value={dateTo} onChange={e => { const v = e.target.value; setDateTo(v); fetchPatients(filterDate, dateFrom, v); }}
+                  min={dateFrom || undefined}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
+              </div>
+              {(wardFilter || statusFilter || typeFilter || dateFrom || dateTo) && (
+                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); fetchPatients(filterDate, '', ''); }}
                   className="text-xs text-gray-400 hover:text-gray-600 font-medium px-2">Clear filters</button>
               )}
             </div>
@@ -298,7 +292,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Patient ID','Name','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                      {['Hospital No.','Name of Patient ','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
                         <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -317,13 +311,13 @@ export default function NurseDashboard({ user, onLogout }) {
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                           <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                           <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward}</td>
+                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                             {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </td>
                           <td className="px-4 py-3.5">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
-                              {p.patient_type === 'er' ? 'ER' : 'In-Patient'}
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {p.patient_type === 'er' ? 'ER' : p.patient_type === 'opd' ? 'OPD' : 'In-Patient'}
                             </span>
                           </td>
                           <td className="px-4 py-3.5">
@@ -342,7 +336,20 @@ export default function NurseDashboard({ user, onLogout }) {
                                 </button>
                               )}
                               <button onClick={async () => {
-                                setViewPatient(p);
+                                // Fetch IHIS details using patient_no as hpercode
+                                let enriched = { ...p };
+                                try {
+                                  const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.patient_no)}&enccode=${encodeURIComponent(p.ward || '')}`);
+                                  if (nr.data?.person) {
+                                    const person = nr.data.person;
+                                    // Extract time from enccode (format ends with date+time e.g. "04/18/202614:23:00")
+                                    const enccode = p.ward || '';
+                                    const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
+                                    const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
+                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', room_bed: person.room_bed || p.room_bed || '—', admtxt: person.admtxt, admit_time: admTime };
+                                  }
+                                } catch { /* silent */ }
+                                setViewPatient(enriched);
                                 try {
                                   const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
                                   if (r.data.success) setViewClearances(r.data.clearances);
@@ -384,13 +391,43 @@ export default function NurseDashboard({ user, onLogout }) {
             <h3 className="text-base font-bold text-gray-900 mb-1">Confirm May Go Home</h3>
             <p className="text-sm text-gray-500 mb-5">Enter your name to confirm this patient is ready for discharge clearance.</p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Your Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name"
-                  value={confirmForm.nurseName}
-                  onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value.replace(/[0-9]/g, '') }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              {/* Credentials */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter 4-digit employee ID"
+                    value={confirmForm.nurseName}
+                    onChange={e => setConfirmForm(f => ({ ...f, nurseName: e.target.value.replace(/[^0-9]/g, '').substring(0, 4) }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showConfirmPass ? 'text' : 'password'} placeholder="Your password"
+                      value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <button type="button" onClick={() => setShowConfirmPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
+              {/* Disposition */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Disposition <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Discharge', 'Expired', 'HAMA', 'THOC'].map(d => (
+                    <label key={d} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${confirmForm.disposition === d ? 'bg-blue-50 border-blue-400' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      <input type="radio" name="disposition" value={d}
+                        checked={confirmForm.disposition === d}
+                        onChange={() => setConfirmForm(f => ({ ...f, disposition: d }))}
+                        className="accent-blue-600 shrink-0" />
+                      <span className="text-sm font-medium text-gray-700">{d === 'HAMA' ? 'HAMA (Home Against Medical Advice)' : d === 'THOC' ? 'THOC (Transferred to Home Care)' : d}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {/* Remarks */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
                 <textarea placeholder="e.g. patient is stable" rows={2}
@@ -409,82 +446,6 @@ export default function NurseDashboard({ user, onLogout }) {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admit Patient Modal */}
-      {admitForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-5">Admit New Patient</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {[['patient_no','Patient No.','text'],['full_name','Full Name','text'],['age','Age','number'],['admit_date','Admit Date','date']].map(([k,l,t]) => (
-                <div key={k} className={`flex flex-col gap-1.5 ${k === 'full_name' ? 'col-span-2' : ''}`}>
-                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{l} <span className="text-red-500">*</span></label>
-                  <input type={t} value={admitForm[k]}
-                    onChange={e => {
-                      let val = e.target.value;
-                      if (k === 'full_name') val = val.replace(/[^a-zA-Z\s.,-]/g, '');
-                      if (k === 'age') val = val.replace(/[^0-9]/g, '');
-                      setAdmitForm(f => ({ ...f, [k]: val }));
-                    }}
-                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-                </div>
-              ))}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Ward <span className="text-red-500">*</span></label>
-                <select value={admitForm.ward} onChange={e => setAdmitForm(f => ({ ...f, ward: e.target.value }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-                  <option value="">Select ward…</option>
-                  {['OB', 'Medical', 'Surgery', 'Pediatrics'].map(w => <option key={w}>{w}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5 col-span-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Patient Type <span className="text-red-500">*</span></label>
-                <div className="flex gap-3">
-                  {['in-patient','er'].map(t => (
-                    <label key={t} className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="patient_type" value={t} checked={admitForm.patient_type === t}
-                        onChange={() => setAdmitForm(f => ({ ...f, patient_type: t }))} className="accent-emerald-600" />
-                      <span className="text-sm text-gray-700">{t === 'er' ? 'ER' : 'In-Patient'}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-5">
-              <button onClick={submitAdmit} disabled={admitSaving}
-                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
-                {admitSaving ? 'Admitting...' : 'Admit Patient'}
-              </button>
-              <button onClick={() => setAdmitForm(null)}
-                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admit Success Modal */}
-      {admitSuccess && (
-        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Patient Admitted</h3>
-            <p className="text-sm text-gray-500 mb-1">
-              <span className="font-semibold text-gray-800">{admitSuccess.full_name}</span>
-            </p>
-            <p className="text-xs text-gray-400 mb-6">{admitSuccess.patient_no} has been successfully admitted.</p>
-            <button onClick={() => setAdmitSuccess(null)}
-              className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm rounded-lg transition-colors">
-              Done
-            </button>
           </div>
         </div>
       )}
@@ -584,15 +545,28 @@ export default function NurseDashboard({ user, onLogout }) {
               All clearance progress will be removed and the patient will restart from the beginning.
             </p>
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Your Name <span className="text-red-500">*</span>
-                </label>
-                <input type="text" placeholder="Enter your full name"
-                  value={cancelForm.nurseName}
-                  onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value.replace(/[0-9]/g, '') }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    Username <span className="text-red-500">*</span>
+                  </label>
+                  <input type="text" placeholder="Enter 4-digit employee ID"
+                    value={cancelForm.nurseName}
+                    onChange={e => setCancelForm(f => ({ ...f, nurseName: e.target.value.replace(/[^0-9]/g, '').substring(0, 4) }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showCancelPass ? 'text' : 'password'} placeholder="Your password"
+                      value={cancelPassword} onChange={e => setCancelPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    <button type="button" onClick={() => setShowCancelPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
@@ -620,6 +594,7 @@ export default function NurseDashboard({ user, onLogout }) {
         </div>
       )}
       <ChatBox sender={user.costCenter} />
+
     </div>
   );
 }

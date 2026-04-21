@@ -126,12 +126,14 @@ export default function ClearanceReport({ patientId, onClose, onAction, userRole
               {/* Patient info */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
                 {[
-                  ['Patient No.',   data.patient.patient_no],
+                  ['Hospital No.',   data.patient.patient_no],
                   ['Full Name',     data.patient.full_name],
                   ['Age',           data.patient.age],
-                  ['Ward',          data.patient.ward],
+                  ['Ward',          data.patient.ward_name || (data.patient.ward && data.patient.ward.length <= 20 ? data.patient.ward : '—')],
+                  ['Room / Bed',    data.patient.room_bed || '—'],
                   ['Admit Date',    data.patient.admit_date],
                   ['Discharge Date', fmt(data.request?.discharged_at)],
+                  ['Admitting Diagnosis', data.patient.admitting_dx || data.patient.admtxt || '—'],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <p className="text-xs text-gray-400">{label}</p>

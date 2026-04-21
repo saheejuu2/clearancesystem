@@ -1,13 +1,5 @@
 {
-  "dependencies": {
-    "@tailwindcss/vite": "^4.2.2",
-    "tailwindcss": "^4.2.2"
-  },
-  "devDependencies": {
-    "ws": "^8.14.2"
-  },
   "scripts": {
-    "ws-server": "node api/websocket-server.js",
-    "test-ws": "node test-websocket.js"
+    "ws-server": "cross-env NODE_PATH=./frontend/node_modules node api/websocket-server.js"
   }
 }
