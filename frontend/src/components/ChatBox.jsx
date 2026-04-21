@@ -32,6 +32,8 @@ export default function ChatBox({ sender }) {
   const pollRef                       = useRef(null);
 
   const prevTotalRef = useRef(0);
+  const prevUnreadRef = useRef({});
+  const [recentOrder, setRecentOrder] = useState([]); // CCs with recent activity, most recent first
 
   // Poll unread counts
   const fetchUnread = useCallback(() => {
@@ -40,7 +42,16 @@ export default function ChatBox({ sender }) {
         const data = res.data || {};
         const total = Object.values(data).reduce((a, b) => a + b, 0);
         if (total > prevTotalRef.current) playMessageSound();
+        // Any CC with unread messages gets added to recentOrder (stays there until page refresh)
+        const withUnread = Object.keys(data).filter(k => (data[k] || 0) > 0 && (data[k] || 0) >= (prevUnreadRef.current[k] || 0));
+        if (withUnread.length > 0) {
+          setRecentOrder(prev => {
+            const newOnes = withUnread.filter(s => !prev.includes(s));
+            return newOnes.length > 0 ? [...newOnes, ...prev] : prev;
+          });
+        }
         prevTotalRef.current = total;
+        prevUnreadRef.current = data;
         setUnread(data);
       })
       .catch(() => {});
@@ -200,7 +211,14 @@ export default function ChatBox({ sender }) {
                 );
               })()}
               <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Cost Centers</div>
-              {COST_CENTERS.filter(cc => cc !== sender).map(cc => {
+              {COST_CENTERS.filter(cc => cc !== sender).sort((a, b) => {
+                const ra = recentOrder.indexOf(a);
+                const rb = recentOrder.indexOf(b);
+                if (ra !== -1 && rb !== -1) return ra - rb;
+                if (ra !== -1) return -1;
+                if (rb !== -1) return 1;
+                return 0; // keep original order for the rest
+              }).map(cc => {
                 const ccUnread = unread[cc] || 0;
                 return (
                   <button key={cc} onClick={() => openCC(cc)}
