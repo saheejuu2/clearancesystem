@@ -129,7 +129,7 @@ export default function ClearanceReport({ patientId, onClose, onAction, userRole
                   ['Hospital No.',   data.patient.patient_no],
                   ['Full Name',     data.patient.full_name],
                   ['Age',           data.patient.age],
-                  ['Ward',          data.patient.ward],
+                  ['Ward',          data.patient.ward_name || (data.patient.ward && data.patient.ward.length <= 20 ? data.patient.ward : '—')],
                   ['Admit Date',    data.patient.admit_date],
                   ['Discharge Date', fmt(data.request?.discharged_at)],
                 ].map(([label, value]) => (

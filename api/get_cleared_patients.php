@@ -17,6 +17,7 @@ $sql = "
         p.full_name,
         p.age,
         p.ward,
+        p.ward_name,
         p.admit_date,
         ccc.cost_center,
         ccc.status,

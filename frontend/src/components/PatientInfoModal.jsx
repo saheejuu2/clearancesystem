@@ -1,3 +1,5 @@
+import { formatWard } from '../utils/formatWard';
+
 export default function PatientInfoModal({ patient, clearances, onClose }) {
   if (!patient) return null;
 
@@ -15,7 +17,7 @@ export default function PatientInfoModal({ patient, clearances, onClose }) {
     ['Sex',            patient.patsex === 'M' ? 'Male' : patient.patsex === 'F' ? 'Female' : '—'],
     ['Birthdate',      patient.patbdate ? (() => { try { return new Date(patient.patbdate).toLocaleDateString('en-PH', { dateStyle: 'medium' }); } catch { return '—'; } })() : '—'],
     ['Address',        patient.address || '—'],
-    ['Ward',           patient.ward_name || patient.wardname || (patient.ward && patient.ward.length <= 20 ? patient.ward : '—')],
+    ['Ward',           formatWard(patient)],
     ['Admitting Diagnosis ',   patient.admtxt || patient.admitting_dx || '—'],
     ['Admission Date',  patient.admit_date ? new Date(patient.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'],
     ['Admission Time',  admitTime && admitTime !== '—' ? (() => { try { const [h, m] = admitTime.split(':'); const d = new Date(); d.setHours(+h, +m); return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true }); } catch { return admitTime; } })() : '—'],
