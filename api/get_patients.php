@@ -13,7 +13,7 @@ $date_condition = "AND DATE(p.admit_date) = '$date'";
 
 $sql = "
     SELECT 
-        p.id, p.patient_no, p.full_name, p.age, p.ward, p.ward_name, p.admitting_dx, p.admit_date, p.patient_type,
+        p.id, p.patient_no, p.full_name, p.age, p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type,
         cr.id AS request_id,
         cr.nurse_status,
         cr.billing_status,

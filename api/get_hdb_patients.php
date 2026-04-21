@@ -34,14 +34,26 @@ $encWhere = $enccode ? "e.enccode = '$enccode'" : "e.hpercode = '$hpercode'";
 $r2 = $remote_conn->query("
     SELECT e.toecode, e.encdate, e.enctime, e.enccode,
            w.wardname,
-           al.admtxt
+           (
+               SELECT CONCAT_WS(' / ', NULLIF(TRIM(rm.rmname),''), NULLIF(TRIM(bd.bdname),''))
+               FROM hpatroom pr
+               LEFT JOIN hroom rm ON rm.rmintkey = pr.rmintkey
+               LEFT JOIN hbed  bd ON bd.bdintkey = pr.bdintkey
+               WHERE pr.enccode = e.enccode AND pr.patrmstat = 'A'
+               ORDER BY pr.datemod DESC LIMIT 1
+           ) AS room_bed,
+           (
+               SELECT al.admtxt FROM hadmlog al
+               WHERE al.enccode = e.enccode
+                 AND al.admtxt IS NOT NULL AND al.admtxt != '' AND al.admtxt != '.'
+               ORDER BY al.admdate DESC LIMIT 1
+           ) AS admtxt
     FROM henctr e
     LEFT JOIN hward w ON w.wardcode = (
-        SELECT pr.wardcode FROM hpatroom pr
-        WHERE pr.enccode = e.enccode
-        ORDER BY pr.datemod DESC LIMIT 1
+        SELECT pr2.wardcode FROM hpatroom pr2
+        WHERE pr2.enccode = e.enccode
+        ORDER BY pr2.datemod DESC LIMIT 1
     )
-    LEFT JOIN hadmlog al ON al.enccode = e.enccode
     WHERE $encWhere
     ORDER BY e.encdate DESC
     LIMIT 1
@@ -72,6 +84,7 @@ echo json_encode([
         "patbdate"  => $person['patbdate'],
         "pattelno"  => $person['pattelno'],
         "wardname"  => $enc['wardname'] ?? null,
+        "room_bed"  => $enc['room_bed'] ?? null,
         "toecode"   => $enc['toecode'] ?? null,
         "admtime"   => $enc['enctime'] ?? null,
         "admtxt"    => $enc['admtxt'] ?? '—',

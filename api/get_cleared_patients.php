@@ -18,6 +18,8 @@ $sql = "
         p.age,
         p.ward,
         p.ward_name,
+        p.room_bed,
+        p.admitting_dx,
         p.admit_date,
         ccc.cost_center,
         ccc.status,

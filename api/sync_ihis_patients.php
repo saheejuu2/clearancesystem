@@ -18,13 +18,27 @@ function mapToecode($toecode) {
 $sql = "
     SELECT e.hpercode, e.enccode, e.toecode, e.encdate,
            p.patlast, p.patfirst, p.patmiddle, p.patsex, p.patbdate,
-           w.wardname
+           w.wardname,
+           (
+               SELECT CONCAT_WS(' / ', NULLIF(TRIM(rm.rmname),''), NULLIF(TRIM(bd.bdname),''))
+               FROM hpatroom pr
+               LEFT JOIN hroom rm ON rm.rmintkey = pr.rmintkey
+               LEFT JOIN hbed  bd ON bd.bdintkey = pr.bdintkey
+               WHERE pr.enccode = e.enccode AND pr.patrmstat = 'A'
+               ORDER BY pr.datemod DESC LIMIT 1
+           ) AS room_bed,
+           (
+               SELECT al.admtxt FROM hadmlog al
+               WHERE al.enccode = e.enccode
+                 AND al.admtxt IS NOT NULL AND al.admtxt != '' AND al.admtxt != '.'
+               ORDER BY al.admdate DESC LIMIT 1
+           ) AS admtxt
     FROM henctr e
     JOIN hperson p ON p.hpercode = e.hpercode
     LEFT JOIN hward w ON w.wardcode = (
-        SELECT pr.wardcode FROM hpatroom pr
-        WHERE pr.enccode = e.enccode
-        ORDER BY pr.datemod DESC LIMIT 1
+        SELECT pr2.wardcode FROM hpatroom pr2
+        WHERE pr2.enccode = e.enccode
+        ORDER BY pr2.datemod DESC LIMIT 1
     )
     WHERE DATE(e.encdate) = '$rdate'
       AND e.encstat IN ('A','I')
@@ -35,11 +49,14 @@ if (!$result) { echo json_encode(["synced" => 0, "error" => $remote_conn->error]
 
 $synced = 0;
 while ($row = $result->fetch_assoc()) {
-    $hpercode  = $conn->real_escape_string($row['hpercode']);
-    $full_name = $conn->real_escape_string(trim($row['patlast'] . ', ' . $row['patfirst'] . ' ' . $row['patmiddle']));
-    $ward      = $conn->real_escape_string($row['wardname'] ?? '');
+    $hpercode   = $conn->real_escape_string($row['hpercode']);
+    $enccode    = $conn->real_escape_string($row['enccode']);
+    $full_name  = $conn->real_escape_string(trim($row['patlast'] . ', ' . $row['patfirst'] . ' ' . $row['patmiddle']));
+    $ward_name  = $conn->real_escape_string($row['wardname'] ?? '');
+    $room_bed   = $conn->real_escape_string($row['room_bed'] ?? '');
+    $admtxt     = $conn->real_escape_string($row['admtxt'] ?? '');
     $admit_date = date('Y-m-d', strtotime($row['encdate']));
-    $ptype     = mapToecode($row['toecode']);
+    $ptype      = mapToecode($row['toecode']);
 
     // Calculate age from birthdate
     $age = 0;
@@ -51,12 +68,15 @@ while ($row = $result->fetch_assoc()) {
     }
 
     $conn->query("
-        INSERT INTO patients (patient_no, full_name, age, ward, admit_date, patient_type)
-        VALUES ('$hpercode', '$full_name', $age, '$ward', '$admit_date', '$ptype')
+        INSERT INTO patients (patient_no, full_name, age, ward, ward_name, room_bed, admitting_dx, admit_date, patient_type)
+        VALUES ('$hpercode', '$full_name', $age, '$ward_name', '$ward_name', '$room_bed', '$admtxt', '$admit_date', '$ptype')
         ON DUPLICATE KEY UPDATE
             full_name    = VALUES(full_name),
             age          = VALUES(age),
             ward         = IF(ward IS NULL OR ward = '', VALUES(ward), ward),
+            ward_name    = IF(VALUES(ward_name) != '', VALUES(ward_name), ward_name),
+            room_bed     = IF(VALUES(room_bed) != '', VALUES(room_bed), room_bed),
+            admitting_dx = IF(VALUES(admitting_dx) != '', VALUES(admitting_dx), admitting_dx),
             patient_type = VALUES(patient_type)
     ");
     if ($conn->affected_rows > 0) $synced++;
