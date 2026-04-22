@@ -30,4 +30,7 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Re-enable for loca
 @$conn->query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS ward_name VARCHAR(150) NULL");
 @$conn->query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS room_bed VARCHAR(100) NULL");
 @$conn->query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS admitting_dx TEXT NULL");
+@$conn->query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS patbdate DATE NULL");
+@$conn->query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS service_type VARCHAR(100) NULL");
+@$conn->query("ALTER TABLE patients ADD COLUMN IF NOT EXISTS accom_type VARCHAR(50) NULL");
 ?>

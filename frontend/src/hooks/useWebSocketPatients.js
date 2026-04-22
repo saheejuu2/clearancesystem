@@ -13,7 +13,8 @@ export default function useWebSocketPatients(role, date, onUpdate, enabled = tru
 
     const fetchPatients = async () => {
       try {
-        const res = await api.get(`/get_patients.php?role=${encodeURIComponent(role)}&date=${date}`);
+        const dateParam = date === 'all' ? 'all_dates=1' : `date=${date}`;
+        const res = await api.get(`/get_patients.php?role=${encodeURIComponent(role)}&${dateParam}`);
         if (onUpdate) onUpdate(res.data);
       } catch { /* silent */ }
     };

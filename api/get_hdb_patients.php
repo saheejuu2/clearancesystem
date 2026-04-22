@@ -12,7 +12,7 @@ if (!$hpercode) { echo json_encode(["error" => "hpercode required"]); exit; }
 // Query 1: Person + address (always returns if patient exists)
 $r = $remote_conn->query("
     SELECT p.hpercode, p.patlast, p.patfirst, p.patmiddle, p.patsex, p.patbdate, p.pattelno,
-           a.patstr, b.bgyname, c.ctyname,
+           a.patstr, a.patzip, b.bgyname, c.ctyname, pr.provname,
            (SELECT pattel FROM htelep
             WHERE hpercode = p.hpercode AND ptlstat = 'A'
             ORDER BY ptdteas DESC LIMIT 1) AS contact
@@ -20,6 +20,7 @@ $r = $remote_conn->query("
     LEFT JOIN haddr a ON a.hpercode = p.hpercode AND a.addstat = 'A'
     LEFT JOIN hbrgy b ON b.bgycode = a.brg
     LEFT JOIN hcity c ON c.ctycode = a.ctycode
+    LEFT JOIN hprov pr ON pr.provcode = a.provcode
     WHERE p.hpercode = '$hpercode'
     LIMIT 1
 ");
@@ -42,6 +43,19 @@ $r2 = $remote_conn->query("
                WHERE pr.enccode = e.enccode AND pr.patrmstat = 'A'
                ORDER BY pr.datemod DESC LIMIT 1
            ) AS room_bed,
+           (
+               SELECT al.tacode FROM hadmlog al
+               WHERE al.enccode = e.enccode
+                 AND al.tacode IS NOT NULL AND al.tacode != ''
+               ORDER BY al.admdate DESC LIMIT 1
+           ) AS accom_type,
+           (
+               SELECT ts.tsdesc FROM hadmlog al
+               LEFT JOIN htypser ts ON ts.tscode = al.tscode
+               WHERE al.enccode = e.enccode
+                 AND al.tscode IS NOT NULL AND al.tscode != ''
+               ORDER BY al.admdate DESC LIMIT 1
+           ) AS service_type,
            (
                SELECT al.admtxt FROM hadmlog al
                WHERE al.enccode = e.enccode
@@ -85,6 +99,11 @@ echo json_encode([
         "pattelno"  => $person['pattelno'],
         "wardname"  => $enc['wardname'] ?? null,
         "room_bed"  => $enc['room_bed'] ?? null,
+        "accom_type" => (function($t) {
+            $map = ['ADPAY'=>'Pay','SERVI'=>'Service'];
+            return $map[$t ?? ''] ?? ($t ?: null);
+        })($enc['accom_type'] ?? null),
+        "service_type" => $enc['service_type'] ?? null,
         "toecode"   => $enc['toecode'] ?? null,
         "admtime"   => $enc['enctime'] ?? null,
         "admtxt"    => $enc['admtxt'] ?? '—',
@@ -92,6 +111,8 @@ echo json_encode([
                             $person['patstr'] ?? '',
                             $person['bgyname'] ?? '',
                             $person['ctyname'] ?? '',
+                            $person['provname'] ?? '',
+                            $person['patzip'] ?? '',
                         ]))),
         "contact"   => $person['contact'] ?? ($person['pattelno'] ?? '—'),
     ]

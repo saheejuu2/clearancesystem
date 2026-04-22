@@ -23,6 +23,7 @@ $users = [
     ['laboratory',  'Laboratory Staff',          'Laboratory',                   'staff'],
     ['bloodbank',   'Bloodbank Staff',           'Bloodbank',                    'staff'],
     ['pharmacy',    'Pharmacy Staff',            'Pharmacy',                     'staff'],
+    ['mab',         'MAB Staff',                 'MAB',                          'staff'],
     
     // Benefits windows
     ['benefits', 'Benefits Staff',  'Benefits - Window 3A',         'staff'],

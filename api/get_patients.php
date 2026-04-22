@@ -6,13 +6,23 @@ include 'db_config.php';
 
 $role = isset($_GET['role']) ? $_GET['role'] : '';
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'); // default: today
+$all_dates = isset($_GET['all_dates']) && $_GET['all_dates'] === '1';
 
 // Date filter = admit date only
-$date_condition = "AND DATE(p.admit_date) = '$date'";
+$date_condition = $all_dates ? "" : "AND DATE(p.admit_date) = '$date'";
 
 $sql = "
     SELECT 
-        p.id, p.patient_no, p.full_name, p.age, p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type,
+        p.id, p.patient_no, p.full_name,
+        CASE
+            WHEN p.patbdate IS NULL THEN CAST(p.age AS CHAR)
+            WHEN TIMESTAMPDIFF(YEAR, p.patbdate, CURDATE()) >= 1
+                THEN CAST(TIMESTAMPDIFF(YEAR, p.patbdate, CURDATE()) AS CHAR)
+            WHEN TIMESTAMPDIFF(MONTH, p.patbdate, CURDATE()) >= 1
+                THEN CONCAT(TIMESTAMPDIFF(MONTH, p.patbdate, CURDATE()), 'mo')
+            ELSE CONCAT(TIMESTAMPDIFF(DAY, p.patbdate, CURDATE()), 'd')
+        END AS age,
+        p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type, p.service_type, p.accom_type,
         cr.id AS request_id,
         cr.nurse_status,
         cr.billing_status,
@@ -90,12 +100,35 @@ if ($pending_only && $role && !in_array($role, ['Nurse', 'Billing'])) {
     exit();
 }
 
-$filtered = array_filter($all, function($p) use ($role, $already_cleared, $window_map) {
+// Nurse ward-to-service_type mapping
+$nurse_service_map = [
+    'OB Nurse'         => ['OBSTETRICS', 'GYNECOLOGY'],
+    'Pediatrics Nurse' => ['PEDIATRICS'],
+    'Medical Nurse'    => ['MEDICAL'],
+    'Surgery Nurse'    => ['SURGICAL'],
+];
+
+$filtered = array_filter($all, function($p) use ($role, $already_cleared, $window_map, $nurse_service_map) {
     $step = $p['clearance_step'];
 
     switch ($role) {
         case 'Nurse':
-            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing']);
+            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing'])
+                && $p['patient_type'] !== 'opd';
+
+        case 'ER Nurse':
+            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing'])
+                && $p['patient_type'] === 'er';
+
+        case 'OB Nurse':
+        case 'Pediatrics Nurse':
+        case 'Medical Nurse':
+        case 'Surgery Nurse':
+            if (!in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing'])) return false;
+            $allowed = $nurse_service_map[$role] ?? [];
+            if (empty($allowed)) return true;
+            $svc = strtoupper(trim($p['service_type'] ?? ''));
+            return in_array($svc, $allowed);
 
         case 'Billing':
             return in_array($step, ['awaiting_billing', 'cost_center_clearing', 'discharged']);

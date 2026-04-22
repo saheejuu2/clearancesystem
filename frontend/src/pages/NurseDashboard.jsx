@@ -8,10 +8,7 @@ import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
-import usePagination from '../hooks/usePagination';
-import useWebSocketPatients from '../hooks/useWebSocketPatients';
-import Pagination from '../components/Pagination';
-import ChatBox from '../components/ChatBox';
+import useWebSocketPatients from '../hooks/useWebSocketPatients';import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
@@ -50,27 +47,21 @@ export default function NurseDashboard({ user, onLogout }) {
 
   const [wardFilter, setWardFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [typeFilter, setTypeFilter] = useState(() => user?.costCenter === 'ER Nurse' ? 'er' : 'in-patient');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  const fetchPatients = async (date, from, to) => {
+  const fetchPatients = async (date) => {
     setLoading(true);
     const d = date || filterDate;
-    const df = from !== undefined ? from : dateFrom;
-    const dt = to   !== undefined ? to   : dateTo;
-    // Auto-sync IHIS patients first, then fix ward/enccode
-    try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
-    try { await api.get(`/fix_ward_enccode.php?date=${d}`); } catch { /* silent */ }
-    // Build query — use date range if filters are set, else single date
-    const rangeParams = (df && dt)
-      ? `date_from=${df}&date_to=${dt}`
-      : (df ? `date_from=${df}` : (dt ? `date_to=${dt}` : `date=${d}`));
+    if (d !== 'all') {
+      try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
+      try { await api.get(`/fix_ward_enccode.php?date=${d}`); } catch { /* silent */ }
+    }
     try {
+      const dateParam = d === 'all' ? 'all_dates=1' : `date=${d}`;
       const [listRes, allRes] = await Promise.all([
-        api.get(`/get_patients.php?role=Nurse&${rangeParams}`),
-        api.get(`/get_patients.php?role=Billing&${rangeParams}`),
+        api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&${dateParam}`),
+        api.get(`/get_patients.php?role=Billing&${dateParam}`),
       ]);
       setPatients(listRes.data);
       setAllPatients(allRes.data.filter(p =>
@@ -81,7 +72,7 @@ export default function NurseDashboard({ user, onLogout }) {
   };
 
   useEffect(() => { fetchPatients(); }, []);
-  useWebSocketPatients('Nurse', filterDate, (updatedPatients) => {
+  useWebSocketPatients(user.costCenter, filterDate, (updatedPatients) => {
     setPatients(updatedPatients);
     // Also fetch billing patients for the allPatients list
     api.get(`/get_patients.php?role=Billing&date=${filterDate}`)
@@ -141,6 +132,28 @@ export default function NurseDashboard({ user, onLogout }) {
     } finally { setCancelling(false); }
   };
 
+  const openPatientInfo = async (p) => {
+    let enriched = { ...p };
+    if (p.patient_type !== 'opd') {
+      try {
+        const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.patient_no)}&enccode=${encodeURIComponent(p.ward || '')}`);
+        if (nr.data?.person) {
+          const person = nr.data.person;
+          const enccode = p.ward || '';
+          const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
+          const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
+          enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', room_bed: person.room_bed || p.room_bed || '—', accom_type: person.accom_type || '—', service_type: person.service_type || '—', admtxt: person.admtxt, admit_time: admTime };
+        }
+      } catch { /* silent */ }
+    }
+    setViewPatient(enriched);
+    try {
+      const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
+      if (r.data.success) setViewClearances(r.data.clearances);
+      else setViewClearances([]);
+    } catch { setViewClearances([]); }
+  };
+
   const openTracker = async (p) => {
     setTrackPatient(p);
     setTrackLoading(true);
@@ -154,18 +167,16 @@ export default function NurseDashboard({ user, onLogout }) {
   const filtered = patients.filter(p => {
     const q = search.toLowerCase();
     const matchQ = !q || p.full_name.toLowerCase().includes(q) || p.patient_no.toLowerCase().includes(q);
-    const matchWard = !wardFilter || p.ward === wardFilter;
+    const matchWard = !wardFilter || (p.service_type || '').toUpperCase().includes(wardFilter.toUpperCase());
     const matchType = !typeFilter || p.patient_type === typeFilter;
     const matchStatus = !statusFilter
       ? true
       : statusFilter === 'pending'
         ? p.has_pending && p.clearance_step === 'cost_center_clearing'
         : p.clearance_step === statusFilter;
-    const matchFrom = !dateFrom || p.admit_date >= dateFrom;
-    const matchTo = !dateTo || p.admit_date <= dateTo;
-    return matchQ && matchWard && matchType && matchStatus && matchFrom && matchTo;
+    return matchQ && matchWard && matchType && matchStatus;
   });
-  const { paged: pagedPatients, page: nursePage, setPage: setNursePage, totalPages: nurseTotalPages, total: nurseTotal, start: nurseStart, pageSize: nursePageSize } = usePagination(filtered);
+
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -194,31 +205,52 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
           <nav className="flex flex-col gap-1 p-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Patients</p>
-            <button onClick={() => { setTab("patients"); setStatusFilter(""); }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "patients" && !statusFilter ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+            <button onClick={() => { setTab("patients"); setStatusFilter(""); setTypeFilter(""); }}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "patients" && !typeFilter ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
               <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               All Patients
             </button>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Filter by Status</p>
-            {[
-              { value: "no_request",          label: "Admitted",     dot: "bg-gray-400",  count: patients.filter(p => p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse').length },
-              { value: "awaiting_billing",     label: "May Go Home",  dot: "bg-blue-500",  count: patients.filter(p => p.clearance_step === 'awaiting_billing').length },
-              { value: "cost_center_clearing", label: "Clearance", dot: "bg-amber-500", count: patients.filter(p => p.clearance_step === 'cost_center_clearing').length },
-            ].map(s => (
-              <button key={s.value}
-                onClick={() => { setTab("patients"); setStatusFilter(statusFilter === s.value ? "" : s.value); }}
-                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors text-left w-full ${statusFilter === s.value ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${statusFilter === s.value ? "bg-white" : s.dot}`} />
-                <span className="flex-1">{s.label}</span>
-                {s.count > 0 && (
-                  <span className={`ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${statusFilter === s.value ? 'bg-white/30 text-white' : 'bg-orange-500 text-white'}`}>
-                    {s.count > 99 ? '99+' : s.count}
-                  </span>
-                )}
-              </button>
-            ))}
+
+            {user.costCenter !== 'ER Nurse' && (
+              <>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Filter by Type</p>
+                {[
+                  { value: 'in-patient', label: 'Admitted', dot: 'bg-blue-400',  count: patients.filter(p => p.patient_type === 'in-patient').length },
+                  { value: 'er',         label: 'ER',       dot: 'bg-red-400',   count: patients.filter(p => p.patient_type === 'er').length },
+                ].map(t => (
+                  <button key={t.value}
+                    onClick={() => { setTab("patients"); setTypeFilter(typeFilter === t.value ? "" : t.value); }}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors text-left w-full ${typeFilter === t.value ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${typeFilter === t.value ? "bg-white" : t.dot}`} />
+                    <span className="flex-1">{t.label}</span>
+                    {t.count > 0 && (
+                      <span className={`ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${typeFilter === t.value ? 'bg-white/30 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                        {t.count > 99 ? '99+' : t.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </>
+            )}
+
+            {user.costCenter === 'ER Nurse' && (
+              <>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Filter by Type</p>
+                <button
+                  onClick={() => { setTab("patients"); setTypeFilter('er'); }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors text-left w-full ${typeFilter === 'er' ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${typeFilter === 'er' ? "bg-white" : "bg-red-400"}`} />
+                  <span className="flex-1">ER</span>
+                  {patients.filter(p => p.patient_type === 'er').length > 0 && (
+                    <span className={`ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${typeFilter === 'er' ? 'bg-white/30 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                      {patients.filter(p => p.patient_type === 'er').length > 99 ? '99+' : patients.filter(p => p.patient_type === 'er').length}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
         
           </nav>
           <div className="p-3 border-t border-gray-100 mt-auto">
@@ -244,55 +276,54 @@ export default function NurseDashboard({ user, onLogout }) {
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." />
               <div className="flex items-center gap-2 shrink-0">
-                <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+                {filterDate !== 'all' && (
+                  <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+                )}
+                <button
+                  onClick={() => {
+                    const next = filterDate === 'all' ? new Date().toISOString().split('T')[0] : 'all';
+                    setFilterDate(next);
+                    fetchPatients(next);
+                  }}
+                  className={`text-xs font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap ${filterDate === 'all' ? 'bg-emerald-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  All Dates
+                </button>
               </div>
             </div>
             {/* Filters */}
+            {user.costCenter !== 'ER Nurse' && (
             <div className="flex flex-wrap gap-3">
               <select value={wardFilter} onChange={e => setWardFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
                 <option value="">All Wards</option>
-                {['OB', 'Medical', 'Surgery', 'Pediatrics'].map(w => <option key={w}>{w}</option>)}
+                {[
+                  { label: 'OB / Gynecology', value: 'OB' },
+                  { label: 'Medical',          value: 'MEDICAL' },
+                  { label: 'Surgery',          value: 'SURGICAL' },
+                  { label: 'Pediatrics',       value: 'PEDIATRICS' },
+                ].map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
               </select>
               <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-                <option value="">Status</option>
-                <option value="no_request">Admitted</option>
+                <option value="">All Status</option>
                 <option value="awaiting_billing">May Go Home</option>
                 <option value="cost_center_clearing">Clearance</option>
                 <option value="pending">Pending</option>
               </select>
-              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
-                <option value="">All Types</option>
-                <option value="in-patient">In-Patient</option>
-                <option value="er">ER</option>
-                <option value="opd">OPD</option>
-              </select>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-gray-400 shrink-0">From</span>
-                <input type="date" value={dateFrom} onChange={e => { const v = e.target.value; setDateFrom(v); fetchPatients(filterDate, v, dateTo); }}
-                  max={dateTo || undefined}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-gray-400 shrink-0">To</span>
-                <input type="date" value={dateTo} onChange={e => { const v = e.target.value; setDateTo(v); fetchPatients(filterDate, dateFrom, v); }}
-                  min={dateFrom || undefined}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white" />
-              </div>
-              {(wardFilter || statusFilter || typeFilter || dateFrom || dateTo) && (
-                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); fetchPatients(filterDate, '', ''); }}
+
+              {(wardFilter || statusFilter || typeFilter) && (
+                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setTypeFilter(''); }}
                   className="text-xs text-gray-400 hover:text-gray-600 font-medium px-2">Clear filters</button>
               )}
             </div>
+            )}
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                      {['Hospital No.','Name of Patient ','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                      {['Hospital No.','Name of Patient ','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
                         <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -302,16 +333,16 @@ export default function NurseDashboard({ user, onLogout }) {
                       <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
-                    ) : pagedPatients.map(p => {
+                    ) : filtered.map(p => {
                       const step   = STEP_LABEL[p.clearance_step] || STEP_LABEL['no_request'];
                       const canAct = p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse';
                       const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                       return (
-                        <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                        <tr key={p.id} onClick={() => openPatientInfo(p)} className="hover:bg-gray-50/70 transition-colors cursor-pointer">
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                           <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                          <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
+                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                             {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </td>
@@ -321,7 +352,7 @@ export default function NurseDashboard({ user, onLogout }) {
                             </span>
                           </td>
                           <td className="px-4 py-3.5">
-                            {isPending ? (
+                            {p.patient_type === 'er' ? null : isPending ? (
                               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 whitespace-nowrap">Pending</span>
                             ) : (
                               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${step.style}`}>{step.label}</span>
@@ -330,37 +361,13 @@ export default function NurseDashboard({ user, onLogout }) {
                           <td className="px-4 py-3.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {canAct && (
-                                <button onClick={() => openForm(p)}
+                                <button onClick={e => { e.stopPropagation(); openForm(p); }}
                                   className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   May Go Home
                                 </button>
                               )}
-                              <button onClick={async () => {
-                                // Fetch IHIS details using patient_no as hpercode
-                                let enriched = { ...p };
-                                try {
-                                  const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.patient_no)}&enccode=${encodeURIComponent(p.ward || '')}`);
-                                  if (nr.data?.person) {
-                                    const person = nr.data.person;
-                                    // Extract time from enccode (format ends with date+time e.g. "04/18/202614:23:00")
-                                    const enccode = p.ward || '';
-                                    const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
-                                    const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
-                                    enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', room_bed: person.room_bed || p.room_bed || '—', admtxt: person.admtxt, admit_time: admTime };
-                                  }
-                                } catch { /* silent */ }
-                                setViewPatient(enriched);
-                                try {
-                                  const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-                                  if (r.data.success) setViewClearances(r.data.clearances);
-                                  else setViewClearances([]);
-                                } catch { setViewClearances([]); }
-                              }}
-                                className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                View
-                              </button>
                               {p.clearance_step === 'cost_center_clearing' && (
-                                <button onClick={() => openTracker(p)}
+                                <button onClick={e => { e.stopPropagation(); openTracker(p); }}
                                   className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Track
                                 </button>
@@ -374,7 +381,7 @@ export default function NurseDashboard({ user, onLogout }) {
                 </table>
               </div>
 
-              <Pagination page={nursePage} totalPages={nurseTotalPages} total={nurseTotal} start={nurseStart} pageSize={nursePageSize} onPage={setNursePage} />
+
             </div>
           </div>
         )}

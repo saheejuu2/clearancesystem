@@ -32,7 +32,17 @@ $sql = "
                WHERE al.enccode = e.enccode
                  AND al.admtxt IS NOT NULL AND al.admtxt != '' AND al.admtxt != '.'
                ORDER BY al.admdate DESC LIMIT 1
-           ) AS admtxt
+           ) AS admtxt,
+           (
+               SELECT ts.tsdesc FROM hadmlog al LEFT JOIN htypser ts ON ts.tscode = al.tscode
+               WHERE al.enccode = e.enccode AND al.tscode IS NOT NULL AND al.tscode != ''
+               ORDER BY al.admdate DESC LIMIT 1
+           ) AS service_type,
+           (
+               SELECT al.tacode FROM hadmlog al
+               WHERE al.enccode = e.enccode AND al.tacode IS NOT NULL AND al.tacode != ''
+               ORDER BY al.admdate DESC LIMIT 1
+           ) AS accom_type
     FROM henctr e
     JOIN hperson p ON p.hpercode = e.hpercode
     LEFT JOIN hward w ON w.wardcode = (
@@ -55,29 +65,39 @@ while ($row = $result->fetch_assoc()) {
     $ward_name  = $conn->real_escape_string($row['wardname'] ?? '');
     $room_bed   = $conn->real_escape_string($row['room_bed'] ?? '');
     $admtxt     = $conn->real_escape_string($row['admtxt'] ?? '');
+    $service_type = $conn->real_escape_string($row['service_type'] ?? '');
+    $raw_accom  = strtoupper(trim($row['accom_type'] ?? ''));
+    $accom_type = $conn->real_escape_string(
+        $raw_accom === 'ADPAY' ? 'Pay' : ($raw_accom === 'SERVI' ? 'Service' : $row['accom_type'] ?? '')
+    );
     $admit_date = date('Y-m-d', strtotime($row['encdate']));
     $ptype      = mapToecode($row['toecode']);
 
     // Calculate age from birthdate
     $age = 0;
+    $patbdate_val = 'NULL';
     if (!empty($row['patbdate'])) {
         try {
             $bdate = new DateTime($row['patbdate']);
             $age = (int)$bdate->diff(new DateTime())->y;
+            $patbdate_val = "'" . date('Y-m-d', strtotime($row['patbdate'])) . "'";
         } catch (Exception $e) { $age = 0; }
     }
 
     $conn->query("
-        INSERT INTO patients (patient_no, full_name, age, ward, ward_name, room_bed, admitting_dx, admit_date, patient_type)
-        VALUES ('$hpercode', '$full_name', $age, '$ward_name', '$ward_name', '$room_bed', '$admtxt', '$admit_date', '$ptype')
+        INSERT INTO patients (patient_no, full_name, age, patbdate, ward, ward_name, room_bed, admitting_dx, admit_date, patient_type, service_type, accom_type)
+        VALUES ('$hpercode', '$full_name', $age, $patbdate_val, '$ward_name', '$ward_name', '$room_bed', '$admtxt', '$admit_date', '$ptype', '$service_type', '$accom_type')
         ON DUPLICATE KEY UPDATE
             full_name    = VALUES(full_name),
             age          = VALUES(age),
+            patbdate     = IF(VALUES(patbdate) IS NOT NULL, VALUES(patbdate), patbdate),
             ward         = IF(ward IS NULL OR ward = '', VALUES(ward), ward),
             ward_name    = IF(VALUES(ward_name) != '', VALUES(ward_name), ward_name),
             room_bed     = IF(VALUES(room_bed) != '', VALUES(room_bed), room_bed),
             admitting_dx = IF(VALUES(admitting_dx) != '', VALUES(admitting_dx), admitting_dx),
-            patient_type = VALUES(patient_type)
+            patient_type = VALUES(patient_type),
+            service_type = IF(VALUES(service_type) != '', VALUES(service_type), service_type),
+            accom_type   = IF(VALUES(accom_type) != '', VALUES(accom_type), accom_type)
     ");
     if ($conn->affected_rows > 0) $synced++;
 }

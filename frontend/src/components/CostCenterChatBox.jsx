@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { playMessageSound } from '../utils/sounds';
+import useDraggable from '../hooks/useDraggable';
 
 // Cost centers can only message Nurse and Billing. Admin is read-only.
 const CONTACTS = ['Nurse', 'Billing'];
@@ -17,6 +18,18 @@ export default function CostCenterChatBox({ sender }) {
   const [unread, setUnread]           = useState({});
   const messagesEndRef                = useRef(null);
   const pollRef                       = useRef(null);
+  const containerRef                  = useRef(null);
+  const { fabStyle, chatStyle, onMouseDown } = useDraggable();
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
   const prevTotalRef = useRef(0);
   const prevUnreadRef = useRef({});
@@ -97,11 +110,11 @@ export default function CostCenterChatBox({ sender }) {
   const fmt = (dt) => new Date(dt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
 
   return createPortal(
-    <div className="fixed bottom-5 right-5 z-[9999] flex flex-col items-end gap-2">
+    <div ref={containerRef} className="z-[99999]">
       {open && (
-        <div className="w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden" style={{ height: '420px' }}>
+        <div className="w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden" style={{ height: '420px', ...chatStyle() }}>
           {/* Header */}
-          <div className="bg-emerald-700 px-4 py-3 flex items-center gap-2">
+          <div className="bg-emerald-700 px-4 py-3 flex items-center gap-2 cursor-move select-none" data-drag="1" onMouseDown={onMouseDown}>
             {view === 'chat' && (
               <button onClick={() => { setView('list'); setSelectedContact(null); }}
                 className="text-white/70 hover:text-white mr-1">
@@ -247,8 +260,9 @@ export default function CostCenterChatBox({ sender }) {
       )}
 
       {/* FAB */}
-      <button onClick={() => setOpen(v => !v)}
-        className="w-14 h-14 bg-emerald-700 hover:bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 relative">
+      <button onClick={() => setOpen(v => !v)} onMouseDown={onMouseDown}
+        style={fabStyle}
+        className="w-14 h-14 bg-emerald-700 hover:bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 relative cursor-grab active:cursor-grabbing">
         {open ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

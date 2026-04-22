@@ -8,9 +8,7 @@ import NavBtn from '../components/NavBtn';
 import DashboardOverview from '../components/DashboardOverview';
 import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
-import usePagination from '../hooks/usePagination';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
-import Pagination from '../components/Pagination';
 import AdminChatBox from '../components/AdminChatBox';
 
 const STEP_LABELS = {
@@ -84,7 +82,8 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
   const refetch = (date) => {
     setLoading(true);
     const d = date || filterDate;
-    api.get(`/get_patients.php?role=Admin&date=${d}`)
+    const dateParam = d === 'all' ? 'all_dates=1' : `date=${d}`;
+    api.get(`/get_patients.php?role=Admin&${dateParam}`)
       .then(res => { const p = res.data || []; setPatients(p); onPatientsLoaded && onPatientsLoaded(p); })
       .finally(() => setLoading(false));
   };
@@ -185,7 +184,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
     .filter(cfg.filter)
     .filter(p => (!typeFilter || p.patient_type === typeFilter))
     .filter(p => p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()));
-  const { paged, page, setPage, totalPages, total, start, pageSize } = usePagination(filtered);
+  
 
   const toggleSelect = (id) => setSelectedIds(prev => {
     const next = new Set(prev);
@@ -215,7 +214,18 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
           <p className="text-sm text-gray-400 mt-0.5">{cfg.subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-          <DateFilter value={filterDate} onChange={d => { setFilterDate(d); refetch(d); }} />
+          {filterDate !== 'all' && (
+                  <DateFilter value={filterDate} onChange={d => { setFilterDate(d); refetch(d); }} />
+                )}
+                <button
+                  onClick={() => {
+                    const next = filterDate === 'all' ? new Date().toISOString().split('T')[0] : 'all';
+                    setFilterDate(next);
+                    refetch(next);
+                  }}
+                  className={`text-xs font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap ${filterDate === 'all' ? 'bg-emerald-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  All Dates
+                </button>
           {!selectMode ? (
           <button onClick={() => { setSelectMode(true); setSelectedIds(new Set()); }}
             className="flex items-center gap-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors">
@@ -261,7 +271,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                       className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-400" />
                   </th>
                 )}
-                {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                {['Hospital No.','Name of Patient','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -271,7 +281,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                 <tr><td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-gray-300 text-sm">No patients found.</td></tr>
-              ) : paged.map(p => {
+              ) : filtered.map(p => {
                 const step = STEP_LABELS[p.clearance_step] || STEP_LABELS['no_request'];
                 const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                 return (
@@ -286,8 +296,8 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                     )}
                     <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                     <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                    <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                    <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                    <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
+                    <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
                     <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                       {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                     </td>
@@ -297,7 +307,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      {isPending ? (
+                      {p.patient_type === 'er' ? null : isPending ? (
                         <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-600 whitespace-nowrap">Pending</span>
                       ) : (
                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${step.style}`}>{step.label}</span>
@@ -356,7 +366,6 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
             </tbody>
           </table>
         </div>
-        <Pagination page={page} totalPages={totalPages} total={total} start={start} pageSize={pageSize} onPage={setPage} />
       </div>
 
       {/* Clearance Progress Tracker Modal */}
@@ -763,7 +772,7 @@ export default function AdminDashboard({ user, onLogout }) {
     const q = search.toLowerCase();
     return matchCC && (!q || s.username.toLowerCase().includes(q) || s.full_name.toLowerCase().includes(q) || s.cost_center.toLowerCase().includes(q));
   });
-  const { paged: pagedStaff, page: staffPage, setPage: setStaffPage, totalPages: staffTotalPages, total: staffTotal, start: staffStart, pageSize: staffPageSize } = usePagination(filtered);
+  
 
   const openCreate = () => { setShowPass(false); setShowConfirm(false); setForm({ mode: 'create', data: { ...EMPTY_FORM, cost_center: activeCC !== 'All' ? activeCC : '' } }); };
   const openEdit   = (s) => { setShowPass(false); setShowConfirm(false); setForm({ mode: 'edit', data: { id: s.id, username: s.username, full_name: s.full_name, cost_center: s.cost_center, password: '', confirmPassword: '' } }); };
@@ -1043,7 +1052,7 @@ export default function AdminDashboard({ user, onLogout }) {
                         <tr><td colSpan={5} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                       ) : filtered.length === 0 ? (
                         <tr><td colSpan={5} className="text-center py-12 text-gray-300 text-sm">No staff accounts found.</td></tr>
-                      ) : pagedStaff.map(s => (
+                      ) : filtered.map(s => (
                         <tr key={s.id} className="hover:bg-gray-50/70 transition-colors">
                           <td className="px-5 py-4 font-mono text-xs text-gray-400">{s.username}</td>
                           <td className="px-5 py-4 font-semibold text-gray-800">{s.full_name}</td>
@@ -1078,7 +1087,6 @@ export default function AdminDashboard({ user, onLogout }) {
                     </tbody>
                   </table>
                 </div>
-                <Pagination page={staffPage} totalPages={staffTotalPages} total={staffTotal} start={staffStart} pageSize={staffPageSize} onPage={setStaffPage} />
               </div>
             </div>
           )}

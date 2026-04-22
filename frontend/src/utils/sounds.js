@@ -1,9 +1,27 @@
+let _audioCtxReady = false;
+
 function getCtx() {
   if (!window._audioCtx) {
     window._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
+  // Resume if suspended (browser autoplay policy)
+  if (window._audioCtx.state === 'suspended') {
+    window._audioCtx.resume().catch(() => {});
+  }
   return window._audioCtx;
 }
+
+// Unlock AudioContext on first user gesture
+function unlockAudio() {
+  if (_audioCtxReady) return;
+  _audioCtxReady = true;
+  if (window._audioCtx && window._audioCtx.state === 'suspended') {
+    window._audioCtx.resume().catch(() => {});
+  }
+}
+['click', 'keydown', 'touchstart'].forEach(evt =>
+  document.addEventListener(evt, unlockAudio, { once: true, capture: true })
+);
 
 // Realistic bell using multiple partials with bell-specific frequency ratios
 function bellStrike(baseFreq, duration = 2.0, vol = 0.4) {

@@ -1,7 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
-import websocketService from '../services/websocket';
-import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
@@ -10,10 +8,7 @@ import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import PendingPatientToast from '../components/PendingPatientToast';
-import usePagination from '../hooks/usePagination';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
-import useAutoRefresh from '../hooks/useAutoRefresh';
-import Pagination from '../components/Pagination';
 import CostCenterChatBox from '../components/CostCenterChatBox';
 
 export default function CostCenterDashboard({ user, onLogout }) {
@@ -47,9 +42,12 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const fetchPatients = async (date) => {
     setLoading(true);
     const d = date || filterDate;
-    try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
+    if (d !== 'all') {
+      try { await api.get(`/sync_ihis_patients.php?date=${d}`); } catch { /* silent */ }
+    }
     try {
-      const res = await api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&date=${d}`);
+      const dateParam = d === 'all' ? 'all_dates=1' : `date=${d}`;
+      const res = await api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&${dateParam}`);
       setPatients(res.data);
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -109,25 +107,18 @@ export default function CostCenterDashboard({ user, onLogout }) {
       .catch(() => {});
   }, []);
 
-  useAutoRefresh(() => {
-    fetchPatients();
-    fetchPendingBalance();
-    api.get(`/get_patients.php?role=${encodeURIComponent(user.costCenter)}&pending_only=1`)
-      .then(res => setPendingPatients(Array.isArray(res.data) ? res.data : []))
-      .catch(() => {});
-  }, 15000, true, [user.costCenter, filterDate]);
-
   useWebSocketPatients(user.costCenter, filterDate, (updatedPatients) => {
     setPatients(updatedPatients || []);
   }, true, [user.costCenter, filterDate]);
 
   useEffect(() => {
-    patients.forEach(async p => {
-      const status = await fetchCcStatus(p.id);
-      if (status) {
-        setCcStatuses(prev => ({ ...prev, [p.id]: status }));
-      }
-    });
+    if (!patients.length) return;
+    Promise.all(patients.map(p => fetchCcStatus(p.id).then(status => ({ id: p.id, status }))))
+      .then(results => {
+        const next = {};
+        results.forEach(({ id, status }) => { if (status) next[id] = status; });
+        setCcStatuses(prev => ({ ...prev, ...next }));
+      });
   }, [patients]);
   const SOA_PRICE = 10000;
   const priceMatches = clearPrice !== '' && parseFloat(clearPrice) === SOA_PRICE;
@@ -195,13 +186,12 @@ export default function CostCenterDashboard({ user, onLogout }) {
     (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
-  const { paged: pagedCC, page: ccPage, setPage: setCcPage, totalPages: ccTotalPages, total: ccTotal, start: ccStart, pageSize: ccPageSize } = usePagination(filtered);
 
   const clearedFiltered = clearedPatients.filter(p =>
     p.full_name.toLowerCase().includes(clearedSearch.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(clearedSearch.toLowerCase())
   );
-  const { paged: pagedCleared, page: clearedPage, setPage: setClearedPage, totalPages: clearedTotalPages, total: clearedTotal, start: clearedStart, pageSize: clearedPageSize } = usePagination(clearedFiltered);
+  
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -413,7 +403,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                       <tr><td colSpan={9} className="text-center py-12 text-gray-300 text-sm">Loading...</td></tr>
                     ) : clearedFiltered.length === 0 ? (
                       <tr><td colSpan={9} className="text-center py-12 text-gray-300 text-sm">No cleared patients yet.</td></tr>
-                    ) : pagedCleared.map(p => (
+                    ) : clearedFiltered.map(p => (
                           <tr key={p.patient_id + p.cleared_at} className="hover:bg-gray-50/70 transition-colors">
                             <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
@@ -450,7 +440,6 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   </tbody>
                 </table>
               </div>
-              <Pagination page={clearedPage} totalPages={clearedTotalPages} total={clearedTotal} start={clearedStart} pageSize={clearedPageSize} onPage={setClearedPage} />
             </div>
           </div>
         )}
@@ -464,7 +453,18 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {/* Search */}
         <div className="flex items-center gap-3">
           <div className="flex-1"><SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." /></div>
-          <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+          {filterDate !== 'all' && (
+                  <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+                )}
+                <button
+                  onClick={() => {
+                    const next = filterDate === 'all' ? new Date().toISOString().split('T')[0] : 'all';
+                    setFilterDate(next);
+                    fetchPatients(next);
+                  }}
+                  className={`text-xs font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap ${filterDate === 'all' ? 'bg-emerald-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  All Dates
+                </button>
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white shrink-0">
             <option value="">All Types</option>
@@ -480,7 +480,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                  {['Hospital No.','Name of Patient','Age','Ward','Admit Date','Type','Status','Actions'].map(h => (
+                  {['Hospital No.','Name of Patient','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
                     <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -490,7 +490,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">Loading</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={8} className="text-center py-12 text-gray-300 text-sm">No patients pending clearance.</td></tr>
-                ) : pagedCC.map(p => {
+                ) : filtered.map(p => {
                   const myStatus = ccStatuses[p.id];
                   const isCleared = myStatus?.status === 'cleared';
                   const isPendingBalance = myStatus?.status === 'pending_balance';
@@ -499,8 +499,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
                     <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                      <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                      <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                      <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
+                      <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
                       <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                         {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                       </td>
@@ -558,8 +558,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </tbody>
             </table>
           </div>
-          <Pagination page={ccPage} totalPages={ccTotalPages} total={ccTotal} start={ccStart} pageSize={ccPageSize} onPage={setCcPage} />
-        </div>
+          </div>
         </div>
         )}
       </main>

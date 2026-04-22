@@ -19,15 +19,13 @@ export default function PatientInfoModal({ patient, clearances, onClose }) {
     ['Address',        patient.address || '—'],
     ['Ward',           formatWard(patient)],
     ['Room / Bed',     patient.room_bed || '—'],
+    ['Type of Service',       patient.service_type || '—'],
+    ['Type of Accommodation', patient.accom_type || '—'],
     ['Admitting Diagnosis',   patient.admtxt || patient.admitting_dx || '—'],
     ['Admission Date',  patient.admit_date ? new Date(patient.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'],
     ['Admission Time',  admitTime && admitTime !== '—' ? (() => { try { const [h, m] = admitTime.split(':'); const d = new Date(); d.setHours(+h, +m); return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true }); } catch { return admitTime; } })() : '—'],
     ['Patient Type',   patient.patient_type === 'er' ? 'ER' : patient.patient_type === 'opd' ? 'OPD' : 'In-Patient'],
-    ['Service',        (() => {
-      const t = (patient.toecode || '').toUpperCase();
-      const map = { ADM: 'Admitted', ER: 'Emergency Room', ERADM: 'ER → Admitted', OPD: 'Out-Patient (OPD)', OPDAD: 'OPD → Admitted' };
-      return map[t] || (t || '—');
-    })()],
+  
   ];
 
   return (

@@ -33,7 +33,12 @@ export default function Login({ onLogin }) {
     api.get('/get_cost_centers.php')
       .then(res => {
         if (Array.isArray(res.data) && res.data.length > 0) {
-          setCostCenters(res.data);
+          const nurseFirst = ['Nurse', 'ER Nurse', 'OB Nurse', 'Pediatrics Nurse', 'Medical Nurse', 'Surgery Nurse'];
+          const sorted = [
+            ...nurseFirst.filter(n => res.data.includes(n)),
+            ...res.data.filter(cc => !nurseFirst.includes(cc)),
+          ];
+          setCostCenters(sorted);
         } else {
           setCostCenters(STATIC_COST_CENTERS);
         }
