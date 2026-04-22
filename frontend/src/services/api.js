@@ -1,26 +1,17 @@
-// import axios from 'axios';
-
-// const API_BASE_URL = 'http://localhost/hospital-clearance/api';
-
-// const api = axios.create({
-//     baseURL: API_BASE_URL,
-//     headers: {
-//         'Content-Type': 'application/json',
-//     }
-// });
-
-// export default api;
 import axios from 'axios';
 
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}/hospital-clearance/api`;
+// In dev (Vite proxy): relative path → proxied to http://localhost/clearancesystem/api
+// In production (Apache): full URL built from current hostname
+const API_BASE_URL = import.meta.env.DEV
+  ? '/clearancesystem/api'
+  : `${window.location.protocol}//${window.location.hostname}/clearancesystem/api`;
 
 const api = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    // Add this if you plan to use PHP Sessions or Cookies later
-    withCredentials: true 
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true,
 });
 
 export default api;
