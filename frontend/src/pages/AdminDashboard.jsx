@@ -666,7 +666,8 @@ const EyeIcon = ({ show, onClick }) => (
 );
 
 export default function AdminDashboard({ user, onLogout }) {
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState(() => sessionStorage.getItem('admin_tab') || 'dashboard');
+  const setTabPersist = (t) => { sessionStorage.setItem('admin_tab', t); setTab(t); };
   const [auditKey, setAuditKey]   = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [adminStats, setAdminStats]     = useState({});
@@ -837,7 +838,7 @@ export default function AdminDashboard({ user, onLogout }) {
           <div className="flex items-center gap-3">
             <PhClock />
             <NotificationBell recipient="Admin" />
-            <button onClick={() => setTab('profile')} title="Profile Settings"
+            <button onClick={() => setTabPersist('profile')} title="Profile Settings"
               className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-lg transition-all">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -856,20 +857,20 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
           <nav className="flex flex-col gap-0.5 p-2 flex-1 overflow-y-auto min-h-0">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-1 pb-0.5">Overview</p>
-            <NavBtn compact tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <NavBtn compact tabKey="dashboard" label="Dashboard" active={tab} setTab={setTabPersist} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Patients</p>
-            <NavBtn compact tabKey="total"            label="Total Patients"   active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            <NavBtn compact tabKey="admitted"         label="Admitted"         active={tab} setTab={setTab} badge={patientCounts.admitted || undefined} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTab} badge={patientCounts.awaiting_billing || undefined} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="in_clearance"     label="Clearance (Processing)"     active={tab} setTab={setTab} badge={patientCounts.in_clearance || undefined} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            <NavBtn compact tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patientCounts.pending || undefined} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            <NavBtn compact tabKey="pending_balance" label="Pending Balance" active={tab} setTab={() => { setTab('pending_balance'); fetchAdminPendingBalance(); }} badge={[...new Set(adminPendingBalance.filter(r => r.status === 'pending_balance').map(r => r.id))].length || undefined} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTab} badge={patientCounts.cleared || undefined} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            <NavBtn compact tabKey="discharged"       label="Discharged"       active={tab} setTab={setTab} badge={patientCounts.discharged || undefined} d="M5 13l4 4L19 7" />
+            <NavBtn compact tabKey="total"            label="Total Patients"   active={tab} setTab={setTabPersist} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            <NavBtn compact tabKey="admitted"         label="Admitted"         active={tab} setTab={setTabPersist} badge={patientCounts.admitted || undefined} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <NavBtn compact tabKey="awaiting_billing" label="Awaiting Billing" active={tab} setTab={setTabPersist} badge={patientCounts.awaiting_billing || undefined} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <NavBtn compact tabKey="in_clearance"     label="Clearance (Processing)"     active={tab} setTab={setTabPersist} badge={patientCounts.in_clearance || undefined} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <NavBtn compact tabKey="pending" label="Missing Requirements" active={tab} setTab={setTabPersist} badge={patientCounts.pending || undefined} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <NavBtn compact tabKey="pending_balance" label="Pending Balance" active={tab} setTab={() => { setTabPersist('pending_balance'); fetchAdminPendingBalance(); }} badge={[...new Set(adminPendingBalance.filter(r => r.status === 'pending_balance').map(r => r.id))].length || undefined} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <NavBtn compact tabKey="cleared"          label="Cleared Patients" active={tab} setTab={setTabPersist} badge={patientCounts.cleared || undefined} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <NavBtn compact tabKey="discharged"       label="Discharged"       active={tab} setTab={setTabPersist} badge={patientCounts.discharged || undefined} d="M5 13l4 4L19 7" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Management</p>
-            <NavBtn compact tabKey="staff" label="Account Management" active={tab} setTab={setTab} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            <NavBtn compact tabKey="staff" label="Account Management" active={tab} setTab={setTabPersist} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-2 pt-2 pb-0.5">Records</p>
-            <NavBtn compact tabKey="audit" label="Audit Trail" active={tab} setTab={() => { setTab("audit"); setAuditKey(k => k + 1); }} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <NavBtn compact tabKey="audit" label="Audit Trail" active={tab} setTab={() => { setTabPersist("audit"); setAuditKey(k => k + 1); }} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </nav>
           <div className="p-2 border-t border-gray-100 shrink-0">
             <button onClick={onLogout} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors w-full">
@@ -1119,7 +1120,7 @@ export default function AdminDashboard({ user, onLogout }) {
                   <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Admin</span>
                 </div>
               </div>
-              <button onClick={() => { setTab('staff'); setProfileMsg(null); }} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => { setTabPersist('staff'); setProfileMsg(null); }} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1166,7 +1167,7 @@ export default function AdminDashboard({ user, onLogout }) {
                   className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
                   {profileSaving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button onClick={() => { setTab('staff'); setProfileMsg(null); }}
+                <button onClick={() => { setTabPersist('staff'); setProfileMsg(null); }}
                   className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">Cancel</button>
               </div>
             </div>

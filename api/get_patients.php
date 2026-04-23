@@ -113,18 +113,18 @@ $filtered = array_filter($all, function($p) use ($role, $already_cleared, $windo
 
     switch ($role) {
         case 'Nurse':
-            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing'])
+            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing', 'discharged'])
                 && $p['patient_type'] !== 'opd';
 
         case 'ER Nurse':
-            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing'])
+            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing', 'discharged'])
                 && $p['patient_type'] === 'er';
 
         case 'OB Nurse':
         case 'Pediatrics Nurse':
         case 'Medical Nurse':
         case 'Surgery Nurse':
-            if (!in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing'])) return false;
+            if (!in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing', 'discharged'])) return false;
             $allowed = $nurse_service_map[$role] ?? [];
             if (empty($allowed)) return true;
             $svc = strtoupper(trim($p['service_type'] ?? ''));

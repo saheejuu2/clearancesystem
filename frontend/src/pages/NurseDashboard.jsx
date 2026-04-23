@@ -19,7 +19,8 @@ const STEP_LABEL = {
 };
 
 export default function NurseDashboard({ user, onLogout }) {
-  const [tab, setTab]           = useState('patients');
+  const [tab, setTab]           = useState(() => sessionStorage.getItem('nurse_tab') || 'patients');
+  const setTabPersist = (t) => { sessionStorage.setItem('nurse_tab', t); setTab(t); };
   const [auditKey, setAuditKey] = useState(0);
   const [patients, setPatients] = useState([]);
   const [allPatients, setAllPatients] = useState([]);
@@ -45,10 +46,15 @@ export default function NurseDashboard({ user, onLogout }) {
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading] = useState(false);
 
-  const [wardFilter, setWardFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState(() => user?.costCenter === 'ER Nurse' ? 'er' : 'in-patient');
-  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [wardFilter, setWardFilter] = useState(() => sessionStorage.getItem('nurse_wardFilter') || '');
+  const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem('nurse_statusFilter') || '');
+  const [typeFilter, setTypeFilter] = useState(() => sessionStorage.getItem('nurse_typeFilter') ?? (user?.costCenter === 'ER Nurse' ? 'er' : 'in-patient'));
+  const [filterDate, setFilterDate] = useState(() => sessionStorage.getItem('nurse_filterDate') || new Date().toISOString().split('T')[0]);
+
+  const setWardFilterPersist   = (v) => { sessionStorage.setItem('nurse_wardFilter', v);   setWardFilter(v); };
+  const setStatusFilterPersist = (v) => { sessionStorage.setItem('nurse_statusFilter', v); setStatusFilter(v); };
+  const setTypeFilterPersist   = (v) => { sessionStorage.setItem('nurse_typeFilter', v);   setTypeFilter(v); };
+  const setFilterDatePersist   = (v) => { sessionStorage.setItem('nurse_filterDate', v);   setFilterDate(v); };
 
   const fetchPatients = async (date) => {
     setLoading(true);
@@ -205,7 +211,7 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
           <nav className="flex flex-col gap-1 p-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Patients</p>
-            <button onClick={() => { setTab("patients"); setStatusFilter(""); setTypeFilter(""); }}
+            <button onClick={() => { setTabPersist("patients"); setStatusFilterPersist(""); setTypeFilterPersist(""); }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${tab === "patients" && !typeFilter ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
               <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -221,7 +227,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   { value: 'er',         label: 'ER',       dot: 'bg-red-400',   count: patients.filter(p => p.patient_type === 'er').length },
                 ].map(t => (
                   <button key={t.value}
-                    onClick={() => { setTab("patients"); setTypeFilter(typeFilter === t.value ? "" : t.value); }}
+                    onClick={() => { setTabPersist("patients"); setTypeFilterPersist(typeFilter === t.value ? "" : t.value); }}
                     className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors text-left w-full ${typeFilter === t.value ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
                     <span className={`w-2 h-2 rounded-full shrink-0 ${typeFilter === t.value ? "bg-white" : t.dot}`} />
                     <span className="flex-1">{t.label}</span>
@@ -239,7 +245,7 @@ export default function NurseDashboard({ user, onLogout }) {
               <>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Filter by Type</p>
                 <button
-                  onClick={() => { setTab("patients"); setTypeFilter('er'); }}
+                  onClick={() => { setTabPersist("patients"); setTypeFilterPersist('er'); }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors text-left w-full ${typeFilter === 'er' ? "bg-emerald-700 text-white" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}>
                   <span className={`w-2 h-2 rounded-full shrink-0 ${typeFilter === 'er' ? "bg-white" : "bg-red-400"}`} />
                   <span className="flex-1">ER</span>
@@ -277,12 +283,12 @@ export default function NurseDashboard({ user, onLogout }) {
               <SearchBar value={search} onChange={setSearch} placeholder="Search by name or hospital no." />
               <div className="flex items-center gap-2 shrink-0">
                 {filterDate !== 'all' && (
-                  <DateFilter value={filterDate} onChange={d => { setFilterDate(d); fetchPatients(d); }} />
+                  <DateFilter value={filterDate} onChange={d => { setFilterDatePersist(d); fetchPatients(d); }} />
                 )}
                 <button
                   onClick={() => {
                     const next = filterDate === 'all' ? new Date().toISOString().split('T')[0] : 'all';
-                    setFilterDate(next);
+                    setFilterDatePersist(next);
                     fetchPatients(next);
                   }}
                   className={`text-xs font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap ${filterDate === 'all' ? 'bg-emerald-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
@@ -293,7 +299,7 @@ export default function NurseDashboard({ user, onLogout }) {
             {/* Filters */}
             {user.costCenter !== 'ER Nurse' && (
             <div className="flex flex-wrap gap-3">
-              <select value={wardFilter} onChange={e => setWardFilter(e.target.value)}
+              <select value={wardFilter} onChange={e => setWardFilterPersist(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
                 <option value="">All Wards</option>
                 {[
@@ -303,7 +309,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   { label: 'Pediatrics',       value: 'PEDIATRICS' },
                 ].map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
               </select>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              <select value={statusFilter} onChange={e => setStatusFilterPersist(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
                 <option value="">All Status</option>
                 <option value="awaiting_billing">May Go Home</option>
@@ -312,7 +318,7 @@ export default function NurseDashboard({ user, onLogout }) {
               </select>
 
               {(wardFilter || statusFilter || typeFilter) && (
-                <button onClick={() => { setWardFilter(''); setStatusFilter(''); setTypeFilter(''); }}
+                <button onClick={() => { setWardFilterPersist(''); setStatusFilterPersist(''); setTypeFilterPersist(''); }}
                   className="text-xs text-gray-400 hover:text-gray-600 font-medium px-2">Clear filters</button>
               )}
             </div>

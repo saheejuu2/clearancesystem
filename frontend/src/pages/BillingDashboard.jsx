@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import websocketService from '../services/websocket';
 import ClearanceReport from '../components/ClearanceReport';
@@ -23,7 +23,7 @@ function DischargedList() {
   const [report, setReport]     = useState(null);
 
   useEffect(() => {
-    api.get('/get_patients.php?role=Billing')
+    api.get('/get_patients.php?role=Billing&all_dates=1')
       .then(res => setPatients((res.data || []).filter(p => p.clearance_step === 'discharged')))
       .finally(() => setLoading(false));
   }, []);
@@ -126,7 +126,8 @@ const SERVICE_COST_CENTERS = {
 };
 
 export default function BillingDashboard({ user, onLogout }) {
-  const [tab, setTab]               = useState('patients');
+  const [tab, setTab]               = useState(() => sessionStorage.getItem('billing_tab') || 'patients');
+  const setTabPersist = (t) => { sessionStorage.setItem('billing_tab', t); setTab(t); };
   const [auditKey, setAuditKey]     = useState(0);
   const [patients, setPatients]     = useState([]);
   const [search, setSearch]         = useState('');
@@ -379,13 +380,13 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
           <nav className="flex flex-col gap-1 p-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Overview</p>
-            <NavBtn tabKey="dashboard" label="Dashboard" active={tab} setTab={setTab} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <NavBtn tabKey="dashboard" label="Dashboard" active={tab} setTab={setTabPersist} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pt-3 pb-1">Patients</p>
-            <NavBtn tabKey="patients" label="Awaiting Billing" active={tab} setTab={setTab} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            <NavBtn tabKey="clearance" label="Clearance (Processing)" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0)).length} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            <NavBtn tabKey="for_discharge" label="For Discharge" active={tab} setTab={setTab} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            <NavBtn tabKey="pending" label="Missing Requirements" active={tab} setTab={setTab} badge={patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTab} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <NavBtn tabKey="patients" label="Awaiting Billing" active={tab} setTab={setTabPersist} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            <NavBtn tabKey="clearance" label="Clearance (Processing)" active={tab} setTab={setTabPersist} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && !(parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0)).length} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            <NavBtn tabKey="for_discharge" label="For Discharge" active={tab} setTab={setTabPersist} badge={patients.filter(p => p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0).length} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <NavBtn tabKey="pending" label="Missing Requirements" active={tab} setTab={setTabPersist} badge={patients.filter(p => p.has_pending && p.clearance_step === 'cost_center_clearing').length} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <NavBtn tabKey="discharged" label="Discharged" active={tab} setTab={setTabPersist} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             
           </nav>
           <div className="p-3 border-t border-gray-100 mt-auto">
@@ -400,7 +401,7 @@ export default function BillingDashboard({ user, onLogout }) {
         <main className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5">
         {tab === "dashboard" && <DashboardOverview title="Billing Dashboard" subtitle="Patient clearance overview" onCardClick={key => {
           const map = { awaiting_billing: 'patients', in_clearance: 'clearance', pending: 'pending', discharged: 'discharged' };
-          if (map[key]) setTab(map[key]);
+          if (map[key]) setTabPersist(map[key]);
         }} />}
 
         {tab === "discharged" && <DischargedList />}
