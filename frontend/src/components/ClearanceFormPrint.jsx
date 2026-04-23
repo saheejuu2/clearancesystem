@@ -145,23 +145,25 @@ export default function ClearanceFormPrint({ patientId, onClose }) {
         {/* Printable area */}
         <div className="overflow-y-auto max-h-[75vh] p-4">
           <div ref={printRef}>
-            <div className="form-wrap" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', width: '100%', position: 'relative', padding: '8mm 10mm' }}>
+            <div className="form-wrap" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', width: '100%', padding: '8mm 10mm' }}>
 
-              {/* Top-right info */}
-              <div style={{ position: 'absolute', right: '10mm', top: '8mm', fontSize: '10px' }}>
-                <div>Date: <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block' }}>{fmtDate(patient.admit_date)}</span></div>
-                <div style={{ marginTop: '3px' }}>Time: <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block' }}></span></div>
-                <div style={{ marginTop: '3px' }}>Hospital No.: <span style={{ borderBottom: '1px solid #000', minWidth: '60px', display: 'inline-block' }}>{patient.patient_no}</span></div>
-                <div style={{ marginTop: '3px' }}>Case No.: <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block' }}></span></div>
-              </div>
-
-              {/* Header */}
+              {/* Title — full width centered */}
               <div style={{ textAlign: 'center', marginBottom: '6px' }}>
                 <div style={{ fontSize: '9px' }}>GEAMH FORM NO. 22 revised 3.2025</div>
                 <div style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>General Emilio Aguinaldo Memorial Hospital</div>
                 <div style={{ fontSize: '11px' }}>(Korea-Philippines Friendship Project)</div>
                 <div style={{ fontSize: '11px' }}>Trece Martires City, Cavite</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '3px', margin: '6px 0', textDecoration: 'underline' }}>CLEARANCE FORM</div>
+              </div>
+
+              {/* Date/Time/Hospital No/Case No — right aligned below title */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                <div style={{ fontSize: '10px' }}>
+                  <div>Date: <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block' }}>{fmtDate(patient.admit_date)}</span></div>
+                  <div style={{ marginTop: '3px' }}>Time: <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block' }}></span></div>
+                  <div style={{ marginTop: '3px' }}>Hospital No.: <span style={{ borderBottom: '1px solid #000', minWidth: '60px', display: 'inline-block' }}>{patient.patient_no}</span></div>
+                  <div style={{ marginTop: '3px' }}>Case No.: <span style={{ borderBottom: '1px solid #000', minWidth: '80px', display: 'inline-block' }}></span></div>
+                </div>
               </div>
 
               {/* GEAMH / KPFH checkboxes */}
