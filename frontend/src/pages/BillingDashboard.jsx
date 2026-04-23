@@ -262,10 +262,6 @@ export default function BillingDashboard({ user, onLogout }) {
   }, [tab, patients]);
 
   const openClearanceForm = (p) => {
-<<<<<<< Updated upstream
-    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: "", isBaby: false, isOBNewborn: false, selected: [] });
-=======
-    // Map patient service_type to modal service key
     const svcMap = {
       'OBSTETRICS': 'OB', 'GYNECOLOGY': 'OB',
       'SURGICAL': 'Surgery',
@@ -274,8 +270,9 @@ export default function BillingDashboard({ user, onLogout }) {
     };
     const svc = svcMap[(p.service_type || '').toUpperCase().trim()] || '';
     const base = svc ? [...SERVICE_COST_CENTERS[svc]] : [];
-    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: svc, isBaby: false, selected: base });
->>>>>>> Stashed changes
+    const isPay = (p.accom_type || '').toLowerCase().trim() === 'pay';
+    if (isPay && !base.includes('MAB')) base.push('MAB');
+    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: svc, isBaby: false, isOBNewborn: false, selected: base });
   };
 
   const sendForClearance = async () => {

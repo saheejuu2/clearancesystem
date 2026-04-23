@@ -38,6 +38,11 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [toastEnabled, setToastEnabled] = useState(true);
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [typeFilter, setTypeFilter] = useState('');
+  const [soaAmount, setSoaAmount] = useState(null);
+  const [soaLoading, setSoaLoading] = useState(false);
+  const [soaCache, setSoaCache] = useState({});       // { [patient_no]: amount }
+  const [soaBreakdowns, setSoaBreakdowns] = useState({}); // { [patient_no]: [{desc, amount}] }
+  const [soaBreakdown, setSoaBreakdown] = useState([]);   // current modal breakdown
 
   const fetchPatients = async (date) => {
     setLoading(true);
@@ -111,6 +116,20 @@ export default function CostCenterDashboard({ user, onLogout }) {
     setPatients(updatedPatients || []);
   }, true, [user.costCenter, filterDate]);
 
+  // Batch fetch SOA amounts whenever patient list updates
+  useEffect(() => {
+    if (!patients.length) return;
+    const nos = patients.map(p => p.patient_no).filter(Boolean);
+    api.post('/get_soa_batch.php', { patient_nos: nos, cost_center: user.costCenter })
+      .then(res => {
+        if (res.data.success) {
+          setSoaCache(res.data.amounts || {});
+          setSoaBreakdowns(res.data.breakdowns || {});
+        }
+      })
+      .catch(() => {});
+  }, [patients]);
+
   useEffect(() => {
     if (!patients.length) return;
     Promise.all(patients.map(p => fetchCcStatus(p.id).then(status => ({ id: p.id, status }))))
@@ -120,9 +139,33 @@ export default function CostCenterDashboard({ user, onLogout }) {
         setCcStatuses(prev => ({ ...prev, ...next }));
       });
   }, [patients]);
-  const SOA_PRICE = 10000;
-  const priceMatches = clearPrice !== '' && parseFloat(clearPrice) === SOA_PRICE;
+  const SOA_PRICE = soaAmount;
+  const priceMatches = clearPrice !== '' && soaAmount !== null && parseFloat(clearPrice) === soaAmount;
   const priceEntered = clearPrice.trim() !== '';
+
+  const openClearModal = (p) => {
+    setClearModal(p);
+    setClearName(''); setClearRemarks(''); setClearPrice('');
+    setClearPassword(''); setClearPriceError(''); setShowClearPass(false);
+    setSoaBreakdown([]);
+    if (soaCache[p.patient_no] !== undefined) {
+      setSoaAmount(soaCache[p.patient_no]);
+      setSoaBreakdown(soaBreakdowns[p.patient_no] || []);
+      setSoaLoading(false);
+    } else {
+      setSoaAmount(null);
+      setSoaLoading(true);
+      api.get(`/get_soa_amount.php?patient_no=${encodeURIComponent(p.patient_no)}&cost_center=${encodeURIComponent(user.costCenter)}`)
+        .then(res => {
+          if (res.data.success) {
+            setSoaAmount(res.data.amount ?? null);
+            setSoaBreakdown(res.data.breakdown || []);
+          }
+        })
+        .catch(() => setSoaAmount(null))
+        .finally(() => setSoaLoading(false));
+    }
+  };
 
   const clearPatient = async () => {
     setClearPriceError('');
@@ -152,7 +195,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           cost_center: user.costCenter,
           actor: clearName.trim(),
           entered_amount: clearPrice,
-          soa_amount: SOA_PRICE,
+          soa_amount: soaAmount ?? 0,
         });
         if (res.data.success) {
           fetchPatients();
@@ -305,7 +348,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                           {p.cc_remarks || <span className="text-gray-400">—</span>}
                         </td>
                         <td className="px-4 py-3.5">
-                          <button onClick={() => { setClearModal(p); setClearName(''); setClearRemarks(''); setClearPrice(''); setClearPassword(''); setClearPriceError(''); setShowClearPass(false); }}
+                          <button onClick={() => openClearModal(p)}
                             className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             Clear Patient
                           </button>
@@ -361,7 +404,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                           }
                         </td>
                         <td className="px-4 py-3.5">
-                          <button onClick={() => { setClearModal(p); setClearName(''); setClearRemarks(''); setClearPrice(''); setClearPassword(''); setClearPriceError(''); setShowClearPass(false); }}
+                          <button onClick={() => openClearModal(p)}
                             className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             Review & Clear
                           </button>
@@ -534,7 +577,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
                           {!isCleared && p.clearance_step === 'cost_center_clearing' && (
-                            <button onClick={() => { setClearModal(p); setClearName(""); setClearRemarks(""); setClearPrice(""); setClearPassword(""); setClearPriceError(""); setShowClearPass(false); }}
+                            <button onClick={() => openClearModal(p)}
                               className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Clear
                             </button>
@@ -569,18 +612,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         // Only show patients that are actually in cost_center_clearing state and not yet cleared by this CC
         return p.clearance_step === 'cost_center_clearing' && (!ccStatuses[p.id] || ccStatuses[p.id].status !== 'cleared');
       })} enabled={toastEnabled} onPatientClick={(patient) => {
-        // Ensure patient has id property
-        const patientData = {
-          ...patient,
-          id: patient.id || patient.patient_id,
-        };
-        setClearModal(patientData);
-        setClearName('');
-        setClearRemarks('');
-        setClearPrice('');
-        setClearPassword('');
-        setClearPriceError('');
-        setShowClearPass(false);
+        openClearModal({ ...patient, id: patient.id || patient.patient_id });
       }} />
       {/* Clear Patient Modal */}
       {clearModal && (
@@ -595,7 +627,22 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">SOA Amount</p>
-                <p className="text-xl font-bold text-emerald-800 mt-0.5">₱{SOA_PRICE.toLocaleString()}.00</p>
+                {soaLoading ? (
+                  <p className="text-sm text-gray-400 mt-0.5">Fetching...</p>
+                ) : soaAmount !== null ? (
+                  <p className="text-xl font-bold text-emerald-800 mt-0.5">₱{soaAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                ) : (
+                  <p className="text-sm text-gray-400 mt-0.5">Not available</p>
+                )}
+                {soaBreakdown.length > 0 && (
+                  <div className="mt-1.5 flex flex-col gap-0.5">
+                    {soaBreakdown.map((b, i) => (
+                      <p key={i} className="text-xs text-emerald-600">
+                        {b.desc}: ₱{b.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
               <svg className="w-8 h-8 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
