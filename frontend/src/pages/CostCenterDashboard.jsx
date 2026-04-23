@@ -540,7 +540,14 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   const isPendingBalance = myStatus?.status === 'pending_balance';
                   const isSentBack = !isCleared && !isPendingBalance && myStatus?.remarks;
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                    <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={async () => {
+                      setViewPatient(p);
+                      try {
+                        const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
+                        if (r.data.success) setViewClearances(r.data.clearances);
+                        else setViewClearances([]);
+                      } catch { setViewClearances([]); }
+                    }}>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                       <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
@@ -560,7 +567,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600 whitespace-nowrap">Pending Balance</span>
                             {myStatus?.remarks && (
-                              <button onClick={() => setRemarksModal({ patient: p, remarks: myStatus.remarks })}
+                              <button onClick={e => { e.stopPropagation(); setRemarksModal({ patient: p, remarks: myStatus.remarks }); }}
                                 className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap">
                                 View Remarks
                               </button>
@@ -578,22 +585,11 @@ export default function CostCenterDashboard({ user, onLogout }) {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
                           {!isCleared && p.clearance_step === 'cost_center_clearing' && (
-                            <button onClick={() => openClearModal(p)}
+                            <button onClick={e => { e.stopPropagation(); openClearModal(p); }}
                               className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Clear
                             </button>
                           )}
-                          <button onClick={async () => {
-                            setViewPatient(p);
-                            try {
-                              const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-                              if (r.data.success) setViewClearances(r.data.clearances);
-                              else setViewClearances([]);
-                            } catch { setViewClearances([]); }
-                          }}
-                            className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                            View
-                          </button>
                         </div>
                       </td>
                     </tr>

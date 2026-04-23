@@ -10,6 +10,7 @@ import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import AdminChatBox from '../components/AdminChatBox';
+import PatientInfoModal from '../components/PatientInfoModal';
 
 const STEP_LABELS = {
   no_request:           { label: 'Admitted',         style: 'bg-gray-100 text-gray-500'       },
@@ -32,7 +33,10 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
-  const [typeFilter, setTypeFilter] = useState('');  const [trackPatient, setTrackPatient]     = useState(null);
+  const [typeFilter, setTypeFilter] = useState('');
+  const [viewPatient, setViewPatient] = useState(null);
+  const [viewClearances, setViewClearances] = useState([]);
+  const [trackPatient, setTrackPatient]     = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading]     = useState(false);
   const [clearModal, setClearModal]         = useState(null);
@@ -286,8 +290,16 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                 const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                 return (
                   <tr key={p.id}
-                    onClick={() => selectMode && toggleSelect(p.id)}
-                    className={`transition-colors ${selectMode ? 'cursor-pointer select-none' : ''} ${selectMode && selected.has(p.id) ? 'bg-red-50/60 hover:bg-red-50' : 'hover:bg-gray-50/70'}`}>
+                    onClick={async () => {
+                      if (selectMode) { toggleSelect(p.id); return; }
+                      setViewPatient(p);
+                      try {
+                        const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
+                        if (r.data.success) setViewClearances(r.data.clearances);
+                        else setViewClearances([]);
+                      } catch { setViewClearances([]); }
+                    }}
+                    className={`transition-colors cursor-pointer ${selectMode ? 'select-none' : ''} ${selectMode && selected.has(p.id) ? 'bg-red-50/60 hover:bg-red-50' : 'hover:bg-gray-50/70'}`}>
                     {selectMode && (
                       <td className="px-4 py-3.5">
                         <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)}
@@ -316,43 +328,42 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {(p.clearance_step === 'no_request' || p.clearance_step === 'awaiting_nurse') && (
-                          <button onClick={() => { setMayGoHomeModal(p); setMghName(''); setMghRemarks(''); }}
+                          <button onClick={e => { e.stopPropagation(); setMayGoHomeModal(p); setMghName(''); setMghRemarks(''); }}
                             className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             May Go Home
                           </button>
                         )}
                         {p.clearance_step === 'awaiting_billing' && (
-                          <button onClick={() => openForClearance(p)}
+                          <button onClick={e => { e.stopPropagation(); openForClearance(p); }}
                             className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             For Clearance
                           </button>
                         )}
-                        {/* Return button — available for any step past may_go_home */}
                         {(p.clearance_step === 'awaiting_billing' || p.clearance_step === 'cost_center_clearing') && (
-                          <button onClick={() => { setReturnModal(p); setReturnName(''); setReturnRemarks(''); }}
+                          <button onClick={e => { e.stopPropagation(); setReturnModal(p); setReturnName(''); setReturnRemarks(''); }}
                             className="text-xs font-semibold bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                             Return
                           </button>
                         )}
                         {p.clearance_step === 'cost_center_clearing' && (
                           <>
-                            <button onClick={() => openClearModal(p)}
+                            <button onClick={e => { e.stopPropagation(); openClearModal(p); }}
                               className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Clear
                             </button>
                             {parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && (
                               <>
-                                <button onClick={() => { setDischargeModal(p); setDischargeName(''); setDischargeRemarks(''); }}
+                                <button onClick={e => { e.stopPropagation(); setDischargeModal(p); setDischargeName(''); setDischargeRemarks(''); }}
                                   className="text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Discharge
                                 </button>
-                                <button onClick={() => openPendingModal(p)}
+                                <button onClick={e => { e.stopPropagation(); openPendingModal(p); }}
                                   className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Pending
                                 </button>
                               </>
                             )}
-                            <button onClick={() => openTracker(p)}
+                            <button onClick={e => { e.stopPropagation(); openTracker(p); }}
                               className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Track
                             </button>
@@ -1291,6 +1302,7 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
       <AdminChatBox />
     </div>
   );

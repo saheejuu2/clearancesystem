@@ -13,6 +13,7 @@ import AwaitingBillingToast from '../components/AwaitingBillingToast';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import ChatBox from '../components/ChatBox';
 import ClearanceFormPrint from '../components/ClearanceFormPrint';
+import PatientInfoModal from '../components/PatientInfoModal';
 
 
 function DischargedList() {
@@ -134,6 +135,8 @@ export default function BillingDashboard({ user, onLogout }) {
   const [dischargeModal, setDischargeModal] = useState(null);
   const [dischargeSuccess, setDischargeSuccess] = useState(null);
   const [printFormPatient, setPrintFormPatient] = useState(null);
+  const [viewPatient, setViewPatient] = useState(null);
+  const [viewClearances, setViewClearances] = useState([]);
   const [reportPatient, setReport] = useState(null);
   const [dischargeRemarks, setDischargeRemarks] = useState("");
   const [dischargeName, setDischargeName] = useState("");
@@ -457,7 +460,7 @@ export default function BillingDashboard({ user, onLogout }) {
                         const allCleared = parseInt(p.total_cc) > 0 && parseInt(p.pending_count) === 0;
                         const isPending = p.has_pending;
                         return (
-                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={async () => { setViewPatient(p); try { const r = await api.get('/get_clearance_report.php?patient_id='+p.id); setViewClearances(r.data.success ? r.data.clearances : []); } catch { setViewClearances([]); } }}>
                             <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
@@ -567,7 +570,7 @@ export default function BillingDashboard({ user, onLogout }) {
                         (!typeFilter || p.patient_type === typeFilter) &&
                         (p.full_name.toLowerCase().includes(search.toLowerCase()) || p.patient_no.toLowerCase().includes(search.toLowerCase()))
                       ).map(p => (
-                      <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                      <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={async () => { setViewPatient(p); try { const r = await api.get('/get_clearance_report.php?patient_id='+p.id); setViewClearances(r.data.success ? r.data.clearances : []); } catch { setViewClearances([]); } }}>
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                         <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
@@ -583,19 +586,19 @@ export default function BillingDashboard({ user, onLogout }) {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => { setDischargeModal(p); setDischargeRemarks(''); setDischargeName(''); }}
+                            <button onClick={e => { e.stopPropagation(); setDischargeModal(p); setDischargeRemarks(''); setDischargeName(''); }}
                               className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Discharge
                             </button>
-                            <button onClick={() => setPrintFormPatient(p)}
+                            <button onClick={e => { e.stopPropagation(); setPrintFormPatient(p); }}
                               className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Generate Form
                             </button>
-                            <button onClick={() => openPendingModal(p)}
+                            <button onClick={e => { e.stopPropagation(); openPendingModal(p); }}
                               className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Send Back
                             </button>
-                            <button onClick={() => setReport(p)}
+                            <button onClick={e => { e.stopPropagation(); setReport(p); }}
                               className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Report
                             </button>
@@ -678,7 +681,7 @@ export default function BillingDashboard({ user, onLogout }) {
                           const cat = getCategory(p);
                           const remarks = pendingRemarks[p.id] || [];
                           return (
-                            <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                            <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={async () => { setViewPatient(p); try { const r = await api.get('/get_clearance_report.php?patient_id='+p.id); setViewClearances(r.data.success ? r.data.clearances : []); } catch { setViewClearances([]); } }}>
                               <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                               <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
@@ -794,7 +797,7 @@ export default function BillingDashboard({ user, onLogout }) {
                       const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                       return (
                         <>
-                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
+                          <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={async () => { setViewPatient(p); try { const r = await api.get('/get_clearance_report.php?patient_id='+p.id); setViewClearances(r.data.success ? r.data.clearances : []); } catch { setViewClearances([]); } }}>
                             <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
@@ -829,25 +832,25 @@ export default function BillingDashboard({ user, onLogout }) {
                             <td className="px-4 py-3.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {p.clearance_step === 'awaiting_billing' && (
-                                  <button onClick={() => openClearanceForm(p)} disabled={actionId === p.id}
+                                  <button onClick={e => { e.stopPropagation(); openClearanceForm(p); }} disabled={actionId === p.id}
                                     className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                     For Clearance
                                   </button>
                                 )}
                                 {p.clearance_step === 'cost_center_clearing' && parseInt(p.pending_count) === 0 && parseInt(p.total_cc) > 0 && (
                                   <>
-                                    <button onClick={() => { setDischargeModal(p); setDischargeRemarks(""); setDischargeName(""); }}
+                                    <button onClick={e => { e.stopPropagation(); setDischargeModal(p); setDischargeRemarks(""); setDischargeName(""); }}
                                       className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                       Discharge
                                     </button>
-                                    <button onClick={() => openPendingModal(p)}
+                                    <button onClick={e => { e.stopPropagation(); openPendingModal(p); }}
                                       className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                       Pending
                                     </button>
                                   </>
                                 )}
                                 {p.request_id && (
-                                  <button onClick={() => setReport(p)}
+                                  <button onClick={e => { e.stopPropagation(); setReport(p); }}
                                     className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                     Report
                                   </button>
@@ -1207,6 +1210,7 @@ export default function BillingDashboard({ user, onLogout }) {
         };
         openClearanceForm(patientData);
       }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
       <ChatBox sender={user.costCenter} />
       {printFormPatient && (
         <ClearanceFormPrint patientId={printFormPatient.id} onClose={() => setPrintFormPatient(null)} />
