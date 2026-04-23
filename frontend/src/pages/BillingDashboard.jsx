@@ -12,6 +12,7 @@ import DashboardOverview from '../components/DashboardOverview';
 import AwaitingBillingToast from '../components/AwaitingBillingToast';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import ChatBox from '../components/ChatBox';
+import ClearanceFormPrint from '../components/ClearanceFormPrint';
 
 
 function DischargedList() {
@@ -132,6 +133,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [actionId, setActionId]     = useState(null);
   const [dischargeModal, setDischargeModal] = useState(null);
   const [dischargeSuccess, setDischargeSuccess] = useState(null);
+  const [printFormPatient, setPrintFormPatient] = useState(null);
   const [reportPatient, setReport] = useState(null);
   const [dischargeRemarks, setDischargeRemarks] = useState("");
   const [dischargeName, setDischargeName] = useState("");
@@ -584,6 +586,10 @@ export default function BillingDashboard({ user, onLogout }) {
                             <button onClick={() => { setDischargeModal(p); setDischargeRemarks(''); setDischargeName(''); }}
                               className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Discharge
+                            </button>
+                            <button onClick={() => setPrintFormPatient(p)}
+                              className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                              Generate Form
                             </button>
                             <button onClick={() => openPendingModal(p)}
                               className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
@@ -1202,6 +1208,9 @@ export default function BillingDashboard({ user, onLogout }) {
         openClearanceForm(patientData);
       }} />
       <ChatBox sender={user.costCenter} />
+      {printFormPatient && (
+        <ClearanceFormPrint patientId={printFormPatient.id} onClose={() => setPrintFormPatient(null)} />
+      )}
     </div>
   );
 }

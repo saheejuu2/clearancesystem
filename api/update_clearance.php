@@ -184,8 +184,9 @@ if ($action === 'cost_center_clear') {
     $pre_row = $stmt_pre->get_result()->fetch_assoc();
     $was_sent_back = !empty($pre_row['remarks']);
 
-    $stmt = $conn->prepare("UPDATE cost_center_clearances SET status='cleared', cleared_at=?, cleared_by=?, remarks=? WHERE clearance_request_id=? AND cost_center=?");
-    $stmt->bind_param("sssis", $now, $actor, $remarks, $req['id'], $cost_center);
+    $stmt = $conn->prepare("UPDATE cost_center_clearances SET status='cleared', cleared_at=?, cleared_by=?, remarks=?, amount=? WHERE clearance_request_id=? AND cost_center=?");
+    $amount = isset($data['soa_amount']) ? (float)$data['soa_amount'] : null;
+    $stmt->bind_param("ssdsis", $now, $actor, $remarks, $amount, $req['id'], $cost_center);
     $stmt->execute();
 
     if ($stmt->affected_rows === 0) {

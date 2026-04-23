@@ -211,6 +211,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           cost_center: user.costCenter,
           actor: clearName.trim(),
           remarks: clearRemarks,
+          soa_amount: soaAmount ?? 0,
         });
         if (res.data.success) {
           setPatients(prev => prev.filter(p => p.id !== patient_id));
