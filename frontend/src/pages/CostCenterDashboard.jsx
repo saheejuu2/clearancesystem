@@ -9,6 +9,7 @@ import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import PendingPatientToast from '../components/PendingPatientToast';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import usePatientInfo from '../hooks/usePatientInfo';
 import CostCenterChatBox from '../components/CostCenterChatBox';
 
 export default function CostCenterDashboard({ user, onLogout }) {
@@ -26,8 +27,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [clearPassword, setClearPassword] = useState('');
   const [clearPriceError, setClearPriceError] = useState('');
   const [showClearPass, setShowClearPass] = useState(false);
-  const [viewPatient, setViewPatient] = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [notifReport, setNotifReport] = useState(null);
   const [clearedPatients, setClearedPatients] = useState([]);
   const [clearedLoading, setClearedLoading]   = useState(false);
@@ -466,14 +466,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                             <td className="px-5 py-4 text-gray-400 text-xs max-w-[180px] truncate">{p.remarks || '—'}</td>
                             <td className="px-5 py-4">
                               <button
-                                onClick={async () => {
-                                  setViewPatient({ id: p.patient_id, ...p });
-                                  try {
-                                    const r = await api.get('/get_clearance_report.php?patient_id=' + p.patient_id);
-                                    if (r.data.success) setViewClearances(r.data.clearances);
-                                    else setViewClearances([]);
-                                  } catch { setViewClearances([]); }
-                                }}
+                                onClick={() => openPatientInfo({ id: p.patient_id, ...p })}
                                 className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
                               >
                                 View
@@ -541,14 +534,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   const isPendingBalance = myStatus?.status === 'pending_balance';
                   const isSentBack = !isCleared && !isPendingBalance && myStatus?.remarks;
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={async () => {
-                      setViewPatient(p);
-                      try {
-                        const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-                        if (r.data.success) setViewClearances(r.data.clearances);
-                        else setViewClearances([]);
-                      } catch { setViewClearances([]); }
-                    }}>
+                    <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={() => openPatientInfo(p)}>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                       <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
@@ -719,7 +705,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
 
       {remarksModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">

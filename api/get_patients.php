@@ -22,7 +22,7 @@ $sql = "
                 THEN CONCAT(TIMESTAMPDIFF(MONTH, p.patbdate, CURDATE()), 'mo')
             ELSE CONCAT(TIMESTAMPDIFF(DAY, p.patbdate, CURDATE()), 'd')
         END AS age,
-        p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type, p.service_type, p.accom_type,
+        p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type, p.service_type, p.accom_type, p.patbdate,
         cr.id AS request_id,
         cr.nurse_status,
         cr.coder_status,

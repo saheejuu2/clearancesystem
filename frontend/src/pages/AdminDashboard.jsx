@@ -9,6 +9,7 @@ import DashboardOverview from '../components/DashboardOverview';
 import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import usePatientInfo from '../hooks/usePatientInfo';
 import AdminChatBox from '../components/AdminChatBox';
 import PatientInfoModal from '../components/PatientInfoModal';
 
@@ -34,8 +35,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [viewPatient, setViewPatient] = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [trackPatient, setTrackPatient]     = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading]     = useState(false);
@@ -290,14 +290,9 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                 const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                 return (
                   <tr key={p.id}
-                    onClick={async () => {
+                    onClick={() => {
                       if (selectMode) { toggleSelect(p.id); return; }
-                      setViewPatient(p);
-                      try {
-                        const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-                        if (r.data.success) setViewClearances(r.data.clearances);
-                        else setViewClearances([]);
-                      } catch { setViewClearances([]); }
+                      openPatientInfo(p);
                     }}
                     className={`transition-colors cursor-pointer ${selectMode ? 'select-none' : ''} ${selectMode && selected.has(p.id) ? 'bg-red-50/60 hover:bg-red-50' : 'hover:bg-gray-50/70'}`}>
                     {selectMode && (
@@ -1303,7 +1298,7 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
       <AdminChatBox />
     </div>
   );

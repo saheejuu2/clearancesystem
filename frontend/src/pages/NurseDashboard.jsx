@@ -9,6 +9,7 @@ import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import usePatientInfo from '../hooks/usePatientInfo';
 import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
@@ -40,8 +41,7 @@ export default function NurseDashboard({ user, onLogout }) {
   const [cancelPassword, setCancelPassword]   = useState('');
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [showCancelPass, setShowCancelPass]   = useState(false);
-  const [viewPatient, setViewPatient] = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [notifReport, setNotifReport] = useState(null);
 
   const [admitSuccess, setAdmitSuccess] = useState(null);
@@ -160,28 +160,6 @@ export default function NurseDashboard({ user, onLogout }) {
       if (res.data.success) { setReclearanceForm(null); fetchPatients(); setAuditKey(k => k + 1); }
       else alert(res.data.message);
     } finally { setReclearancing(false); }
-  };
-
-  const openPatientInfo = async (p) => {
-    let enriched = { ...p };
-    if (p.patient_type !== 'opd') {
-      try {
-        const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.patient_no)}&enccode=${encodeURIComponent(p.ward || '')}`);
-        if (nr.data?.person) {
-          const person = nr.data.person;
-          const enccode = p.ward || '';
-          const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
-          const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
-          enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, patlast: person.patlast, patfirst: person.patfirst, patmiddle: person.patmiddle, patsuffix: person.patsuffix, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', room_bed: person.room_bed || p.room_bed || '—', accom_type: person.accom_type || '—', service_type: person.service_type || '—', admtxt: person.admtxt, admit_time: admTime };
-        }
-      } catch { /* silent */ }
-    }
-    setViewPatient(enriched);
-    try {
-      const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-      if (r.data.success) setViewClearances(r.data.clearances);
-      else setViewClearances([]);
-    } catch { setViewClearances([]); }
   };
 
   const openTracker = async (p) => {
@@ -425,7 +403,7 @@ export default function NurseDashboard({ user, onLogout }) {
       </div>
 
       {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="Nurse" onAction={(action, patient) => { setNotifReport(null); if (action === "may_go_home") openForm(patient); else if (action === "cancel") setCancelForm({ patientId: patient.id, patientName: patient.full_name, nurseName: "", remarks: "" }); }} />}
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
 
       {/* May Go Home Confirm Modal */}
       {confirmForm && (

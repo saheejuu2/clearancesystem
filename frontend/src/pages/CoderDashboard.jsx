@@ -5,6 +5,7 @@ import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import PatientInfoModal from '../components/PatientInfoModal';
 import NotificationBell from '../components/NotificationBell';
+import usePatientInfo from '../hooks/usePatientInfo';
 import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
@@ -20,8 +21,7 @@ export default function CoderDashboard({ user, onLogout }) {
   const [search, setSearch]             = useState('');
   const [filterDate, setFilterDate]     = useState(() => sessionStorage.getItem('coder_filterDate') || new Date().toISOString().split('T')[0]);
   const [typeFilter, setTypeFilter]     = useState(() => sessionStorage.getItem('coder_typeFilter') || '');
-  const [viewPatient, setViewPatient]   = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [actionId, setActionId]         = useState(null);
   const [proceedForm, setProceedForm]   = useState(null);
   const [returnForm, setReturnForm]     = useState(null);
@@ -75,13 +75,6 @@ export default function CoderDashboard({ user, onLogout }) {
     } finally { setActionId(null); }
   };
 
-  const openPatientInfo = async (p) => {
-    setViewPatient(p);
-    try {
-      const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-      setViewClearances(r.data.success ? r.data.clearances : []);
-    } catch { setViewClearances([]); }
-  };
 
   const filtered = patients.filter(p => {
     const q = search.toLowerCase();
@@ -241,7 +234,7 @@ export default function CoderDashboard({ user, onLogout }) {
         </main>
       </div>
 
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
 
       {/* Proceed to Clearance Confirm Modal */}
       {proceedForm && (
