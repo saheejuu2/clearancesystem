@@ -37,6 +37,11 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [mabPass, setMabPass]     = useState('');
   const [mabPassErr, setMabPassErr] = useState('');
   const [showMabPass, setShowMabPass] = useState(false);
+  const [mabCancelConfirm, setMabCancelConfirm] = useState(false);
+  const [mabDrafts, setMabDrafts] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('mab_drafts') || '{}'); }
+    catch { return {}; }
+  });
   const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [notifReport, setNotifReport] = useState(null);
   const [clearedPatients, setClearedPatients] = useState([]);
@@ -157,8 +162,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const openClearModal = (p) => {
     if (user.costCenter === 'MAB') {
       setMabModal(p);
-      setMabFees(emptyProfFees());
-      setMabName(''); setMabPass(''); setMabPassErr(''); setShowMabPass(false);
+      const draft = mabDrafts[p.id];
+      setMabFees(draft ? draft : emptyProfFees());
+      setMabName(''); setMabPass(''); setMabPassErr(''); setShowMabPass(false); setMabCancelConfirm(false);
       return;
     }
     setClearModal(p);
@@ -280,6 +286,32 @@ export default function CostCenterDashboard({ user, onLogout }) {
         setAuditKey(k => k + 1);
       } else { alert(res.data.message); }
     } finally { setActionId(null); }
+  };
+
+  const mabHasData = () => mabFees.some(r => (r.md || '').trim() !== '' || (r.amount || '') !== '');
+
+  const saveMabDraft = () => {
+    const drafts = { ...mabDrafts, [mabModal.id]: mabFees };
+    setMabDrafts(drafts);
+    sessionStorage.setItem('mab_drafts', JSON.stringify(drafts));
+    setMabModal(null);
+    setMabCancelConfirm(false);
+  };
+
+  const discardMab = () => {
+    const drafts = { ...mabDrafts };
+    delete drafts[mabModal.id];
+    setMabDrafts(drafts);
+    sessionStorage.setItem('mab_drafts', JSON.stringify(drafts));
+    setMabModal(null);
+    setMabCancelConfirm(false);
+  };
+
+  const handleMabCancel = () => {
+    try {
+      if (mabHasData()) { setMabCancelConfirm(true); }
+      else { discardMab(); }
+    } catch { discardMab(); }
   };
 
   const clearedFiltered = clearedPatients.filter(p =>
@@ -653,7 +685,11 @@ export default function CostCenterDashboard({ user, onLogout }) {
       {mabModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[92vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-gray-900 mb-0.5">Professional Fees</h3>
+            <h3 className="text-base font-bold text-gray-900 mb-0.5">Professional Fees
+              {mabModal && mabDrafts[mabModal.id] && (
+                <span className="ml-2 text-[10px] font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full align-middle">Draft restored</span>
+              )}
+            </h3>
             <p className="text-sm text-gray-500 mb-5">
               {mabModal.full_name} — <span className="font-mono text-xs">{mabModal.patient_no}</span>
             </p>
@@ -755,9 +791,38 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
                 {actionId === mabModal.id ? 'Processing...' : 'Confirm & Clear'}
               </button>
-              <button onClick={() => setMabModal(null)}
+              <button onClick={handleMabCancel}
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAB Cancel Confirmation */}
+      {mabCancelConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Unsaved Data</h3>
+            <p className="text-sm text-gray-500 mb-6">You have entered professional fee data. What would you like to do?</p>
+            <div className="flex flex-col gap-2">
+              <button onClick={saveMabDraft}
+                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl transition-colors">
+                Save as Draft
+              </button>
+              <button onClick={discardMab}
+                className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm rounded-xl transition-colors">
+                Discard & Close
+              </button>
+              <button onClick={() => setMabCancelConfirm(false)}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-xl transition-colors">
+                Go Back
               </button>
             </div>
           </div>
