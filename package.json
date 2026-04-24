@@ -1,5 +1,9 @@
 {
   "scripts": {
     "ws-server": "cross-env NODE_PATH=./frontend/node_modules node api/websocket-server.js"
+  },
+  "dependencies": {
+    "cross-env": "^10.1.0",
+    "ws": "^8.20.0"
   }
 }

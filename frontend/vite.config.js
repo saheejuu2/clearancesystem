@@ -13,9 +13,10 @@ export default defineConfig(({ command }) => {
     server: {
       proxy: {
         '/clearancesystem/api': {
-          target: 'http://localhost',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
+          rewrite: (path) => path.replace(/^\/clearancesystem\/api/, ''),
         },
       },
     },
