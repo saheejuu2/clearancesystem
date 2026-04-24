@@ -11,6 +11,7 @@ import PendingPatientToast from '../components/PendingPatientToast';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import usePatientInfo from '../hooks/usePatientInfo';
 import CostCenterChatBox from '../components/CostCenterChatBox';
+import AlertModal from '../components/AlertModal';
 
 export default function CostCenterDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState(() => sessionStorage.getItem('cc_tab') || 'patients');
@@ -21,6 +22,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [loading, setLoading]   = useState(false);
   const [actionId, setActionId] = useState(null);
   const [clearModal, setClearModal] = useState(null);
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
   const [clearName, setClearName]       = useState('');
   const [clearRemarks, setClearRemarks] = useState('');
   const [clearPrice, setClearPrice]     = useState('');
@@ -192,9 +195,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   const clearPatient = async () => {
     setClearPriceError('');
-    if (!clearName.trim()) { alert('Please enter your name before confirming.'); return; }
-    if (!clearPrice.trim()) { alert('Please enter the SOA amount.'); return; }
-    if (!clearPassword.trim()) { alert('Please enter your password to confirm.'); return; }
+    if (!clearName.trim()) { showAlert('Please enter your name before confirming.'); return; }
+    if (!clearPrice.trim()) { showAlert('Please enter the SOA amount.'); return; }
+    if (!clearPassword.trim()) { showAlert('Please enter your password to confirm.'); return; }
 
     // Verify password
     try {
@@ -225,7 +228,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           fetchPendingBalance();
           setAuditKey(k => k + 1);
           resetModal();
-        } else { alert(res.data.message); }
+        } else { showAlert(res.data.message); }
       } else {
         // Normal clear
         const res = await api.post('/update_clearance.php', {
@@ -243,7 +246,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           setCcStatuses(prev => ({ ...prev, [patient_id]: { status: 'cleared' } }));
           setAuditKey(k => k + 1);
           resetModal();
-        } else { alert(res.data.message); }
+        } else { showAlert(res.data.message); }
       }
     } finally { setActionId(null); }
   };
@@ -256,8 +259,8 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   const submitMabClear = async () => {
     setMabPassErr('');
-    if (!mabName.trim()) { alert('Please enter your Employee ID.'); return; }
-    if (!mabPass.trim()) { alert('Please enter your password.'); return; }
+    if (!mabName.trim()) { showAlert('Please enter your Employee ID.'); return; }
+    if (!mabPass.trim()) { showAlert('Please enter your password.'); return; }
     try {
       const verify = await api.post('/login.php', { username: user.username, password: mabPass, cost_center: user.costCenter });
       if (!verify.data.success) { setMabPassErr('Incorrect password.'); return; }
@@ -284,7 +287,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         fetchPatients();
         setMabModal(null);
         setAuditKey(k => k + 1);
-      } else { alert(res.data.message); }
+      } else { showAlert(res.data.message); }
     } finally { setActionId(null); }
   };
 
@@ -962,6 +965,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
       <CostCenterChatBox sender={user.costCenter} />
     </div>
   );

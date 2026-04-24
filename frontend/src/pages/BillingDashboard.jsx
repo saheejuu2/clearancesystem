@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import websocketService from '../services/websocket';
 import ClearanceReport from '../components/ClearanceReport';
@@ -15,6 +15,7 @@ import usePatientInfo from '../hooks/usePatientInfo';
 import ChatBox from '../components/ChatBox';
 import ClearanceFormPrint from '../components/ClearanceFormPrint';
 import PatientInfoModal from '../components/PatientInfoModal';
+import AlertModal from '../components/AlertModal';
 
 
 function DischargedList() {
@@ -128,6 +129,8 @@ const SERVICE_COST_CENTERS = {
 
 export default function BillingDashboard({ user, onLogout }) {
   const [tab, setTab]               = useState(() => sessionStorage.getItem('billing_tab') || 'patients');
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
   const setTabPersist = (t) => { sessionStorage.setItem('billing_tab', t); setTab(t); };
   const [auditKey, setAuditKey]     = useState(0);
   const [patients, setPatients]     = useState([]);
@@ -183,7 +186,7 @@ export default function BillingDashboard({ user, onLogout }) {
   };
 
   const submitFollowUp = async () => {
-    if (followUpSelected.length === 0) { alert('Select at least one cost center.'); return; }
+    if (followUpSelected.length === 0) { showAlert('Select at least one cost center.'); return; }
     setFollowUpLoading(true);
     try {
       await Promise.all(followUpSelected.map(cc => {
@@ -307,7 +310,7 @@ export default function BillingDashboard({ user, onLogout }) {
 
   const sendForClearance = async () => {
     if (!clearanceForm || clearanceForm.selected.length === 0) {
-      alert('Select at least one cost center.');
+      showAlert('Select at least one cost center.');
       return;
     }
     setActionId(clearanceForm.patientId);
@@ -319,36 +322,36 @@ export default function BillingDashboard({ user, onLogout }) {
         cost_centers: clearanceForm.selected,
       });
       if (res.data.success) { setClearanceForm(null); fetchPatients(); }
-      else { alert(res.data.message); setClearanceForm(null); }
-    } catch { alert('An error occurred. Please try again.'); }
+      else { showAlert(res.data.message); setClearanceForm(null); }
+    } catch { showAlert('An error occurred. Please try again.'); }
     finally { setActionId(null); }
   };
 
   const discharge = async () => {
-    if (!dischargeName.trim()) { alert("Please enter your username before discharging."); return; }
-    if (!dischargePassword.trim()) { alert("Please enter your password before discharging."); return; }
+    if (!dischargeName.trim()) { showAlert("Please enter your username before discharging."); return; }
+    if (!dischargePassword.trim()) { showAlert("Please enter your password before discharging."); return; }
     try {
       const verify = await api.post('/login.php', { username: dischargeName.trim(), password: dischargePassword, cost_center: user.costCenter });
-      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
-    } catch { alert('Could not verify credentials.'); return; }
-    if (!dischargeRemarks.trim()) { alert("Please enter final remarks before discharging."); return; }
+      if (!verify.data.success) { showAlert('Incorrect username or password.'); return; }
+    } catch { showAlert('Could not verify credentials.'); return; }
+    if (!dischargeRemarks.trim()) { showAlert("Please enter final remarks before discharging."); return; }
     const patient_id = dischargeModal.id;
     setActionId(patient_id);
     try {
       const res = await api.post("/update_clearance.php", { action: "discharge", patient_id, actor: dischargeName.trim(), remarks: dischargeRemarks });
       if (res.data.success) { setDischargeSuccess({ full_name: dischargeModal.full_name, patient_no: dischargeModal.patient_no }); setDischargeModal(null); setDischargeRemarks(""); setDischargeName(""); setDischargePassword(""); fetchPatients(); setAuditKey(k => k + 1); }
-      else alert(res.data.message);
+      else showAlert(res.data.message);
     } finally { setActionId(null); }
   };
 
   const submitPending = async () => {
-    if (pendingSelectedCCs.length === 0) { alert('Please select at least one cost center.'); return; }
-    if (!pendingActor.trim()) { alert('Please enter your username.'); return; }
-    if (!pendingPassword.trim()) { alert('Please enter your password.'); return; }
+    if (pendingSelectedCCs.length === 0) { showAlert('Please select at least one cost center.'); return; }
+    if (!pendingActor.trim()) { showAlert('Please enter your username.'); return; }
+    if (!pendingPassword.trim()) { showAlert('Please enter your password.'); return; }
     try {
       const verify = await api.post('/login.php', { username: pendingActor.trim(), password: pendingPassword, cost_center: user.costCenter });
-      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
-    } catch { alert('Could not verify credentials.'); return; }
+      if (!verify.data.success) { showAlert('Incorrect username or password.'); return; }
+    } catch { showAlert('Could not verify credentials.'); return; }
     setPendingLoading(true);
     try {
       const res = await api.post('/send_back_clearance.php', {
@@ -367,7 +370,7 @@ export default function BillingDashboard({ user, onLogout }) {
         fetchPatients();
         setAuditKey(k => k + 1);
       } else {
-        alert(res.data.message);
+        showAlert(res.data.message);
       }
     } finally { setPendingLoading(false); }
   };
@@ -1242,6 +1245,7 @@ export default function BillingDashboard({ user, onLogout }) {
         openClearanceForm(patientData);
       }} />
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
       <ChatBox sender={user.costCenter} />
       {printFormPatient && (
         <ClearanceFormPrint patientId={printFormPatient.id} onClose={() => setPrintFormPatient(null)} />

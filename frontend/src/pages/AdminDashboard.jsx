@@ -12,6 +12,7 @@ import useWebSocketPatients from '../hooks/useWebSocketPatients';
 import usePatientInfo from '../hooks/usePatientInfo';
 import AdminChatBox from '../components/AdminChatBox';
 import PatientInfoModal from '../components/PatientInfoModal';
+import AlertModal from '../components/AlertModal';
 
 const STEP_LABELS = {
   no_request:           { label: 'Admitted',         style: 'bg-gray-100 text-gray-500'       },
@@ -35,6 +36,8 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
   const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [trackPatient, setTrackPatient]     = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
@@ -115,14 +118,14 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
     } catch { /* silent */ }
   };
   const submitClear = async () => {
-    if (!clearSelected.length) { alert('Select at least one cost center.'); return; }
+    if (!clearSelected.length) { showAlert('Select at least one cost center.'); return; }
     setClearing(true);
     try {
       for (const cc of clearSelected) {
         await api.post('/update_clearance.php', { action: 'cost_center_clear', patient_id: clearModal.patient.id, cost_center: cc, actor: 'Admin', remarks: clearRemarks.trim() });
       }
       setClearModal(null); refetch();
-    } catch { alert('An error occurred.'); }
+    } catch { showAlert('An error occurred.'); }
     finally { setClearing(false); }
   };
 
@@ -130,7 +133,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
     setMghSaving(true);
     try {
       const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id: mayGoHomeModal.id, actor: 'Admin', remarks: mghRemarks.trim() });
-      if (res.data.success) { setMayGoHomeModal(null); setMghRemarks(''); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setMayGoHomeModal(null); setMghRemarks(''); refetch(); } else showAlert(res.data.message);
     } finally { setMghSaving(false); }
   };
 
@@ -146,25 +149,25 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
         remarks: returnRemarks.trim() || defaultRemarks,
       });
       if (res.data.success) { setReturnModal(null); setReturnRemarks(''); refetch(); }
-      else alert(res.data.message);
+      else showAlert(res.data.message);
     } finally { setReturnSaving(false); }
   };
 
   const openForClearance = (p) => setForClearanceModal({ patient: p, service: '', selected: [] });
   const sendForClearance = async () => {
-    if (!forClearanceModal.selected.length) { alert('Select at least one cost center.'); return; }
+    if (!forClearanceModal.selected.length) { showAlert('Select at least one cost center.'); return; }
     try {
       const res = await api.post('/update_clearance.php', { action: 'for_clearance', patient_id: forClearanceModal.patient.id, actor: 'Admin', cost_centers: forClearanceModal.selected });
-      if (res.data.success) { setForClearanceModal(null); refetch(); } else { alert(res.data.message); setForClearanceModal(null); }
-    } catch { alert('An error occurred. Please try again.'); setForClearanceModal(null); }
+      if (res.data.success) { setForClearanceModal(null); refetch(); } else { showAlert(res.data.message); setForClearanceModal(null); }
+    } catch { showAlert('An error occurred. Please try again.'); setForClearanceModal(null); }
   };
 
   const submitDischarge = async () => {
-    if (!dischargeRemarks.trim()) { alert('Enter final remarks.'); return; }
+    if (!dischargeRemarks.trim()) { showAlert('Enter final remarks.'); return; }
     setDischargeSaving(true);
     try {
       const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id: dischargeModal.id, actor: 'Admin', remarks: dischargeRemarks });
-      if (res.data.success) { setDischargeModal(null); setDischargeRemarks(''); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setDischargeModal(null); setDischargeRemarks(''); refetch(); } else showAlert(res.data.message);
     } finally { setDischargeSaving(false); }
   };
 
@@ -176,11 +179,11 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
     } catch { /* silent */ }
   };
   const submitPending = async () => {
-    if (!pendingSelected.length) { alert('Select at least one cost center.'); return; }
+    if (!pendingSelected.length) { showAlert('Select at least one cost center.'); return; }
     setPendingSaving(true);
     try {
       const res = await api.post('/send_back_clearance.php', { patient_id: pendingModal.id, actor: 'Admin', cost_centers: pendingSelected, reason: pendingReason.trim() || 'Missing requirements' });
-      if (res.data.success) { setPendingModal(null); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setPendingModal(null); refetch(); } else showAlert(res.data.message);
     } finally { setPendingSaving(false); }
   };
 
@@ -206,7 +209,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
         setSelectMode(false);
         setSelectedIds(new Set());
         refetch();
-      } else alert(res.data.message);
+      } else showAlert(res.data.message);
     } finally { setDeleting(false); }
   };
 
@@ -639,6 +642,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
           </div>
         </div>
       )}
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
     </div>
   );
 }
@@ -662,6 +666,8 @@ const EyeIcon = ({ show, onClick }) => (
 
 export default function AdminDashboard({ user, onLogout }) {
   const [tab, setTab] = useState(() => sessionStorage.getItem('admin_tab') || 'dashboard');
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
   const setTabPersist = (t) => { sessionStorage.setItem('admin_tab', t); setTab(t); };
   const [auditKey, setAuditKey]   = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -708,7 +714,7 @@ export default function AdminDashboard({ user, onLogout }) {
         setAdminClearRemarks('');
         fetchAdminPendingBalance();
       } else {
-        alert(res.data.message);
+        showAlert(res.data.message);
       }
     } finally { setAdminClearSaving(false); }
   };
@@ -787,13 +793,13 @@ export default function AdminDashboard({ user, onLogout }) {
 
   const handleSave = async () => {
     const { username, full_name, password, confirmPassword, cost_center } = form.data;
-    if (!username.trim() || !full_name.trim() || !cost_center) { alert('Username, full name, and cost center are required.'); return; }
-    if (form.mode === 'create' && !password.trim()) { alert('Password is required for new accounts.'); return; }
-    if (password && password !== confirmPassword) { alert('Passwords do not match.'); return; }
+    if (!username.trim() || !full_name.trim() || !cost_center) { showAlert('Username, full name, and cost center are required.'); return; }
+    if (form.mode === 'create' && !password.trim()) { showAlert('Password is required for new accounts.'); return; }
+    if (password && password !== confirmPassword) { showAlert('Passwords do not match.'); return; }
     setSaving(true);
     try {
       const res = await api.post(`/manage_users.php?action=${form.mode === 'create' ? 'create' : 'edit'}`, form.data);
-      if (res.data.success) { setForm(null); fetchAll(); } else alert(res.data.message);
+      if (res.data.success) { setForm(null); fetchAll(); } else showAlert(res.data.message);
     } finally { setSaving(false); }
   };
 
@@ -801,7 +807,7 @@ export default function AdminDashboard({ user, onLogout }) {
     setSaving(true);
     try {
       const res = await api.post('/manage_users.php?action=delete', { id });
-      if (res.data.success) { setDeleteId(null); fetchAll(); } else alert(res.data.message);
+      if (res.data.success) { setDeleteId(null); fetchAll(); } else showAlert(res.data.message);
     } finally { setSaving(false); }
   };
 
@@ -1299,6 +1305,7 @@ export default function AdminDashboard({ user, onLogout }) {
         </div>
       )}
       <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
       <AdminChatBox />
     </div>
   );
