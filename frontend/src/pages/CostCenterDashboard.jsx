@@ -31,7 +31,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [clearPriceError, setClearPriceError] = useState('');
   const [showClearPass, setShowClearPass] = useState(false);
 
-  // MAB Professional Fees � array-based so multiple doctors per specialty
+  // MAB Professional Fees - array-based so multiple doctors per specialty
   const MAB_FEE_ROWS = ['OB-GYN', 'Surgery', 'Anesth', 'Pedia', 'Medicine', 'CP Clearance', 'Asst'];
   const emptyProfFees = () => MAB_FEE_ROWS.map(r => ({ specialty: r, md: '', amount: '', paid: false }));
   const [mabModal, setMabModal] = useState(null);
@@ -269,7 +269,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
     const totalAmount = mabFees.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
     const remarksLines = mabFees
       .filter(r => r.md || r.amount)
-      .map(r => `${r.specialty}: ${r.md || '�'} ?${r.amount || '0'} [${r.paid ? 'Paid' : 'Unpaid'}]`)
+      .map(r => `${r.specialty}: ${r.md || '-'} ?${r.amount || '0'} [${r.paid ? 'Paid' : 'Unpaid'}]`)
       .join(' | ');
 
     setActionId(mabModal.id);
@@ -569,7 +569,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} � Clearance</h1>
+          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} - Clearance</h1>
           <p className="text-sm text-gray-400 mt-0.5">Review and clear patients assigned to your department</p>
         </div>
 
@@ -694,7 +694,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               )}
             </h3>
             <p className="text-sm text-gray-500 mb-5">
-              {mabModal.full_name} � <span className="font-mono text-xs">{mabModal.patient_no}</span>
+              {mabModal.full_name} - <span className="font-mono text-xs">{mabModal.patient_no}</span>
             </p>
             <div className="border border-gray-200 rounded-xl overflow-hidden mb-5">
               <div className="grid grid-cols-[130px_1fr_130px_90px_52px_44px] bg-gray-50 border-b border-gray-200">

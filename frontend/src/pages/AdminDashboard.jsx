@@ -306,8 +306,8 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                     )}
                     <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                     <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
-                    {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '�'}</td>}
-                    {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '�'}</td>}
+                    {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '-'}</td>}
+                    {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '-'}</td>}
                     <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                       {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
                     </td>
@@ -510,7 +510,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Return Patient</h3>
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-semibold text-gray-800">{returnModal.full_name}</span> ({returnModal.patient_no}) � choose where to return this patient.
+              <span className="font-semibold text-gray-800">{returnModal.full_name}</span> ({returnModal.patient_no}) - choose where to return this patient.
             </p>
             <div className="flex flex-col gap-1.5 mb-5">
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Reason <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -519,7 +519,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                 className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none" />
             </div>
             <div className="flex flex-col gap-2">
-              {/* Return to Clearance � only if patient is fully cleared (all CCs done) */}
+              {/* Return to Clearance - only if patient is fully cleared (all CCs done) */}
               {returnModal.clearance_step === 'cost_center_clearing' && parseInt(returnModal.pending_count) === 0 && parseInt(returnModal.total_cc) > 0 && (
                 <button onClick={() => submitReturn('clearance')} disabled={returnSaving}
                   className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
@@ -937,7 +937,7 @@ export default function AdminDashboard({ user, onLogout }) {
                               className="hover:bg-gray-50/70 transition-colors cursor-pointer border-b border-gray-50">
                               <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                               <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '�')}</td>
+                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '-')}</td>
                               <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
                                 {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
                               </td>
