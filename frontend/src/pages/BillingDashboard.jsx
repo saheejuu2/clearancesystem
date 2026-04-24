@@ -278,7 +278,7 @@ export default function BillingDashboard({ user, onLogout }) {
     const base = svc ? [...SERVICE_COST_CENTERS[svc]] : [];
     const isPay = (p.accom_type || '').toLowerCase().trim() === 'pay';
     if (isPay && !base.includes('MAB')) base.push('MAB');
-    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: svc, isBaby: false, isOBNewborn: false, selected: base });
+    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: svc, isBaby: false, selected: base });
   };
 
   const sendForClearance = async () => {
@@ -1032,7 +1032,7 @@ export default function BillingDashboard({ user, onLogout }) {
                 onChange={e => {
                   const svc = e.target.value;
                   const base = svc ? [...SERVICE_COST_CENTERS[svc]] : [];
-                  setClearanceForm(f => ({ ...f, service: svc, isBaby: false, isOBNewborn: false, selected: base }));
+                  setClearanceForm(f => ({ ...f, service: svc, isBaby: false, selected: base }));
                 }}
                 className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
               >
@@ -1059,23 +1059,6 @@ export default function BillingDashboard({ user, onLogout }) {
                   className="w-4 h-4 accent-emerald-600"
                 />
                 <span className="text-sm font-medium text-amber-800">{clearanceForm.service === 'OB' ? 'Patient has a newborn (add Newborn Screening & Hearing Test)' : 'Patient has a newborn (add Newborn Screening & Hearing Test)'}</span>
-              </label>
-            )}
-
-            {clearanceForm.service === 'OB' && (
-              <label className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-purple-100 bg-purple-50 mb-4 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={clearanceForm.isOBNewborn}
-                  onChange={e => {
-                    const newborn = e.target.checked;
-                    const base = [...SERVICE_COST_CENTERS.OB];
-                    if (newborn) base.push('Newborn Screening', 'Newborn Hearing Test');
-                    setClearanceForm(f => ({ ...f, isOBNewborn: newborn, selected: base }));
-                  }}
-                  className="w-4 h-4 accent-emerald-600"
-                />
-                <span className="text-sm font-medium text-purple-800">Patient have a newborn (add Newborn Screening & Hearing Test)</span>
               </label>
             )}
 
