@@ -21,6 +21,7 @@ const COST_CENTERS = [
   'Laboratory',
   'Bloodbank',
   'Pharmacy',
+  'Medical Coder'
 ];
 
 export default function ChatBox({ sender }) {

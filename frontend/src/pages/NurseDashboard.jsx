@@ -8,7 +8,8 @@ import StaffManager from '../components/StaffManager';
 import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
-import useWebSocketPatients from '../hooks/useWebSocketPatients';import ChatBox from '../components/ChatBox';
+import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',        style: 'bg-gray-100 text-gray-500'       },

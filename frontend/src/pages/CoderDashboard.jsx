@@ -5,9 +5,10 @@ import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import PatientInfoModal from '../components/PatientInfoModal';
 import NotificationBell from '../components/NotificationBell';
+import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
-  awaiting_coder:       { label: 'For Coding',     style: 'bg-indigo-100 text-indigo-600' },
+  awaiting_coder:       { label: 'For Coding',     style: 'bg-emerald-100 text-emerald-600' },
   awaiting_billing:     { label: 'Forwarded',       style: 'bg-blue-100 text-blue-600'    },
   cost_center_clearing: { label: 'Clearance',       style: 'bg-amber-100 text-amber-600'  },
   discharged:           { label: 'Discharged',      style: 'bg-emerald-100 text-emerald-700' },
@@ -23,7 +24,7 @@ export default function CoderDashboard({ user, onLogout }) {
   const [viewClearances, setViewClearances] = useState([]);
   const [actionId, setActionId]         = useState(null);
   const [proceedForm, setProceedForm]   = useState(null);
-  const [returnForm, setReturnForm]     = useState(null); // { patientId, patientName, remarks }
+  const [returnForm, setReturnForm]     = useState(null);
 
   const setFilterDateP = (v) => { sessionStorage.setItem('coder_filterDate', v); setFilterDate(v); };
   const setTypeFilterP = (v) => { sessionStorage.setItem('coder_typeFilter', v); setTypeFilter(v); };
@@ -93,12 +94,12 @@ export default function CoderDashboard({ user, onLogout }) {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      <header className="bg-indigo-800 sticky top-0 z-10 shadow">
+      <header className="bg-emerald-800 sticky top-0 z-10 shadow">
         <div className="w-full px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={`${import.meta.env.BASE_URL}GEAMH-LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
-              <p className="text-[10px] text-indigo-300 uppercase tracking-widest">Hospital Clearance System</p>
+              <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
               <p className="text-white font-semibold text-sm">Medical Coder</p>
             </div>
           </div>
@@ -124,7 +125,7 @@ export default function CoderDashboard({ user, onLogout }) {
               { value: 'opd',        label: 'OPD',          dot: 'bg-green-400' },
             ].map(t => (
               <button key={t.value} onClick={() => setTypeFilterP(t.value)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${typeFilter === t.value ? 'bg-indigo-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${typeFilter === t.value ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
                 <span className={`w-2 h-2 rounded-full shrink-0 ${typeFilter === t.value ? 'bg-white' : t.dot}`} />
                 <span className="flex-1">{t.label}</span>
                 {t.value !== '' && patients.filter(p => p.patient_type === t.value).length > 0 && (
@@ -153,7 +154,7 @@ export default function CoderDashboard({ user, onLogout }) {
                 <p className="text-sm text-gray-400 mt-0.5">Review and forward patients to billing after coding</p>
               </div>
               {pendingCount > 0 && (
-                <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full">
                   {pendingCount} for coding
                 </span>
               )}
@@ -171,7 +172,7 @@ export default function CoderDashboard({ user, onLogout }) {
                     setFilterDateP(next);
                     fetchPatients(next);
                   }}
-                  className={`text-xs font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap ${filterDate === 'all' ? 'bg-indigo-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  className={`text-xs font-semibold px-3 py-2.5 rounded-xl transition-colors whitespace-nowrap ${filterDate === 'all' ? 'bg-emerald-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                   All Dates
                 </button>
               </div>
@@ -217,7 +218,7 @@ export default function CoderDashboard({ user, onLogout }) {
                                 <button
                                   onClick={e => { e.stopPropagation(); setProceedForm({ patientId: p.id, patientName: p.full_name, icd10_code: '', icd10_description: '', case_type: '', procedure_done: '', remarks: '' }); }}
                                   disabled={actionId === p.id}
-                                  className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                  className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Proceed to Clearance
                                 </button>
                                 <button
@@ -259,14 +260,14 @@ export default function CoderDashboard({ user, onLogout }) {
                   <input type="text" placeholder="e.g. J18.9"
                     value={proceedForm.icd10_code}
                     onChange={e => setProceedForm(f => ({ ...f, icd10_code: e.target.value.toUpperCase() }))}
-                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono" />
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono" />
                 </div>
                 <div className="col-span-2 flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Diagnosis Description</label>
                   <input type="text" placeholder="e.g. Pneumonia, unspecified"
                     value={proceedForm.icd10_description}
                     onChange={e => setProceedForm(f => ({ ...f, icd10_description: e.target.value }))}
-                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
               </div>
 
@@ -275,11 +276,11 @@ export default function CoderDashboard({ user, onLogout }) {
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Case Type</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['Ordinary', 'Catastrophic', 'TB-DOTS', 'Z Benefit', 'Case Rate', 'Per Diem'].map(ct => (
-                    <label key={ct} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors text-sm ${proceedForm.case_type === ct ? 'bg-indigo-50 border-indigo-400 text-indigo-700 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                    <label key={ct} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors text-sm ${proceedForm.case_type === ct ? 'bg-emerald-50 border-emerald-400 text-emerald-700 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                       <input type="radio" name="case_type" value={ct}
                         checked={proceedForm.case_type === ct}
                         onChange={() => setProceedForm(f => ({ ...f, case_type: ct }))}
-                        className="accent-indigo-600 shrink-0" />
+                        className="accent-emerald-600 shrink-0" />
                       {ct}
                     </label>
                   ))}
@@ -292,7 +293,7 @@ export default function CoderDashboard({ user, onLogout }) {
                 <input type="text" placeholder="e.g. Appendectomy, Caesarean Section"
                   value={proceedForm.procedure_done}
                   onChange={e => setProceedForm(f => ({ ...f, procedure_done: e.target.value }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
               </div>
 
               {/* Remarks */}
@@ -302,13 +303,13 @@ export default function CoderDashboard({ user, onLogout }) {
                   rows={2}
                   value={proceedForm.remarks}
                   onChange={e => setProceedForm(f => ({ ...f, remarks: e.target.value }))}
-                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
               </div>
             </div>
 
             <div className="flex gap-2 mt-5">
               <button onClick={submitProceed} disabled={actionId === proceedForm.patientId}
-                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
                 {actionId === proceedForm.patientId ? 'Processing...' : 'Confirm & Forward to Billing'}
               </button>
               <button onClick={() => setProceedForm(null)}
@@ -319,6 +320,7 @@ export default function CoderDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+
       {/* Return to Nurse Modal */}
       {returnForm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -348,6 +350,7 @@ export default function CoderDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <ChatBox sender={user.costCenter} />
     </div>
   );
 }
