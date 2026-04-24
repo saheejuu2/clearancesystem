@@ -105,13 +105,72 @@ if ($action === 'may_go_home') {
     }
     $stmt->execute();
     log_audit($conn, $patient_id, $patient, "Nurse - May Go Home", $actor);
-    notify($conn, "Billing", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") is ready for billing review.");
+    notify($conn, "Coder", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") is ready for coding review.");
     
-    // Broadcast update to Nurse and Billing dashboards
+    // Broadcast update to Nurse, Coder, and Billing dashboards
     fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, 'Coder', $today);
     fetchAndBroadcastPatients($conn, 'Billing', $today);
     
     echo json_encode(["success" => true, "message" => "Patient marked as may go home."]);
+    exit();
+}
+
+// Coder → Return to Nurse
+if ($action === 'coder_return_to_nurse') {
+    $req = get_request($conn, $patient_id);
+
+    if (!$req || $req['nurse_status'] !== 'may_go_home') {
+        echo json_encode(["success" => false, "message" => "Patient is not in coding queue."]);
+        exit();
+    }
+
+    // Reset nurse status back to pending, clear coder status
+    $stmt = $conn->prepare("UPDATE clearance_requests SET nurse_status='pending', coder_status='pending', coder_cleared_at=NULL, coder_cleared_by=NULL WHERE id=?");
+    $stmt->bind_param("i", $req['id']);
+    $stmt->execute();
+
+    log_audit($conn, $patient_id, $patient, "Coder - Returned to Nurse", $actor, $remarks);
+    notify($conn, "Nurse", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") was returned by Coder: " . ($remarks ?: 'Please review.'));
+
+    fetchAndBroadcastPatients($conn, 'Coder', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+
+    echo json_encode(["success" => true, "message" => "Patient returned to nurse."]);
+    exit();
+}
+
+// STEP 1.5: Coder → Proceed to Billing
+if ($action === 'proceed_to_billing') {
+    $req = get_request($conn, $patient_id);
+
+    if (!$req || $req['nurse_status'] !== 'may_go_home') {
+        echo json_encode(["success" => false, "message" => "Nurse must mark patient as may go home first."]);
+        exit();
+    }
+    if ($req['coder_status'] === 'proceeded') {
+        echo json_encode(["success" => false, "message" => "Already proceeded to billing."]);
+        exit();
+    }
+
+    $icd10_code        = trim($data['icd10_code']        ?? '');
+    $icd10_description = trim($data['icd10_description'] ?? '');
+    $case_type         = trim($data['case_type']         ?? '');
+    $procedure_done    = trim($data['procedure_done']    ?? '');
+
+    $stmt = $conn->prepare("UPDATE clearance_requests SET coder_status='proceeded', coder_cleared_at=?, coder_cleared_by=?, icd10_code=?, icd10_description=?, case_type=?, procedure_done=? WHERE id=?");
+    $stmt->bind_param("ssssssi", $now, $actor, $icd10_code, $icd10_description, $case_type, $procedure_done, $req['id']);
+    $stmt->execute();
+
+    log_audit($conn, $patient_id, $patient, "Coder - Proceeded to Billing", $actor, $remarks);
+    notify($conn, "Billing", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") has been coded and is ready for billing review.");
+    notify($conn, "Nurse",   $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") has been coded and forwarded to billing.");
+
+    fetchAndBroadcastPatients($conn, 'Coder', $today);
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+
+    echo json_encode(["success" => true, "message" => "Patient forwarded to billing."]);
     exit();
 }
 
@@ -325,6 +384,48 @@ if ($action === 'cancel_discharge') {
     fetchAndBroadcastPatients($conn, 'Admin', $today);
     
     echo json_encode(["success" => true, "message" => "Discharge process cancelled. Patient reset to admitted."]);
+    exit();
+}
+
+// RECLEARANCE: Nurse Re-initiate Clearance for Discharged Patient
+if ($action === 'reclearance') {
+    $req = get_request($conn, $patient_id);
+
+    if (!$req) {
+        echo json_encode(["success" => false, "message" => "No clearance record found for this patient."]);
+        exit();
+    }
+    if ($req['final_status'] !== 'discharged') {
+        echo json_encode(["success" => false, "message" => "Patient is not discharged. Only discharged patients can be re-cleared."]);
+        exit();
+    }
+
+    $request_id = $req['id'];
+
+    // Delete old cost center clearances
+    $stmt = $conn->prepare("DELETE FROM cost_center_clearances WHERE clearance_request_id = ?");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+
+    // Delete the old clearance request
+    $stmt2 = $conn->prepare("DELETE FROM clearance_requests WHERE id = ?");
+    $stmt2->bind_param("i", $request_id);
+    $stmt2->execute();
+
+    // Create new clearance request starting from "may_go_home"
+    $stmt3 = $conn->prepare("INSERT INTO clearance_requests (patient_id, nurse_status, nurse_cleared_at, nurse_cleared_by) VALUES (?, 'may_go_home', ?, ?)");
+    $stmt3->bind_param("iss", $patient_id, $now, $actor);
+    $stmt3->execute();
+
+    log_audit($conn, $patient_id, $patient, "Nurse - Reclearance Initiated", $actor, $remarks);
+    notify($conn, "Billing", $patient_id, $patient, "Patient " . $patient["full_name"] . " (" . $patient["patient_no"] . ") needs reclearance (readmitted).");
+    
+    // Broadcast update to all dashboards
+    fetchAndBroadcastPatients($conn, 'Billing', $today);
+    fetchAndBroadcastPatients($conn, 'Nurse', $today);
+    fetchAndBroadcastPatients($conn, 'Admin', $today);
+    
+    echo json_encode(["success" => true, "message" => "Patient reclearance initiated. Ready for billing review."]);
     exit();
 }
 

@@ -94,6 +94,7 @@ echo json_encode([
         "patlast"   => $person['patlast'],
         "patfirst"  => $person['patfirst'],
         "patmiddle" => $person['patmiddle'],
+        "patsuffix" => $person['patsuffix'] ?? '',
         "patsex"    => $person['patsex'],
         "patbdate"  => $person['patbdate'],
         "pattelno"  => $person['pattelno'],

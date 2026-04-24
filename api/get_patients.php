@@ -25,6 +25,7 @@ $sql = "
         p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type, p.service_type, p.accom_type,
         cr.id AS request_id,
         cr.nurse_status,
+        cr.coder_status,
         cr.billing_status,
         cr.final_status,
         cr.discharged_at,
@@ -113,18 +114,18 @@ $filtered = array_filter($all, function($p) use ($role, $already_cleared, $windo
 
     switch ($role) {
         case 'Nurse':
-            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing', 'discharged'])
+            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_coder', 'awaiting_billing', 'cost_center_clearing', 'discharged'])
                 && $p['patient_type'] !== 'opd';
 
         case 'ER Nurse':
-            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing', 'discharged'])
+            return in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_coder', 'awaiting_billing', 'cost_center_clearing', 'discharged'])
                 && $p['patient_type'] === 'er';
 
         case 'OB Nurse':
         case 'Pediatrics Nurse':
         case 'Medical Nurse':
         case 'Surgery Nurse':
-            if (!in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_billing', 'cost_center_clearing', 'discharged'])) return false;
+            if (!in_array($step, ['no_request', 'awaiting_nurse', 'awaiting_coder', 'awaiting_billing', 'cost_center_clearing', 'discharged'])) return false;
             $allowed = $nurse_service_map[$role] ?? [];
             if (empty($allowed)) return true;
             $svc = strtoupper(trim($p['service_type'] ?? ''));
@@ -132,6 +133,9 @@ $filtered = array_filter($all, function($p) use ($role, $already_cleared, $windo
 
         case 'Billing':
             return in_array($step, ['awaiting_billing', 'cost_center_clearing', 'discharged']);
+
+        case 'Coder':
+            return in_array($step, ['awaiting_coder', 'awaiting_billing', 'cost_center_clearing', 'discharged']);
 
         case 'Admin':
             return true; // Admin sees all patients
@@ -152,7 +156,8 @@ function get_step($row) {
     if (!$row['request_id'])                        return 'no_request';
     if ($row['final_status'] === 'discharged')      return 'discharged';
     if ($row['billing_status'] === 'for_clearance') return 'cost_center_clearing';
-    if ($row['nurse_status'] === 'may_go_home')     return 'awaiting_billing';
+    if ($row['nurse_status'] === 'may_go_home' && $row['coder_status'] === 'proceeded') return 'awaiting_billing';
+    if ($row['nurse_status'] === 'may_go_home')     return 'awaiting_coder';
     return 'awaiting_nurse';
 }
 ?>

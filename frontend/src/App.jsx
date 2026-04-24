@@ -4,6 +4,7 @@ import NurseDashboard from './pages/NurseDashboard';
 import BillingDashboard from './pages/BillingDashboard';
 import CostCenterDashboard from './pages/CostCenterDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import CoderDashboard from './pages/CoderDashboard';
 import IdleLockScreen from './components/IdleLockScreen';
 import useIdleTimeout from './hooks/useIdleTimeout';
 
@@ -34,6 +35,7 @@ const dashboard = ({ user, onLogout }) => {
   if (user.costCenter === 'Nurse')     return <NurseDashboard    user={user} onLogout={onLogout} />;
   if (['ER Nurse','OB Nurse','Pediatrics Nurse','Medical Nurse','Surgery Nurse'].includes(user.costCenter)) return <NurseDashboard user={user} onLogout={onLogout} />;
   if (user.costCenter === 'Billing')   return <BillingDashboard  user={user} onLogout={onLogout} />;
+  if (user.costCenter === 'Coder')     return <CoderDashboard    user={user} onLogout={onLogout} />;
   if (COST_CENTERS.includes(user.costCenter)) return <CostCenterDashboard user={user} onLogout={onLogout} />;
   return <div className="p-8 text-gray-500">Unknown role: {user.costCenter}</div>;
 };

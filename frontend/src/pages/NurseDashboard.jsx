@@ -11,11 +11,12 @@ import NotificationBell from '../components/NotificationBell';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
-  no_request:           { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
-  awaiting_nurse:       { label: 'Admitted',     style: 'bg-gray-100 text-gray-500'       },
-  awaiting_billing:     { label: 'May Go Home',  style: 'bg-blue-100 text-blue-600'       },
-  cost_center_clearing: { label: 'Clearance', style: 'bg-amber-100 text-amber-600'     },
-  discharged:           { label: 'Discharged',   style: 'bg-emerald-100 text-emerald-700' },
+  no_request:           { label: 'Admitted',        style: 'bg-gray-100 text-gray-500'       },
+  awaiting_nurse:       { label: 'Admitted',        style: 'bg-gray-100 text-gray-500'       },
+  awaiting_coder:       { label: 'For Coding',      style: 'bg-indigo-100 text-indigo-600'   },
+  awaiting_billing:     { label: 'May Go Home',     style: 'bg-blue-100 text-blue-600'       },
+  cost_center_clearing: { label: 'Clearance',       style: 'bg-amber-100 text-amber-600'     },
+  discharged:           { label: 'Discharged',      style: 'bg-emerald-100 text-emerald-700' },
 };
 
 export default function NurseDashboard({ user, onLogout }) {
@@ -32,6 +33,8 @@ export default function NurseDashboard({ user, onLogout }) {
   const [confirmForm, setConfirmForm] = useState(null);
   const [cancelForm, setCancelForm]   = useState(null);
   const [cancelling, setCancelling]   = useState(false);
+  const [reclearanceForm, setReclearanceForm] = useState(null);
+  const [reclearancing, setReclearancing] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [cancelPassword, setCancelPassword]   = useState('');
   const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -138,6 +141,26 @@ export default function NurseDashboard({ user, onLogout }) {
     } finally { setCancelling(false); }
   };
 
+  const submitReclearance = async () => {
+    if (!reclearanceForm.nurseName.trim()) { alert('Please enter your employee ID.'); return; }
+    if (!reclearanceForm.password.trim()) { alert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: reclearanceForm.nurseName.trim(), password: reclearanceForm.password, cost_center: user.costCenter });
+      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
+    } catch { alert('Could not verify credentials.'); return; }
+    setReclearancing(true);
+    try {
+      const res = await api.post('/update_clearance.php', {
+        action:     'reclearance',
+        patient_id: reclearanceForm.patientId,
+        actor:      reclearanceForm.nurseName.trim(),
+        remarks:    reclearanceForm.remarks.trim() || 'Reclearance initiated by nurse',
+      });
+      if (res.data.success) { setReclearanceForm(null); fetchPatients(); setAuditKey(k => k + 1); }
+      else alert(res.data.message);
+    } finally { setReclearancing(false); }
+  };
+
   const openPatientInfo = async (p) => {
     let enriched = { ...p };
     if (p.patient_type !== 'opd') {
@@ -148,7 +171,7 @@ export default function NurseDashboard({ user, onLogout }) {
           const enccode = p.ward || '';
           const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
           const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
-          enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', room_bed: person.room_bed || p.room_bed || '—', accom_type: person.accom_type || '—', service_type: person.service_type || '—', admtxt: person.admtxt, admit_time: admTime };
+          enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, patlast: person.patlast, patfirst: person.patfirst, patmiddle: person.patmiddle, patsuffix: person.patsuffix, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', room_bed: person.room_bed || p.room_bed || '—', accom_type: person.accom_type || '—', service_type: person.service_type || '—', admtxt: person.admtxt, admit_time: admTime };
         }
       } catch { /* silent */ }
     }
@@ -376,6 +399,12 @@ export default function NurseDashboard({ user, onLogout }) {
                                 <button onClick={e => { e.stopPropagation(); openTracker(p); }}
                                   className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                   Track
+                                </button>
+                              )}
+                              {p.clearance_step === 'discharged' && (
+                                <button onClick={e => { e.stopPropagation(); setReclearanceForm({ patientId: p.id, patientName: p.full_name, nurseName: '', password: '', remarks: '' }); }}
+                                  className="text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                                  Reclearance
                                 </button>
                               )}
                             </div>
@@ -606,6 +635,55 @@ export default function NurseDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      {/* Reclearance Modal */}
+      {reclearanceForm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Initiate Reclearance</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              This will reset the clearance process for{' '}
+              <span className="font-semibold text-gray-800">{reclearanceForm.patientName}</span> and send them back to billing for a new clearance cycle.
+            </p>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="4-digit employee ID"
+                    value={reclearanceForm.nurseName}
+                    onChange={e => setReclearanceForm(f => ({ ...f, nurseName: e.target.value.replace(/[^0-9]/g, '').substring(0, 4) }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                  <input type="password" placeholder="Your password"
+                    value={reclearanceForm.password}
+                    onChange={e => setReclearanceForm(f => ({ ...f, password: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Reason <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+                <textarea placeholder="e.g. patient readmitted for same condition"
+                  rows={2}
+                  value={reclearanceForm.remarks}
+                  onChange={e => setReclearanceForm(f => ({ ...f, remarks: e.target.value }))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={submitReclearance} disabled={reclearancing}
+                className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {reclearancing ? 'Processing...' : 'Confirm Reclearance'}
+              </button>
+              <button onClick={() => setReclearanceForm(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ChatBox sender={user.costCenter} />
 
     </div>

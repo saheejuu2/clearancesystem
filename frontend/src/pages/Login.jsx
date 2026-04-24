@@ -4,6 +4,7 @@ import api from '../services/api';
 const STATIC_COST_CENTERS = [
   'Nurse',
   'Billing',
+  'Coder',
   'Operating Room/Delivery Room',
   'Pulmonary Department (MSA)',
   'Hemodialysis Unit',
