@@ -669,6 +669,7 @@ export default function AdminDashboard({ user, onLogout }) {
   const [alertMsg, setAlertMsg] = useState(null);
   const showAlert = (msg) => setAlertMsg(msg);
   const setTabPersist = (t) => { sessionStorage.setItem('admin_tab', t); setTab(t); };
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [auditKey, setAuditKey]   = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [adminStats, setAdminStats]     = useState({});
