@@ -112,7 +112,7 @@ export default function CoderDashboard({ user, onLogout }) {
             <img src={`${import.meta.env.BASE_URL}GEAMH-LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
-              <p className="text-white font-semibold text-sm">Medical Coder</p>
+              <p className="text-white font-semibold text-sm">Coder</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -126,7 +126,7 @@ export default function CoderDashboard({ user, onLogout }) {
         <aside className="w-56 shrink-0 bg-white border-r border-gray-100 flex flex-col">
           <div className="px-5 py-4 border-b border-gray-100">
             <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Coding</p>
-            <p className="text-sm font-bold text-gray-800 mt-0.5">Medical Coder</p>
+            <p className="text-sm font-bold text-gray-800 mt-0.5">Coder</p>
           </div>
           <nav className="flex flex-col gap-1 p-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Filter by Type</p>
@@ -195,7 +195,7 @@ export default function CoderDashboard({ user, onLogout }) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Hospital No.', 'Name of Patient', 'Service', 'Accommodation', 'Admit Date', 'Type', 'Status', 'Actions'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accommodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -209,9 +209,9 @@ export default function CoderDashboard({ user, onLogout }) {
                       return (
                         <tr key={p.id} onClick={() => openPatientInfo(p)} className="hover:bg-gray-50/70 transition-colors cursor-pointer">
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
+                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>}
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>}
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                             {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </td>

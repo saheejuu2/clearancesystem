@@ -1,7 +1,7 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import websocketService from '../services/websocket';
-import ClearanceReport from '../components/ClearanceReport';
+
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
@@ -22,7 +22,6 @@ function DischargedList() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
-  const [report, setReport]     = useState(null);
 
   useEffect(() => {
     api.get('/get_patients.php?role=Billing&all_dates=1')
@@ -60,9 +59,9 @@ function DischargedList() {
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                   <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                  <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>
+                  <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                  <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
+                  <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>
                   <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '--')}</td>
                   <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                     {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
@@ -70,21 +69,13 @@ function DischargedList() {
                   <td className="px-5 py-4 text-gray-500 text-xs">
                     {p.discharged_at ? new Date(p.discharged_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '?'}
                   </td>
-                  <td className="px-5 py-4">
-                    {p.request_id && (
-                      <button onClick={() => setReport(p)}
-                        className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
-                        Report
-                      </button>
-                    )}
-                  </td>
+                  <td className="px-5 py-4"></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         </div>
-      {report && <ClearanceReport patientId={report.id} onClose={() => setReport(null)} />}
     </div>
   );
 }
@@ -141,7 +132,7 @@ export default function BillingDashboard({ user, onLogout }) {
   const [dischargeSuccess, setDischargeSuccess] = useState(null);
   const [printFormPatient, setPrintFormPatient] = useState(null);
   const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
-  const [reportPatient, setReport] = useState(null);
+
   const [dischargeRemarks, setDischargeRemarks] = useState("");
   const [dischargeName, setDischargeName] = useState("");
   const [dischargePassword, setDischargePassword] = useState("");
@@ -394,7 +385,7 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
           <div className="flex items-center gap-3">
             <PhClock />
-            <NotificationBell recipient={user.costCenter} onNotificationClick={async n => { if (n.id) await api.post("/notifications.php?action=read", { id: n.id }).catch(() => {}); setReport({ id: n.patient_id, notifId: n.id }); }} />
+            <NotificationBell recipient={user.costCenter} onNotificationClick={async n => { if (n.id) await api.post("/notifications.php?action=read", { id: n.id }).catch(() => {}); }} />
           </div>
         </div>
       </header>
@@ -467,7 +458,7 @@ export default function BillingDashboard({ user, onLogout }) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Hospital No.','Name of Patient','Service','Accomodation','Ward','Admit Date','Type','Progress','Action'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -490,9 +481,9 @@ export default function BillingDashboard({ user, onLogout }) {
                         return (
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={() => openPatientInfo(p)}>
                             <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                            <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>
+                            <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                            {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>}
+                            {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>}
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '--')}</td>
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                               {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
@@ -518,15 +509,11 @@ export default function BillingDashboard({ user, onLogout }) {
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {isPending && (
-                                  <button onClick={() => openFollowUpModal(p)}
+                                  <button onClick={e => { e.stopPropagation(); openFollowUpModal(p); }}
                                     className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                     Follow Up
                                   </button>
                                 )}
-                                <button onClick={() => setReport(p)}
-                                  className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                  Report
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -576,7 +563,7 @@ export default function BillingDashboard({ user, onLogout }) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Hospital No.','Name of Patient','Service','Accomodation.','Ward','Admit Date','Type','Action'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation.') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -600,9 +587,9 @@ export default function BillingDashboard({ user, onLogout }) {
                       ).map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={() => openPatientInfo(p)}>
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                        {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>}
+                        {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>}
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '--')}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                           {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
@@ -625,10 +612,6 @@ export default function BillingDashboard({ user, onLogout }) {
                             <button onClick={e => { e.stopPropagation(); openPendingModal(p); }}
                               className="text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                               Send Back
-                            </button>
-                            <button onClick={e => { e.stopPropagation(); setReport(p); }}
-                              className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                              Report
                             </button>
                           </div>
                         </td>
@@ -698,7 +681,7 @@ export default function BillingDashboard({ user, onLogout }) {
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-left">
                           {['Hospital No.','Name of Patient','Service','Accomodation.','Ward','Admit Date','Category','Remarks','Progress','Action'].map(h => (
-                            <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                            <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation.') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -711,9 +694,9 @@ export default function BillingDashboard({ user, onLogout }) {
                           return (
                             <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={() => openPatientInfo(p)}>
                               <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                              <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>
+                              <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                              {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>}
+                              {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>}
                               <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '--')}</td>
                               <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                                 {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
@@ -750,13 +733,9 @@ export default function BillingDashboard({ user, onLogout }) {
                               </td>
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-1.5">
-                                  <button onClick={() => openFollowUpModal(p)}
+                                  <button onClick={e => { e.stopPropagation(); openFollowUpModal(p); }}
                                     className="text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
                                     Follow Up
-                                  </button>
-                                  <button onClick={() => setReport(p)}
-                                    className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                    Report
                                   </button>
                                 </div>
                               </td>
@@ -811,7 +790,7 @@ export default function BillingDashboard({ user, onLogout }) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Hospital No.', 'Name of Patient', 'Service', 'Accomodation.', 'Ward', 'Admit Date', 'Type', 'Status', 'Progress', 'Action'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation.') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -827,9 +806,9 @@ export default function BillingDashboard({ user, onLogout }) {
                         <>
                           <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={() => openPatientInfo(p)}>
                             <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                            <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>
-                            <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>
+                            <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                            {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '--'}</td>}
+                            {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '--'}</td>}
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '--')}</td>
                             <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                               {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
@@ -876,12 +855,6 @@ export default function BillingDashboard({ user, onLogout }) {
                                       Pending
                                     </button>
                                   </>
-                                )}
-                                {p.request_id && (
-                                  <button onClick={e => { e.stopPropagation(); setReport(p); }}
-                                    className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                                    Report
-                                  </button>
                                 )}
                               </div>
                             </td>
@@ -968,8 +941,6 @@ export default function BillingDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      {reportPatient && <ClearanceReport patientId={reportPatient.id} onClose={() => setReport(null)} userRole="Billing" onAction={(action, patient) => { setReport(null); if (action === "for_clearance") openClearanceForm(patient); else if (action === "discharge") { setDischargeModal(patient); } }} />}
-
       {/* Pending Modal */}
       {pendingModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">

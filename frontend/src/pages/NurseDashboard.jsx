@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -108,7 +108,7 @@ export default function NurseDashboard({ user, onLogout }) {
     } catch { showAlert('Could not verify credentials.'); return; }
     const { patientId, full_name, patient_no } = confirmForm;
     const actor = confirmForm.nurseName.trim();
-    const remarks = [confirmForm.disposition, confirmForm.remarks.trim()].filter(Boolean).join(' — ');
+    const remarks = [confirmForm.disposition, confirmForm.remarks.trim()].filter(Boolean).join(' � ');
     setConfirmForm(null);
     setConfirmPassword('');
     setPatients(prev => prev.map(p =>
@@ -281,7 +281,7 @@ export default function NurseDashboard({ user, onLogout }) {
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Patient List</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Patients synced from IHIS — Click "May Go Home" to initiate discharge clearance</p>
+              <p className="text-sm text-gray-400 mt-0.5">Patients synced from IHIS � Click "May Go Home" to initiate discharge clearance</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -335,7 +335,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Hospital No.','Name of Patient ','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -351,11 +351,11 @@ export default function NurseDashboard({ user, onLogout }) {
                       return (
                         <tr key={p.id} onClick={() => openPatientInfo(p)} className="hover:bg-gray-50/70 transition-colors cursor-pointer">
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
+                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '�'}</td>}
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '�'}</td>}
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                            {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
                           </td>
                           <td className="px-4 py-3.5">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>

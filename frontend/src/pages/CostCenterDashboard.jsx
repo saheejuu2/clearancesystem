@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
@@ -31,7 +31,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [clearPriceError, setClearPriceError] = useState('');
   const [showClearPass, setShowClearPass] = useState(false);
 
-  // MAB Professional Fees — array-based so multiple doctors per specialty
+  // MAB Professional Fees � array-based so multiple doctors per specialty
   const MAB_FEE_ROWS = ['OB-GYN', 'Surgery', 'Anesth', 'Pedia', 'Medicine', 'CP Clearance', 'Asst'];
   const emptyProfFees = () => MAB_FEE_ROWS.map(r => ({ specialty: r, md: '', amount: '', paid: false }));
   const [mabModal, setMabModal] = useState(null);
@@ -269,7 +269,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
     const totalAmount = mabFees.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
     const remarksLines = mabFees
       .filter(r => r.md || r.amount)
-      .map(r => `${r.specialty}: ${r.md || '—'} ₱${r.amount || '0'} [${r.paid ? 'Paid' : 'Unpaid'}]`)
+      .map(r => `${r.specialty}: ${r.md || '�'} ?${r.amount || '0'} [${r.paid ? 'Paid' : 'Unpaid'}]`)
       .join(' | ');
 
     setActionId(mabModal.id);
@@ -425,7 +425,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                     ) : pendingPatients.map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
                         <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '-')}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
@@ -474,7 +474,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                     ) : pendingBalancePatients.map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
                         <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '-')}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
@@ -569,7 +569,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} — Clearance</h1>
+          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} � Clearance</h1>
           <p className="text-sm text-gray-400 mt-0.5">Review and clear patients assigned to your department</p>
         </div>
 
@@ -604,7 +604,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left">
                   {['Hospital No.','Name of Patient','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
-                    <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -621,9 +621,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   return (
                     <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={() => openPatientInfo(p)}>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                      <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                      <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '-'}</td>
-                      <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '-'}</td>
+                      <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                      {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '-'}</td>}
+                      {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '-'}</td>}
                       <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                         {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                       </td>
@@ -694,7 +694,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               )}
             </h3>
             <p className="text-sm text-gray-500 mb-5">
-              {mabModal.full_name} — <span className="font-mono text-xs">{mabModal.patient_no}</span>
+              {mabModal.full_name} � <span className="font-mono text-xs">{mabModal.patient_no}</span>
             </p>
             <div className="border border-gray-200 rounded-xl overflow-hidden mb-5">
               <div className="grid grid-cols-[130px_1fr_130px_90px_52px_44px] bg-gray-50 border-b border-gray-200">
@@ -710,7 +710,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   <div className="px-4 py-3 text-sm font-semibold text-gray-700 flex items-center">
                     {idx === 0 || mabFees[idx - 1].specialty !== row.specialty
                       ? row.specialty
-                      : <span className="text-gray-300 text-xs pl-1">↳</span>
+                      : <span className="text-gray-300 text-xs pl-1">?</span>
                     }
                   </div>
                   <div className="px-2 py-2 border-l border-gray-100">
@@ -721,7 +721,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   </div>
                   <div className="px-2 py-2 border-l border-gray-100">
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">₱</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">?</span>
                       <input type="number" placeholder="0.00"
                         value={row.amount}
                         onChange={e => setMabFees(f => f.map((r, i) => i === idx ? { ...r, amount: e.target.value } : r))}
@@ -752,7 +752,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                       <button type="button"
                         onClick={() => setMabFees(f => f.filter((_, i) => i !== idx))}
                         className="w-6 h-6 rounded-md bg-red-50 hover:bg-red-100 text-red-400 font-bold text-sm flex items-center justify-center transition-colors"
-                        title="Remove row">−</button>
+                        title="Remove row">-</button>
                     )}
                   </div>
                 </div>
@@ -760,7 +760,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               <div className="grid grid-cols-[130px_1fr_130px_90px_52px_44px] bg-emerald-50 border-t border-emerald-100">
                 <div className="px-4 py-3 text-sm font-bold text-emerald-800 col-span-2">Total</div>
                 <div className="px-4 py-3 text-sm font-bold text-emerald-800 border-l border-emerald-100">
-                  ₱{mabFees.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  ?{mabFees.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </div>
                 <div className="col-span-3" />
               </div>
