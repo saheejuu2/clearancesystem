@@ -97,10 +97,10 @@ if ($action === 'may_go_home') {
     }
 
     if (!$req) {
-        $stmt = $conn->prepare("INSERT INTO clearance_requests (patient_id, nurse_status, nurse_cleared_at, nurse_cleared_by) VALUES (?, 'may_go_home', ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO clearance_requests (patient_id, nurse_status, nurse_cleared_at, nurse_cleared_by, coder_status) VALUES (?, 'may_go_home', ?, ?, 'pending')");
         $stmt->bind_param("iss", $patient_id, $now, $actor);
     } else {
-        $stmt = $conn->prepare("UPDATE clearance_requests SET nurse_status='may_go_home', nurse_cleared_at=?, nurse_cleared_by=? WHERE id=?");
+        $stmt = $conn->prepare("UPDATE clearance_requests SET nurse_status='may_go_home', nurse_cleared_at=?, nurse_cleared_by=?, coder_status=IF(coder_status='proceeded','proceeded','pending') WHERE id=?");
         $stmt->bind_param("ssi", $now, $actor, $req['id']);
     }
     $stmt->execute();
@@ -191,13 +191,17 @@ if ($action === 'for_clearance') {
     if (isset($data['cost_centers']) && is_array($data['cost_centers']) && count($data['cost_centers']) > 0) {
         $selected = $data['cost_centers'];
     } else {
-        // Get patient type to determine correct windows
-        $pt_stmt = $conn->prepare("SELECT patient_type FROM patients WHERE id = ?");
+        // Get patient type and accom_type to determine correct windows and MAB
+        $pt_stmt = $conn->prepare("SELECT patient_type, accom_type FROM patients WHERE id = ?");
         $pt_stmt->bind_param("i", $patient_id);
         $pt_stmt->execute();
         $pt_row = $pt_stmt->get_result()->fetch_assoc();
         $patient_type = $pt_row['patient_type'] ?? 'in-patient';
+        $accom_type   = strtolower(trim($pt_row['accom_type'] ?? ''));
         $selected = $patient_type === 'er' ? $COST_CENTERS_ER : $COST_CENTERS_INPATIENT;
+        if ($accom_type === 'pay' && !in_array('MAB', $selected)) {
+            $selected[] = 'MAB';
+        }
     }
 
     $stmt = $conn->prepare("UPDATE clearance_requests SET billing_status='for_clearance', billing_sent_at=?, billing_sent_by=? WHERE id=?");

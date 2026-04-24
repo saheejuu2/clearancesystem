@@ -231,8 +231,22 @@ export default function BillingDashboard({ user, onLogout }) {
     }
     try {
       const dateParam = d === 'all' ? 'all_dates=1' : `date=${d}`;
-      const res = await api.get(`/get_patients.php?role=Billing&${dateParam}`);
-      setPatients(res.data || []);
+      // Fetch date-filtered patients + always fetch awaiting_billing from all dates
+      const [res, pendingRes] = await Promise.all([
+        api.get(`/get_patients.php?role=Billing&${dateParam}`),
+        d !== 'all' ? api.get(`/get_patients.php?role=Billing&all_dates=1`) : Promise.resolve(null),
+      ]);
+      const dated = res.data || [];
+      if (pendingRes) {
+        // Merge in any awaiting_billing patients not already in the dated list
+        const datedIds = new Set(dated.map(p => p.id));
+        const extra = (pendingRes.data || []).filter(p =>
+          !datedIds.has(p.id) && p.clearance_step === 'awaiting_billing'
+        );
+        setPatients([...dated, ...extra]);
+      } else {
+        setPatients(dated);
+      }
     } catch { /* silent */ }
     finally { setLoading(false); }
   };
@@ -245,7 +259,17 @@ export default function BillingDashboard({ user, onLogout }) {
       .catch(() => setToastEnabled(true));
   }, []);
   useWebSocketPatients('Billing', filterDate, (updatedPatients) => {
-    setPatients(updatedPatients || []);
+    // Also pull awaiting_billing from all dates so cross-date patients aren't missed
+    api.get('/get_patients.php?role=Billing&all_dates=1')
+      .then(res => {
+        const dated = updatedPatients || [];
+        const datedIds = new Set(dated.map(p => p.id));
+        const extra = (res.data || []).filter(p =>
+          !datedIds.has(p.id) && p.clearance_step === 'awaiting_billing'
+        );
+        setPatients([...dated, ...extra]);
+      })
+      .catch(() => setPatients(updatedPatients || []));
   }, true, [filterDate]);
 
   // Fetch sent-back remarks for pending tab
@@ -278,7 +302,7 @@ export default function BillingDashboard({ user, onLogout }) {
     const base = svc ? [...SERVICE_COST_CENTERS[svc]] : [];
     const isPay = (p.accom_type || '').toLowerCase().trim() === 'pay';
     if (isPay && !base.includes('MAB')) base.push('MAB');
-    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: svc, isBaby: false, isOBNewborn: false, selected: base });
+    setClearanceForm({ patientId: p.id, patientName: p.full_name, service: svc, accom_type: p.accom_type || '', isBaby: false, isOBNewborn: false, selected: base });
   };
 
   const sendForClearance = async () => {
@@ -1032,6 +1056,8 @@ export default function BillingDashboard({ user, onLogout }) {
                 onChange={e => {
                   const svc = e.target.value;
                   const base = svc ? [...SERVICE_COST_CENTERS[svc]] : [];
+                  const isPay = (clearanceForm.accom_type || '').toLowerCase().trim() === 'pay';
+                  if (isPay && !base.includes('MAB')) base.push('MAB');
                   setClearanceForm(f => ({ ...f, service: svc, isBaby: false, isOBNewborn: false, selected: base }));
                 }}
                 className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
@@ -1054,6 +1080,8 @@ export default function BillingDashboard({ user, onLogout }) {
                     const baby = e.target.checked;
                     const base = [...SERVICE_COST_CENTERS[clearanceForm.service]];
                     if (baby) base.push('Newborn Screening', 'Newborn Hearing Test');
+                    const isPay = (clearanceForm.accom_type || '').toLowerCase().trim() === 'pay';
+                    if (isPay && !base.includes('MAB')) base.push('MAB');
                     setClearanceForm(f => ({ ...f, isBaby: baby, selected: base }));
                   }}
                   className="w-4 h-4 accent-emerald-600"
@@ -1071,6 +1099,8 @@ export default function BillingDashboard({ user, onLogout }) {
                     const newborn = e.target.checked;
                     const base = [...SERVICE_COST_CENTERS.OB];
                     if (newborn) base.push('Newborn Screening', 'Newborn Hearing Test');
+                    const isPay = (clearanceForm.accom_type || '').toLowerCase().trim() === 'pay';
+                    if (isPay && !base.includes('MAB')) base.push('MAB');
                     setClearanceForm(f => ({ ...f, isOBNewborn: newborn, selected: base }));
                   }}
                   className="w-4 h-4 accent-emerald-600"

@@ -113,9 +113,8 @@ export default function CoderDashboard({ user, onLogout }) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Filter by Type</p>
             {[
               { value: '',           label: 'All Patients', dot: 'bg-gray-400'  },
-              { value: 'in-patient', label: 'In-Patient',   dot: 'bg-blue-400'  },
+              { value: 'in-patient', label: 'Admitted',     dot: 'bg-blue-400'  },
               { value: 'er',         label: 'ER',           dot: 'bg-red-400'   },
-              { value: 'opd',        label: 'OPD',          dot: 'bg-green-400' },
             ].map(t => (
               <button key={t.value} onClick={() => setTypeFilterP(t.value)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${typeFilter === t.value ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { playMessageSound } from '../utils/sounds';
@@ -12,6 +12,8 @@ const COST_CENTERS = [
   'Medical Nurse',
   'Surgery Nurse',
   'Billing',
+  'Coder',
+  'MAB',
   'Operating Room/Delivery Room',
   'Pulmonary Department (MSA)',
   'Hemodialysis Unit',
@@ -21,7 +23,9 @@ const COST_CENTERS = [
   'Laboratory',
   'Bloodbank',
   'Pharmacy',
-  'Medical Coder'
+  'Endoscopy',
+  'Colonoscopy',
+  'Physical Therapy',
 ];
 
 export default function ChatBox({ sender }) {
@@ -203,8 +207,10 @@ export default function ChatBox({ sender }) {
           {/* Cost center list */}
           {view === 'list' && (
             <div className="flex-1 overflow-y-auto">
-              {/* Broadcast all */}
-              <BroadcastAllRow sender={sender} onSend={handleBroadcastAll} sending={sending} />
+              {/* Broadcast all — only Nurse and Billing */}
+              {['Nurse','ER Nurse','OB Nurse','Pediatrics Nurse','Medical Nurse','Surgery Nurse','Billing'].includes(sender) && (
+                <BroadcastAllRow sender={sender} onSend={handleBroadcastAll} sending={sending} />
+              )}
               {/* Admin announcements — read only */}
               {(() => {
                 const adminUnread = unread['Admin'] || 0;
