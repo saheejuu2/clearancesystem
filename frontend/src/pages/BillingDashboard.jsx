@@ -75,7 +75,7 @@ function DischargedList() {
             </tbody>
           </table>
         </div>
-        </div>
+      </div>
     </div>
   );
 }

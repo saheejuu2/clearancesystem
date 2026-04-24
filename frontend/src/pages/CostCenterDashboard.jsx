@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import api from '../services/api';
 import PhClock from '../components/PhClock';
 import SearchBar from '../components/SearchBar';
@@ -670,7 +670,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </tbody>
             </table>
           </div>
-          </div>
+        </div>
         </div>
         )}
       </main>
