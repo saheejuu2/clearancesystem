@@ -31,7 +31,7 @@ const COST_CENTERS = [
 ];
 
 const dashboard = ({ user, onLogout }) => {
-  if (user.role === 'admin')           return <AdminDashboard    user={user} onLogout={onLogout} />;
+  if (user.role === 'admin' || user.costCenter === 'Admin') return <AdminDashboard user={user} onLogout={onLogout} />;
   if (user.costCenter === 'Nurse')     return <NurseDashboard    user={user} onLogout={onLogout} />;
   if (['ER Nurse','OB Nurse','Pediatrics Nurse','Medical Nurse','Surgery Nurse'].includes(user.costCenter)) return <NurseDashboard user={user} onLogout={onLogout} />;
   if (user.costCenter === 'Billing')   return <BillingDashboard  user={user} onLogout={onLogout} />;

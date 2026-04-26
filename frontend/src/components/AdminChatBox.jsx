@@ -11,6 +11,8 @@ const COST_CENTERS = [
   'Medical Nurse',
   'Surgery Nurse',
   'Billing',
+  'Coder',
+  'MAB',
   'Operating Room/Delivery Room',
   'Pulmonary Department (MSA)',
   'Hemodialysis Unit',
@@ -20,6 +22,9 @@ const COST_CENTERS = [
   'Laboratory',
   'Bloodbank',
   'Pharmacy',
+  'Endoscopy',
+  'Colonoscopy',
+  'Physical Therapy',
 ];
 
 export default function AdminChatBox() {

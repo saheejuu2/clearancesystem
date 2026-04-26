@@ -9,7 +9,9 @@ import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import PendingPatientToast from '../components/PendingPatientToast';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import usePatientInfo from '../hooks/usePatientInfo';
 import CostCenterChatBox from '../components/CostCenterChatBox';
+import AlertModal from '../components/AlertModal';
 
 export default function CostCenterDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState(() => sessionStorage.getItem('cc_tab') || 'patients');
@@ -19,15 +21,31 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const [search, setSearch]     = useState('');
   const [loading, setLoading]   = useState(false);
   const [actionId, setActionId] = useState(null);
-  const [clearModal, setClearModal] = useState(null); // { patient }
+  const [clearModal, setClearModal] = useState(null);
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
   const [clearName, setClearName]       = useState('');
   const [clearRemarks, setClearRemarks] = useState('');
   const [clearPrice, setClearPrice]     = useState('');
   const [clearPassword, setClearPassword] = useState('');
   const [clearPriceError, setClearPriceError] = useState('');
   const [showClearPass, setShowClearPass] = useState(false);
-  const [viewPatient, setViewPatient] = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+
+  // MAB Professional Fees - array-based so multiple doctors per specialty
+  const MAB_FEE_ROWS = ['OB-GYN', 'Surgery', 'Anesth', 'Pedia', 'Medicine', 'CP Clearance', 'Asst'];
+  const emptyProfFees = () => MAB_FEE_ROWS.map(r => ({ specialty: r, md: '', amount: '', paid: false }));
+  const [mabModal, setMabModal] = useState(null);
+  const [mabFees, setMabFees]   = useState(emptyProfFees());
+  const [mabName, setMabName]     = useState('');
+  const [mabPass, setMabPass]     = useState('');
+  const [mabPassErr, setMabPassErr] = useState('');
+  const [showMabPass, setShowMabPass] = useState(false);
+  const [mabCancelConfirm, setMabCancelConfirm] = useState(false);
+  const [mabDrafts, setMabDrafts] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('mab_drafts') || '{}'); }
+    catch { return {}; }
+  });
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [notifReport, setNotifReport] = useState(null);
   const [clearedPatients, setClearedPatients] = useState([]);
   const [clearedLoading, setClearedLoading]   = useState(false);
@@ -145,6 +163,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
   const priceEntered = clearPrice.trim() !== '';
 
   const openClearModal = (p) => {
+    if (user.costCenter === 'MAB') {
+      setMabModal(p);
+      const draft = mabDrafts[p.id];
+      setMabFees(draft ? draft : emptyProfFees());
+      setMabName(''); setMabPass(''); setMabPassErr(''); setShowMabPass(false); setMabCancelConfirm(false);
+      return;
+    }
     setClearModal(p);
     setClearName(''); setClearRemarks(''); setClearPrice('');
     setClearPassword(''); setClearPriceError(''); setShowClearPass(false);
@@ -170,9 +195,9 @@ export default function CostCenterDashboard({ user, onLogout }) {
 
   const clearPatient = async () => {
     setClearPriceError('');
-    if (!clearName.trim()) { alert('Please enter your name before confirming.'); return; }
-    if (!clearPrice.trim()) { alert('Please enter the SOA amount.'); return; }
-    if (!clearPassword.trim()) { alert('Please enter your password to confirm.'); return; }
+    if (!clearName.trim()) { showAlert('Please enter your name before confirming.'); return; }
+    if (!clearPrice.trim()) { showAlert('Please enter the SOA amount.'); return; }
+    if (!clearPassword.trim()) { showAlert('Please enter your password to confirm.'); return; }
 
     // Verify password
     try {
@@ -203,7 +228,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           fetchPendingBalance();
           setAuditKey(k => k + 1);
           resetModal();
-        } else { alert(res.data.message); }
+        } else { showAlert(res.data.message); }
       } else {
         // Normal clear
         const res = await api.post('/update_clearance.php', {
@@ -221,7 +246,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           setCcStatuses(prev => ({ ...prev, [patient_id]: { status: 'cleared' } }));
           setAuditKey(k => k + 1);
           resetModal();
-        } else { alert(res.data.message); }
+        } else { showAlert(res.data.message); }
       }
     } finally { setActionId(null); }
   };
@@ -231,6 +256,66 @@ export default function CostCenterDashboard({ user, onLogout }) {
     (p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.patient_no.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const submitMabClear = async () => {
+    setMabPassErr('');
+    if (!mabName.trim()) { showAlert('Please enter your Employee ID.'); return; }
+    if (!mabPass.trim()) { showAlert('Please enter your password.'); return; }
+    try {
+      const verify = await api.post('/login.php', { username: user.username, password: mabPass, cost_center: user.costCenter });
+      if (!verify.data.success) { setMabPassErr('Incorrect password.'); return; }
+    } catch { setMabPassErr('Could not verify password.'); return; }
+
+    const totalAmount = mabFees.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const remarksLines = mabFees
+      .filter(r => r.md || r.amount)
+      .map(r => `${r.specialty}: ${r.md || '-'} ?${r.amount || '0'} [${r.paid ? 'Paid' : 'Unpaid'}]`)
+      .join(' | ');
+
+    setActionId(mabModal.id);
+    try {
+      const res = await api.post('/update_clearance.php', {
+        action:     'cost_center_clear',
+        patient_id: mabModal.id,
+        cost_center: 'MAB',
+        actor:      mabName.trim(),
+        remarks:    remarksLines,
+        soa_amount: totalAmount,
+      });
+      if (res.data.success) {
+        setPatients(prev => prev.filter(p => p.id !== mabModal.id));
+        fetchPatients();
+        setMabModal(null);
+        setAuditKey(k => k + 1);
+      } else { showAlert(res.data.message); }
+    } finally { setActionId(null); }
+  };
+
+  const mabHasData = () => mabFees.some(r => (r.md || '').trim() !== '' || (r.amount || '') !== '');
+
+  const saveMabDraft = () => {
+    const drafts = { ...mabDrafts, [mabModal.id]: mabFees };
+    setMabDrafts(drafts);
+    sessionStorage.setItem('mab_drafts', JSON.stringify(drafts));
+    setMabModal(null);
+    setMabCancelConfirm(false);
+  };
+
+  const discardMab = () => {
+    const drafts = { ...mabDrafts };
+    delete drafts[mabModal.id];
+    setMabDrafts(drafts);
+    sessionStorage.setItem('mab_drafts', JSON.stringify(drafts));
+    setMabModal(null);
+    setMabCancelConfirm(false);
+  };
+
+  const handleMabCancel = () => {
+    try {
+      if (mabHasData()) { setMabCancelConfirm(true); }
+      else { discardMab(); }
+    } catch { discardMab(); }
+  };
 
   const clearedFiltered = clearedPatients.filter(p =>
     p.full_name.toLowerCase().includes(clearedSearch.toLowerCase()) ||
@@ -340,19 +425,19 @@ export default function CostCenterDashboard({ user, onLogout }) {
                     ) : pendingPatients.map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
                         <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '-')}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                         </td>
                         <td className="px-4 py-3.5 text-orange-600 text-xs font-medium max-w-[200px] truncate" title={p.cc_remarks}>
-                          {p.cc_remarks || <span className="text-gray-400">—</span>}
+                          {p.cc_remarks || <span className="text-gray-400">-</span>}
                         </td>
                         <td className="px-4 py-3.5">
                           <button onClick={() => openClearModal(p)}
                             className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                            Clear Patient
+                            {user.costCenter === 'MAB' ? 'Professional Fee' : 'Clear'}
                           </button>
                         </td>
                       </tr>
@@ -370,7 +455,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Pending Balance</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Patients with SOA amount mismatch — review before clearing</p>
+              <p className="text-sm text-gray-400 mt-0.5">Patients with SOA amount mismatch - review before clearing</p>
             </div>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -389,26 +474,26 @@ export default function CostCenterDashboard({ user, onLogout }) {
                     ) : pendingBalancePatients.map(p => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition-colors">
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
                         <td className="px-4 py-3.5 text-gray-500 text-center">{p.age}</td>
-                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                        <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '-')}</td>
                         <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                          {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                         </td>
-                        <td className="px-4 py-3.5 text-gray-700 font-medium whitespace-nowrap">{p.flagged_by || '—'}</td>
+                        <td className="px-4 py-3.5 text-gray-700 font-medium whitespace-nowrap">{p.flagged_by || '-'}</td>
                         <td className="px-4 py-3.5">
                           {p.balance_remarks
                             ? <button onClick={() => setRemarksModal({ patient: p, remarks: p.balance_remarks })}
                                 className="text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
                                 View
                               </button>
-                            : <span className="text-xs text-gray-300">—</span>
+                            : <span className="text-xs text-gray-300">-</span>
                           }
                         </td>
                         <td className="px-4 py-3.5">
                           <button onClick={() => openClearModal(p)}
                             className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                            Review & Clear
+                            {user.costCenter === 'MAB' ? 'Professional Fee' : 'Clear'}
                           </button>
                         </td>
                       </tr>
@@ -427,7 +512,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <div>
               <h1 className="text-xl font-bold text-gray-800">Cleared Patients</h1>
               <p className="text-sm text-gray-400 mt-0.5">
-                Patients your department has already cleared — this is <span className="font-semibold text-gray-600">not</span> the audit trail.
+                Patients your department has already cleared - this is <span className="font-semibold text-gray-600">not</span> the audit trail.
                 The <span className="font-semibold text-gray-600">Audit Trail</span> logs every action taken by every user across the system,
                 while this list shows only patients cleared specifically by <span className="font-semibold text-gray-600">{user.costCenter}</span>.
               </p>
@@ -453,27 +538,20 @@ export default function CostCenterDashboard({ user, onLogout }) {
                             <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                             <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
                             <td className="px-5 py-4 text-gray-500">{p.age}</td>
-                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                            <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '-')}</td>
                             <td className="px-5 py-4 text-gray-500 whitespace-nowrap text-xs">
-                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                              {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                             </td>
-                            <td className="px-5 py-4 text-gray-700 font-medium">{p.cleared_by || '—'}</td>
+                            <td className="px-5 py-4 text-gray-700 font-medium">{p.cleared_by || '-'}</td>
                             <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
                               {p.cleared_at
                                 ? new Date(p.cleared_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
-                                : '—'}
+                                : '-'}
                             </td>
-                            <td className="px-5 py-4 text-gray-400 text-xs max-w-[180px] truncate">{p.remarks || '—'}</td>
+                            <td className="px-5 py-4 text-gray-400 text-xs max-w-[180px] truncate">{p.remarks || '-'}</td>
                             <td className="px-5 py-4">
                               <button
-                                onClick={async () => {
-                                  setViewPatient({ id: p.patient_id, ...p });
-                                  try {
-                                    const r = await api.get('/get_clearance_report.php?patient_id=' + p.patient_id);
-                                    if (r.data.success) setViewClearances(r.data.clearances);
-                                    else setViewClearances([]);
-                                  } catch { setViewClearances([]); }
-                                }}
+                                onClick={() => openPatientInfo({ id: p.patient_id, ...p })}
                                 className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
                               >
                                 View
@@ -491,7 +569,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
         {tab === 'patients' && (
         <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} — Clearance</h1>
+          <h1 className="text-xl font-bold text-gray-800">{user.costCenter} - Clearance</h1>
           <p className="text-sm text-gray-400 mt-0.5">Review and clear patients assigned to your department</p>
         </div>
 
@@ -526,7 +604,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left">
                   {['Hospital No.','Name of Patient','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
-                    <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -541,20 +619,13 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   const isPendingBalance = myStatus?.status === 'pending_balance';
                   const isSentBack = !isCleared && !isPendingBalance && myStatus?.remarks;
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={async () => {
-                      setViewPatient(p);
-                      try {
-                        const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-                        if (r.data.success) setViewClearances(r.data.clearances);
-                        else setViewClearances([]);
-                      } catch { setViewClearances([]); }
-                    }}>
+                    <tr key={p.id} className="hover:bg-gray-50/70 transition-colors cursor-pointer" onClick={() => openPatientInfo(p)}>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                      <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                      <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
-                      <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
+                      <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                      {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '-'}</td>}
+                      {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '-'}</td>}
                       <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                        {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                        {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                       </td>
                       <td className="px-4 py-3.5">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -588,7 +659,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                           {!isCleared && p.clearance_step === 'cost_center_clearing' && (
                             <button onClick={e => { e.stopPropagation(); openClearModal(p); }}
                               className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-                              Clear
+                              {user.costCenter === 'MAB' ? 'Professional Fee' : 'Clear'}
                             </button>
                           )}
                         </div>
@@ -599,7 +670,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               </tbody>
             </table>
           </div>
-          </div>
+        </div>
         </div>
         )}
       </main>
@@ -612,11 +683,160 @@ export default function CostCenterDashboard({ user, onLogout }) {
       })} enabled={toastEnabled} onPatientClick={(patient) => {
         openClearModal({ ...patient, id: patient.id || patient.patient_id });
       }} />
-      {/* Clear Patient Modal */}
+
+      {/* MAB Professional Fees Modal */}
+      {mabModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[92vh] overflow-y-auto">
+            <h3 className="text-base font-bold text-gray-900 mb-0.5">Professional Fees
+              {mabModal && mabDrafts[mabModal.id] && (
+                <span className="ml-2 text-[10px] font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full align-middle">Draft restored</span>
+              )}
+            </h3>
+            <p className="text-sm text-gray-500 mb-5">
+              {mabModal.full_name} - <span className="font-mono text-xs">{mabModal.patient_no}</span>
+            </p>
+            <div className="border border-gray-200 rounded-xl overflow-hidden mb-5">
+              <div className="grid grid-cols-[130px_1fr_130px_90px_52px_44px] bg-gray-50 border-b border-gray-200">
+                <div className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Specialty</div>
+                <div className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Name of M.D.</div>
+                <div className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Amount</div>
+                <div className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Status</div>
+                <div className="px-2 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide text-center">Paid</div>
+                <div className="px-2 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wide text-center">+</div>
+              </div>
+              {mabFees.map((row, idx) => (
+                <div key={idx} className={`grid grid-cols-[130px_1fr_130px_90px_52px_44px] border-b border-gray-100 last:border-0 ${row.paid ? 'bg-emerald-50/40' : ''}`}>
+                  <div className="px-4 py-3 text-sm font-semibold text-gray-700 flex items-center">
+                    {idx === 0 || mabFees[idx - 1].specialty !== row.specialty
+                      ? row.specialty
+                      : <span className="text-gray-300 text-xs pl-1">?</span>
+                    }
+                  </div>
+                  <div className="px-2 py-2 border-l border-gray-100">
+                    <input type="text" placeholder="Name of M.D."
+                      value={row.md}
+                      onChange={e => setMabFees(f => f.map((r, i) => i === idx ? { ...r, md: e.target.value } : r))}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                  </div>
+                  <div className="px-2 py-2 border-l border-gray-100">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">?</span>
+                      <input type="number" placeholder="0.00"
+                        value={row.amount}
+                        onChange={e => setMabFees(f => f.map((r, i) => i === idx ? { ...r, amount: e.target.value } : r))}
+                        className="w-full pl-6 pr-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    </div>
+                  </div>
+                  <div className="px-3 py-3 border-l border-gray-100 flex items-center">
+                    {row.paid
+                      ? <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full whitespace-nowrap">Paid</span>
+                      : <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full whitespace-nowrap">Unpaid</span>
+                    }
+                  </div>
+                  <div className="border-l border-gray-100 flex items-center justify-center">
+                    <input type="checkbox" checked={row.paid}
+                      onChange={e => setMabFees(f => f.map((r, i) => i === idx ? { ...r, paid: e.target.checked } : r))}
+                      className="w-4 h-4 accent-emerald-600 cursor-pointer" />
+                  </div>
+                  <div className="border-l border-gray-100 flex items-center justify-center gap-1 px-1">
+                    <button type="button"
+                      onClick={() => setMabFees(f => [
+                        ...f.slice(0, idx + 1),
+                        { specialty: row.specialty, md: '', amount: '', paid: false },
+                        ...f.slice(idx + 1),
+                      ])}
+                      className="w-6 h-6 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm flex items-center justify-center transition-colors"
+                      title="Add another doctor">+</button>
+                    {mabFees.filter(r => r.specialty === row.specialty).length > 1 && (
+                      <button type="button"
+                        onClick={() => setMabFees(f => f.filter((_, i) => i !== idx))}
+                        className="w-6 h-6 rounded-md bg-red-50 hover:bg-red-100 text-red-400 font-bold text-sm flex items-center justify-center transition-colors"
+                        title="Remove row">-</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="grid grid-cols-[130px_1fr_130px_90px_52px_44px] bg-emerald-50 border-t border-emerald-100">
+                <div className="px-4 py-3 text-sm font-bold text-emerald-800 col-span-2">Total</div>
+                <div className="px-4 py-3 text-sm font-bold text-emerald-800 border-l border-emerald-100">
+                  ?{mabFees.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </div>
+                <div className="col-span-3" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID <span className="text-red-500">*</span></label>
+                <input type="text" placeholder="4-digit ID" value={mabName}
+                  onChange={e => setMabName(e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <input type={showMabPass ? 'text' : 'password'} placeholder="Your password"
+                    value={mabPass} onChange={e => { setMabPass(e.target.value); setMabPassErr(''); }}
+                    className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                  <button type="button" onClick={() => setShowMabPass(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
+                {mabPassErr && <p className="text-xs text-red-500">{mabPassErr}</p>}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={submitMabClear} disabled={actionId === mabModal.id}
+                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
+                {actionId === mabModal.id ? 'Processing...' : 'Confirm & Clear'}
+              </button>
+              <button onClick={handleMabCancel}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAB Cancel Confirmation */}
+      {mabCancelConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Unsaved Data</h3>
+            <p className="text-sm text-gray-500 mb-6">You have entered professional fee data. What would you like to do?</p>
+            <div className="flex flex-col gap-2">
+              <button onClick={saveMabDraft}
+                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl transition-colors">
+                Save as Draft
+              </button>
+              <button onClick={discardMab}
+                className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm rounded-xl transition-colors">
+                Discard & Close
+              </button>
+              <button onClick={() => setMabCancelConfirm(false)}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-xl transition-colors">
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* {user.costCenter === 'MAB' ? 'Professional Fee' : 'Clear'} Modal */}
       {clearModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-1">Clear Patient</h3>
+            <h3 className="text-base font-bold text-gray-900 mb-1">{user.costCenter === 'MAB' ? 'Professional Fee' : 'Clear'}</h3>
             <p className="text-sm text-gray-500 mb-4">
               Confirm clearance for <span className="font-semibold text-gray-800">{clearModal.full_name}</span> ({clearModal.patient_no})
             </p>
@@ -628,7 +848,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                 {soaLoading ? (
                   <p className="text-sm text-gray-400 mt-0.5">Fetching...</p>
                 ) : soaAmount !== null ? (
-                  <p className="text-xl font-bold text-emerald-800 mt-0.5">₱{soaAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-xl font-bold text-emerald-800 mt-0.5">?{soaAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
                 ) : (
                   <p className="text-sm text-gray-400 mt-0.5">Not available</p>
                 )}
@@ -636,7 +856,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   <div className="mt-1.5 flex flex-col gap-0.5">
                     {soaBreakdown.map((b, i) => (
                       <p key={i} className="text-xs text-emerald-600">
-                        {b.desc}: ₱{b.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        {b.desc}: ?{b.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                       </p>
                     ))}
                   </div>
@@ -678,7 +898,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Confirm SOA Amount <span className="text-red-500">*</span></label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">₱</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">?</span>
                   <input type="number" placeholder="Enter amount to confirm" value={clearPrice}
                     onChange={e => { setClearPrice(e.target.value.replace(/[^0-9.]/g, '')); setClearPriceError(''); }}
                     className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
@@ -690,7 +910,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
                   <p className="text-xs text-red-500">Amount does not match SOA. Submitting will flag this patient as Pending Balance.</p>
                 )}
                 {priceEntered && priceMatches && (
-                  <p className="text-xs text-emerald-600">✓ Amount matches SOA.</p>
+                  <p className="text-xs text-emerald-600">? Amount matches SOA.</p>
                 )}
               </div>
 
@@ -719,7 +939,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
 
       {remarksModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -727,7 +947,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Balance Remarks</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{remarksModal.patient.full_name} · {remarksModal.patient.patient_no}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{remarksModal.patient.full_name} - {remarksModal.patient.patient_no}</p>
               </div>
               <button onClick={() => setRemarksModal(null)} className="text-gray-300 hover:text-gray-500 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -745,6 +965,7 @@ export default function CostCenterDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
       <CostCenterChatBox sender={user.costCenter} />
     </div>
   );

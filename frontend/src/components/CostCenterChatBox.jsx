@@ -1,12 +1,32 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { playMessageSound } from '../utils/sounds';
 import useDraggable from '../hooks/useDraggable';
 
-// Cost centers can only message Nurse and Billing. Admin is read-only.
-const CONTACTS = ['Nurse', 'Billing'];
-const ADMIN_CONTACT = 'Admin';
+const ALL_CONTACTS = [
+  'Nurse',
+  'ER Nurse',
+  'OB Nurse',
+  'Pediatrics Nurse',
+  'Medical Nurse',
+  'Surgery Nurse',
+  'Billing',
+  'Coder',
+  'MAB',
+  'Operating Room/Delivery Room',
+  'Pulmonary Department (MSA)',
+  'Hemodialysis Unit',
+  'Newborn Screening',
+  'Newborn Hearing Test',
+  'Radiology',
+  'Laboratory',
+  'Bloodbank',
+  'Pharmacy',
+  'Endoscopy',
+  'Colonoscopy',
+  'Physical Therapy',
+];
 
 export default function CostCenterChatBox({ sender }) {
   const [open, setOpen]               = useState(false);
@@ -128,7 +148,7 @@ export default function CostCenterChatBox({ sender }) {
                 {view === 'list' ? 'Messages' : selectedContact}
               </p>
               {view === 'list' && (
-                <p className="text-emerald-300 text-xs">Nurse & Billing</p>
+                <p className="text-emerald-300 text-xs">All departments</p>
               )}
             </div>
             <button onClick={() => setOpen(false)} className="text-white/70 hover:text-white">
@@ -167,7 +187,7 @@ export default function CostCenterChatBox({ sender }) {
                   </button>
                 );
               })()}
-              {[...CONTACTS].sort((a, b) => {
+              {[...ALL_CONTACTS].filter(cc => cc !== sender).sort((a, b) => {
                 const ra = recentOrder.indexOf(a);
                 const rb = recentOrder.indexOf(b);
                 if (ra !== -1 && rb !== -1) return ra - rb;
@@ -180,8 +200,8 @@ export default function CostCenterChatBox({ sender }) {
                   <button key={contact} onClick={() => openChat(contact)}
                     className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-50 transition-colors text-left border-b border-gray-50">
                     <div className="relative">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${contact === 'Nurse' ? 'bg-blue-100' : 'bg-amber-100'}`}>
-                        <span className={`text-sm font-bold ${contact === 'Nurse' ? 'text-blue-700' : 'text-amber-700'}`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-emerald-100`}>
+                        <span className="text-sm font-bold text-emerald-700">
                           {contact[0]}
                         </span>
                       </div>

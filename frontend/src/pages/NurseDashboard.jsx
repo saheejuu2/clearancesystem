@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AuditTrail from '../components/AuditTrail';
 import PhClock from '../components/PhClock';
@@ -9,7 +9,9 @@ import PatientInfoModal from '../components/PatientInfoModal';
 import ClearanceReport from '../components/ClearanceReport';
 import NotificationBell from '../components/NotificationBell';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import usePatientInfo from '../hooks/usePatientInfo';
 import ChatBox from '../components/ChatBox';
+import AlertModal from '../components/AlertModal';
 
 const STEP_LABEL = {
   no_request:           { label: 'Admitted',        style: 'bg-gray-100 text-gray-500'       },
@@ -22,6 +24,8 @@ const STEP_LABEL = {
 
 export default function NurseDashboard({ user, onLogout }) {
   const [tab, setTab]           = useState(() => sessionStorage.getItem('nurse_tab') || 'patients');
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
   const setTabPersist = (t) => { sessionStorage.setItem('nurse_tab', t); setTab(t); };
   const [auditKey, setAuditKey] = useState(0);
   const [patients, setPatients] = useState([]);
@@ -40,8 +44,7 @@ export default function NurseDashboard({ user, onLogout }) {
   const [cancelPassword, setCancelPassword]   = useState('');
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [showCancelPass, setShowCancelPass]   = useState(false);
-  const [viewPatient, setViewPatient] = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [notifReport, setNotifReport] = useState(null);
 
   const [admitSuccess, setAdmitSuccess] = useState(null);
@@ -96,16 +99,16 @@ export default function NurseDashboard({ user, onLogout }) {
   };
 
   const submitMayGoHome = async () => {
-    if (!confirmForm.disposition) { alert('Please select a disposition.'); return; }
-    if (!confirmForm.nurseName.trim()) { alert('Please enter your username.'); return; }
-    if (!confirmPassword.trim()) { alert('Please enter your password.'); return; }
+    if (!confirmForm.disposition) { showAlert('Please select a disposition.'); return; }
+    if (!confirmForm.nurseName.trim()) { showAlert('Please enter your username.'); return; }
+    if (!confirmPassword.trim()) { showAlert('Please enter your password.'); return; }
     try {
       const verify = await api.post('/login.php', { username: confirmForm.nurseName.trim(), password: confirmPassword, cost_center: user.costCenter });
-      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
-    } catch { alert('Could not verify credentials.'); return; }
+      if (!verify.data.success) { showAlert('Incorrect username or password.'); return; }
+    } catch { showAlert('Could not verify credentials.'); return; }
     const { patientId, full_name, patient_no } = confirmForm;
     const actor = confirmForm.nurseName.trim();
-    const remarks = [confirmForm.disposition, confirmForm.remarks.trim()].filter(Boolean).join(' — ');
+    const remarks = [confirmForm.disposition, confirmForm.remarks.trim()].filter(Boolean).join(' - ');
     setConfirmForm(null);
     setConfirmPassword('');
     setPatients(prev => prev.map(p =>
@@ -118,17 +121,17 @@ export default function NurseDashboard({ user, onLogout }) {
         setMayGoHomeSuccess({ full_name, patient_no });
         fetchPatients();
         setAuditKey(k => k + 1);
-      } else { alert(res.data.message); fetchPatients(); }
+      } else { showAlert(res.data.message); fetchPatients(); }
     } finally { setActionId(null); }
   };
 
   const submitCancel = async () => {
-    if (!cancelForm.nurseName.trim()) { alert('Please enter your username.'); return; }
-    if (!cancelPassword.trim()) { alert('Please enter your password.'); return; }
+    if (!cancelForm.nurseName.trim()) { showAlert('Please enter your username.'); return; }
+    if (!cancelPassword.trim()) { showAlert('Please enter your password.'); return; }
     try {
       const verify = await api.post('/login.php', { username: cancelForm.nurseName.trim(), password: cancelPassword, cost_center: user.costCenter });
-      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
-    } catch { alert('Could not verify credentials.'); return; }
+      if (!verify.data.success) { showAlert('Incorrect username or password.'); return; }
+    } catch { showAlert('Could not verify credentials.'); return; }
     setCancelling(true);
     try {
       const res = await api.post('/update_clearance.php', {
@@ -138,17 +141,17 @@ export default function NurseDashboard({ user, onLogout }) {
         remarks:    cancelForm.remarks.trim() || 'Discharge cancelled by nurse',
       });
       if (res.data.success) { setCancelForm(null); setCancelPassword(''); fetchPatients(); setAuditKey(k => k + 1); }
-      else alert(res.data.message);
+      else showAlert(res.data.message);
     } finally { setCancelling(false); }
   };
 
   const submitReclearance = async () => {
-    if (!reclearanceForm.nurseName.trim()) { alert('Please enter your employee ID.'); return; }
-    if (!reclearanceForm.password.trim()) { alert('Please enter your password.'); return; }
+    if (!reclearanceForm.nurseName.trim()) { showAlert('Please enter your employee ID.'); return; }
+    if (!reclearanceForm.password.trim()) { showAlert('Please enter your password.'); return; }
     try {
       const verify = await api.post('/login.php', { username: reclearanceForm.nurseName.trim(), password: reclearanceForm.password, cost_center: user.costCenter });
-      if (!verify.data.success) { alert('Incorrect username or password.'); return; }
-    } catch { alert('Could not verify credentials.'); return; }
+      if (!verify.data.success) { showAlert('Incorrect username or password.'); return; }
+    } catch { showAlert('Could not verify credentials.'); return; }
     setReclearancing(true);
     try {
       const res = await api.post('/update_clearance.php', {
@@ -158,30 +161,8 @@ export default function NurseDashboard({ user, onLogout }) {
         remarks:    reclearanceForm.remarks.trim() || 'Reclearance initiated by nurse',
       });
       if (res.data.success) { setReclearanceForm(null); fetchPatients(); setAuditKey(k => k + 1); }
-      else alert(res.data.message);
+      else showAlert(res.data.message);
     } finally { setReclearancing(false); }
-  };
-
-  const openPatientInfo = async (p) => {
-    let enriched = { ...p };
-    if (p.patient_type !== 'opd') {
-      try {
-        const nr = await api.get(`/get_hdb_patients.php?hpercode=${encodeURIComponent(p.patient_no)}&enccode=${encodeURIComponent(p.ward || '')}`);
-        if (nr.data?.person) {
-          const person = nr.data.person;
-          const enccode = p.ward || '';
-          const timeMatch = enccode.match(/(\d{2}:\d{2}:\d{2})$/);
-          const admTime = timeMatch ? timeMatch[1].substring(0, 5) : ((() => { try { const d = new Date(person.admtime || ''); return !isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 3000 ? d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'; } catch { return '—'; } })());
-          enriched = { ...p, patsex: person.patsex, patbdate: person.patbdate, pattelno: person.pattelno, contact: person.contact, address: person.address, toecode: person.toecode, patlast: person.patlast, patfirst: person.patfirst, patmiddle: person.patmiddle, patsuffix: person.patsuffix, ward: person.wardname || p.ward_name || '—', ward_name: person.wardname || p.ward_name || '—', room_bed: person.room_bed || p.room_bed || '—', accom_type: person.accom_type || '—', service_type: person.service_type || '—', admtxt: person.admtxt, admit_time: admTime };
-        }
-      } catch { /* silent */ }
-    }
-    setViewPatient(enriched);
-    try {
-      const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-      if (r.data.success) setViewClearances(r.data.clearances);
-      else setViewClearances([]);
-    } catch { setViewClearances([]); }
   };
 
   const openTracker = async (p) => {
@@ -300,7 +281,7 @@ export default function NurseDashboard({ user, onLogout }) {
           <div className="flex flex-col gap-5">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Patient List</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Patients synced from IHIS — Click "May Go Home" to initiate discharge clearance</p>
+              <p className="text-sm text-gray-400 mt-0.5">Patients synced from IHIS - Click "May Go Home" to initiate discharge clearance</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -354,7 +335,7 @@ export default function NurseDashboard({ user, onLogout }) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Hospital No.','Name of Patient ','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -370,11 +351,11 @@ export default function NurseDashboard({ user, onLogout }) {
                       return (
                         <tr key={p.id} onClick={() => openPatientInfo(p)} className="hover:bg-gray-50/70 transition-colors cursor-pointer">
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
+                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '-'}</td>}
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '-'}</td>}
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                            {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                           </td>
                           <td className="px-4 py-3.5">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -425,7 +406,7 @@ export default function NurseDashboard({ user, onLogout }) {
       </div>
 
       {notifReport && <ClearanceReport patientId={notifReport.id} onClose={() => setNotifReport(null)} userRole="Nurse" onAction={(action, patient) => { setNotifReport(null); if (action === "may_go_home") openForm(patient); else if (action === "cancel") setCancelForm({ patientId: patient.id, patientName: patient.full_name, nurseName: "", remarks: "" }); }} />}
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
 
       {/* May Go Home Confirm Modal */}
       {confirmForm && (
@@ -685,6 +666,7 @@ export default function NurseDashboard({ user, onLogout }) {
         </div>
       )}
 
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
       <ChatBox sender={user.costCenter} />
 
     </div>

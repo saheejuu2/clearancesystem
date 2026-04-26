@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import websocketService from '../services/websocket';
 import PhClock from '../components/PhClock';
@@ -9,8 +9,10 @@ import DashboardOverview from '../components/DashboardOverview';
 import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import useWebSocketPatients from '../hooks/useWebSocketPatients';
+import usePatientInfo from '../hooks/usePatientInfo';
 import AdminChatBox from '../components/AdminChatBox';
 import PatientInfoModal from '../components/PatientInfoModal';
+import AlertModal from '../components/AlertModal';
 
 const STEP_LABELS = {
   no_request:           { label: 'Admitted',         style: 'bg-gray-100 text-gray-500'       },
@@ -34,8 +36,9 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [viewPatient, setViewPatient] = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [trackPatient, setTrackPatient]     = useState(null);
   const [trackClearances, setTrackClearances] = useState([]);
   const [trackLoading, setTrackLoading]     = useState(false);
@@ -115,14 +118,14 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
     } catch { /* silent */ }
   };
   const submitClear = async () => {
-    if (!clearSelected.length) { alert('Select at least one cost center.'); return; }
+    if (!clearSelected.length) { showAlert('Select at least one cost center.'); return; }
     setClearing(true);
     try {
       for (const cc of clearSelected) {
         await api.post('/update_clearance.php', { action: 'cost_center_clear', patient_id: clearModal.patient.id, cost_center: cc, actor: 'Admin', remarks: clearRemarks.trim() });
       }
       setClearModal(null); refetch();
-    } catch { alert('An error occurred.'); }
+    } catch { showAlert('An error occurred.'); }
     finally { setClearing(false); }
   };
 
@@ -130,7 +133,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
     setMghSaving(true);
     try {
       const res = await api.post('/update_clearance.php', { action: 'may_go_home', patient_id: mayGoHomeModal.id, actor: 'Admin', remarks: mghRemarks.trim() });
-      if (res.data.success) { setMayGoHomeModal(null); setMghRemarks(''); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setMayGoHomeModal(null); setMghRemarks(''); refetch(); } else showAlert(res.data.message);
     } finally { setMghSaving(false); }
   };
 
@@ -146,25 +149,25 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
         remarks: returnRemarks.trim() || defaultRemarks,
       });
       if (res.data.success) { setReturnModal(null); setReturnRemarks(''); refetch(); }
-      else alert(res.data.message);
+      else showAlert(res.data.message);
     } finally { setReturnSaving(false); }
   };
 
   const openForClearance = (p) => setForClearanceModal({ patient: p, service: '', selected: [] });
   const sendForClearance = async () => {
-    if (!forClearanceModal.selected.length) { alert('Select at least one cost center.'); return; }
+    if (!forClearanceModal.selected.length) { showAlert('Select at least one cost center.'); return; }
     try {
       const res = await api.post('/update_clearance.php', { action: 'for_clearance', patient_id: forClearanceModal.patient.id, actor: 'Admin', cost_centers: forClearanceModal.selected });
-      if (res.data.success) { setForClearanceModal(null); refetch(); } else { alert(res.data.message); setForClearanceModal(null); }
-    } catch { alert('An error occurred. Please try again.'); setForClearanceModal(null); }
+      if (res.data.success) { setForClearanceModal(null); refetch(); } else { showAlert(res.data.message); setForClearanceModal(null); }
+    } catch { showAlert('An error occurred. Please try again.'); setForClearanceModal(null); }
   };
 
   const submitDischarge = async () => {
-    if (!dischargeRemarks.trim()) { alert('Enter final remarks.'); return; }
+    if (!dischargeRemarks.trim()) { showAlert('Enter final remarks.'); return; }
     setDischargeSaving(true);
     try {
       const res = await api.post('/update_clearance.php', { action: 'discharge', patient_id: dischargeModal.id, actor: 'Admin', remarks: dischargeRemarks });
-      if (res.data.success) { setDischargeModal(null); setDischargeRemarks(''); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setDischargeModal(null); setDischargeRemarks(''); refetch(); } else showAlert(res.data.message);
     } finally { setDischargeSaving(false); }
   };
 
@@ -176,11 +179,11 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
     } catch { /* silent */ }
   };
   const submitPending = async () => {
-    if (!pendingSelected.length) { alert('Select at least one cost center.'); return; }
+    if (!pendingSelected.length) { showAlert('Select at least one cost center.'); return; }
     setPendingSaving(true);
     try {
       const res = await api.post('/send_back_clearance.php', { patient_id: pendingModal.id, actor: 'Admin', cost_centers: pendingSelected, reason: pendingReason.trim() || 'Missing requirements' });
-      if (res.data.success) { setPendingModal(null); refetch(); } else alert(res.data.message);
+      if (res.data.success) { setPendingModal(null); refetch(); } else showAlert(res.data.message);
     } finally { setPendingSaving(false); }
   };
 
@@ -206,7 +209,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
         setSelectMode(false);
         setSelectedIds(new Set());
         refetch();
-      } else alert(res.data.message);
+      } else showAlert(res.data.message);
     } finally { setDeleting(false); }
   };
 
@@ -276,7 +279,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                   </th>
                 )}
                 {['Hospital No.','Name of Patient','Service','Accomodation','Admit Date','Type','Status','Actions'].map(h => (
-                  <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accomodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -290,14 +293,9 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                 const isPending = p.has_pending && p.clearance_step === 'cost_center_clearing';
                 return (
                   <tr key={p.id}
-                    onClick={async () => {
+                    onClick={() => {
                       if (selectMode) { toggleSelect(p.id); return; }
-                      setViewPatient(p);
-                      try {
-                        const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-                        if (r.data.success) setViewClearances(r.data.clearances);
-                        else setViewClearances([]);
-                      } catch { setViewClearances([]); }
+                      openPatientInfo(p);
                     }}
                     className={`transition-colors cursor-pointer ${selectMode ? 'select-none' : ''} ${selectMode && selected.has(p.id) ? 'bg-red-50/60 hover:bg-red-50' : 'hover:bg-gray-50/70'}`}>
                     {selectMode && (
@@ -307,11 +305,11 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                       </td>
                     )}
                     <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                    <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                    <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
-                    <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
+                    <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                    {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '-'}</td>}
+                    {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '-'}</td>}
                     <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                      {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
+                      {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
                     </td>
                     <td className="px-4 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${p.patient_type === 'er' ? 'bg-red-100 text-red-600' : p.patient_type === 'opd' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -512,7 +510,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Return Patient</h3>
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-semibold text-gray-800">{returnModal.full_name}</span> ({returnModal.patient_no}) — choose where to return this patient.
+              <span className="font-semibold text-gray-800">{returnModal.full_name}</span> ({returnModal.patient_no}) - choose where to return this patient.
             </p>
             <div className="flex flex-col gap-1.5 mb-5">
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Reason <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
@@ -521,7 +519,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
                 className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none" />
             </div>
             <div className="flex flex-col gap-2">
-              {/* Return to Clearance — only if patient is fully cleared (all CCs done) */}
+              {/* Return to Clearance - only if patient is fully cleared (all CCs done) */}
               {returnModal.clearance_step === 'cost_center_clearing' && parseInt(returnModal.pending_count) === 0 && parseInt(returnModal.total_cc) > 0 && (
                 <button onClick={() => submitReturn('clearance')} disabled={returnSaving}
                   className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
@@ -546,7 +544,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-bold text-gray-900 mb-1">Send for Clearance</h3>
-            <p className="text-sm text-gray-500 mb-4"><span className="font-semibold text-gray-700">{forClearanceModal.patient.full_name}</span> � select service to load cost centers.</p>
+            <p className="text-sm text-gray-500 mb-4"><span className="font-semibold text-gray-700">{forClearanceModal.patient.full_name}</span> ? select service to load cost centers.</p>
             <div className="flex flex-col gap-1.5 mb-4">
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Service</label>
               <select value={forClearanceModal.service} onChange={e => { const svc = e.target.value; setForClearanceModal(f => ({ ...f, service: svc, selected: svc ? [...SERVICE_CC[svc]] : [] })); }} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
@@ -644,6 +642,7 @@ function AdminPatientList({ tab, onPatientsLoaded }) {
           </div>
         </div>
       )}
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
     </div>
   );
 }
@@ -667,7 +666,10 @@ const EyeIcon = ({ show, onClick }) => (
 
 export default function AdminDashboard({ user, onLogout }) {
   const [tab, setTab] = useState(() => sessionStorage.getItem('admin_tab') || 'dashboard');
+  const [alertMsg, setAlertMsg] = useState(null);
+  const showAlert = (msg) => setAlertMsg(msg);
   const setTabPersist = (t) => { sessionStorage.setItem('admin_tab', t); setTab(t); };
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [auditKey, setAuditKey]   = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [adminStats, setAdminStats]     = useState({});
@@ -713,7 +715,7 @@ export default function AdminDashboard({ user, onLogout }) {
         setAdminClearRemarks('');
         fetchAdminPendingBalance();
       } else {
-        alert(res.data.message);
+        showAlert(res.data.message);
       }
     } finally { setAdminClearSaving(false); }
   };
@@ -792,13 +794,13 @@ export default function AdminDashboard({ user, onLogout }) {
 
   const handleSave = async () => {
     const { username, full_name, password, confirmPassword, cost_center } = form.data;
-    if (!username.trim() || !full_name.trim() || !cost_center) { alert('Username, full name, and cost center are required.'); return; }
-    if (form.mode === 'create' && !password.trim()) { alert('Password is required for new accounts.'); return; }
-    if (password && password !== confirmPassword) { alert('Passwords do not match.'); return; }
+    if (!username.trim() || !full_name.trim() || !cost_center) { showAlert('Username, full name, and cost center are required.'); return; }
+    if (form.mode === 'create' && !password.trim()) { showAlert('Password is required for new accounts.'); return; }
+    if (password && password !== confirmPassword) { showAlert('Passwords do not match.'); return; }
     setSaving(true);
     try {
       const res = await api.post(`/manage_users.php?action=${form.mode === 'create' ? 'create' : 'edit'}`, form.data);
-      if (res.data.success) { setForm(null); fetchAll(); } else alert(res.data.message);
+      if (res.data.success) { setForm(null); fetchAll(); } else showAlert(res.data.message);
     } finally { setSaving(false); }
   };
 
@@ -806,7 +808,7 @@ export default function AdminDashboard({ user, onLogout }) {
     setSaving(true);
     try {
       const res = await api.post('/manage_users.php?action=delete', { id });
-      if (res.data.success) { setDeleteId(null); fetchAll(); } else alert(res.data.message);
+      if (res.data.success) { setDeleteId(null); fetchAll(); } else showAlert(res.data.message);
     } finally { setSaving(false); }
   };
 
@@ -936,9 +938,9 @@ export default function AdminDashboard({ user, onLogout }) {
                               className="hover:bg-gray-50/70 transition-colors cursor-pointer border-b border-gray-50">
                               <td className="px-5 py-4 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
                               <td className="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '—')}</td>
+                              <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{p.ward_name || (p.ward && p.ward.length <= 20 ? p.ward : '-')}</td>
                               <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
-                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '�'}
+                                {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '?'}
                               </td>
                               <td className="px-5 py-4">
                                 <span className="text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-1 rounded-full">
@@ -981,7 +983,7 @@ export default function AdminDashboard({ user, onLogout }) {
                                                     className="font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors">
                                                     View
                                                   </button>
-                                                : <span className="text-gray-300">�</span>
+                                                : <span className="text-gray-300">?</span>
                                               }
                                             </td>
                                             <td className="px-4 py-2.5">
@@ -1021,7 +1023,7 @@ export default function AdminDashboard({ user, onLogout }) {
                 <p className="text-sm text-gray-400 mt-0.5">Manage all staff accounts across every cost center</p>
               </div>
               <div className="flex gap-3 items-center">
-                <SearchBar value={search} onChange={setSearch} placeholder="Search by name, username, or cost center�" />
+                <SearchBar value={search} onChange={setSearch} placeholder="Search by name, username, or cost center?" />
                 <div className="relative w-64 shrink-0" ref={ccRef}>
                   <button onClick={() => setCcOpen(v => !v)}
                     className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
@@ -1085,7 +1087,7 @@ export default function AdminDashboard({ user, onLogout }) {
                                 </button>
                               );
                             })() : (
-                              <span className="text-xs text-gray-300">�</span>
+                              <span className="text-xs text-gray-300">?</span>
                             )}
                           </td>
                           <td className="px-5 py-4">
@@ -1254,7 +1256,7 @@ export default function AdminDashboard({ user, onLogout }) {
       {adminClearModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-1">Admin Override � Clear Patient</h3>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Admin Override ? Clear Patient</h3>
             <p className="text-sm text-gray-500 mb-4">
               Clear <span className="font-semibold text-gray-800">{adminClearModal.patient.full_name}</span> ({adminClearModal.patient.patient_no}) at{' '}
               <span className="font-semibold text-emerald-700">{adminClearModal.cost_center}</span>
@@ -1284,7 +1286,7 @@ export default function AdminDashboard({ user, onLogout }) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Balance Remarks</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{adminRemarksModal.full_name} � {adminRemarksModal.patient_no}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{adminRemarksModal.full_name} ? {adminRemarksModal.patient_no}</p>
                 <p className="text-xs text-emerald-600 font-medium mt-0.5">{adminRemarksModal.cost_center}</p>
               </div>
               <button onClick={() => setAdminRemarksModal(null)} className="text-gray-300 hover:text-gray-500 transition-colors">
@@ -1303,7 +1305,8 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
       <AdminChatBox />
     </div>
   );

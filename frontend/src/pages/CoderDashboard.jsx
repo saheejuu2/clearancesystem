@@ -5,6 +5,8 @@ import SearchBar from '../components/SearchBar';
 import DateFilter from '../components/DateFilter';
 import PatientInfoModal from '../components/PatientInfoModal';
 import NotificationBell from '../components/NotificationBell';
+import AlertModal from '../components/AlertModal';
+import usePatientInfo from '../hooks/usePatientInfo';
 import ChatBox from '../components/ChatBox';
 
 const STEP_LABEL = {
@@ -20,11 +22,14 @@ export default function CoderDashboard({ user, onLogout }) {
   const [search, setSearch]             = useState('');
   const [filterDate, setFilterDate]     = useState(() => sessionStorage.getItem('coder_filterDate') || new Date().toISOString().split('T')[0]);
   const [typeFilter, setTypeFilter]     = useState(() => sessionStorage.getItem('coder_typeFilter') || '');
-  const [viewPatient, setViewPatient]   = useState(null);
-  const [viewClearances, setViewClearances] = useState([]);
+  const { viewPatient, viewClearances, openPatientInfo, closePatientInfo } = usePatientInfo();
   const [actionId, setActionId]         = useState(null);
   const [proceedForm, setProceedForm]   = useState(null);
+  const [proceedCancelConfirm, setProceedCancelConfirm] = useState(false);
   const [returnForm, setReturnForm]     = useState(null);
+  const [alertMsg, setAlertMsg]         = useState(null);
+
+  const showAlert = (msg) => setAlertMsg(msg);
 
   const setFilterDateP = (v) => { sessionStorage.setItem('coder_filterDate', v); setFilterDate(v); };
   const setTypeFilterP = (v) => { sessionStorage.setItem('coder_typeFilter', v); setTypeFilter(v); };
@@ -42,6 +47,20 @@ export default function CoderDashboard({ user, onLogout }) {
 
   useEffect(() => { fetchPatients(); }, []);
 
+  const proceedHasData = () => {
+    if (!proceedForm) return false;
+    return (proceedForm.icd10_code || '').trim() !== '' ||
+           (proceedForm.icd10_description || '').trim() !== '' ||
+           (proceedForm.case_type || '') !== '' ||
+           (proceedForm.procedure_done || '').trim() !== '' ||
+           (proceedForm.remarks || '').trim() !== '';
+  };
+
+  const handleProceedCancel = () => {
+    if (proceedHasData()) { setProceedCancelConfirm(true); }
+    else { setProceedForm(null); }
+  };
+
   const submitProceed = async () => {
     setActionId(proceedForm.patientId);
     try {
@@ -56,12 +75,12 @@ export default function CoderDashboard({ user, onLogout }) {
         remarks:           proceedForm.remarks?.trim() || '',
       });
       if (res.data.success) { setProceedForm(null); fetchPatients(); }
-      else alert(res.data.message);
+      else showAlert(res.data.message);
     } finally { setActionId(null); }
   };
 
   const submitReturnToNurse = async () => {
-    if (!returnForm.remarks.trim()) { alert('Please enter a reason.'); return; }
+    if (!returnForm.remarks.trim()) { showAlert('Please enter a reason.'); return; }
     setActionId(returnForm.patientId);
     try {
       const res = await api.post('/update_clearance.php', {
@@ -71,17 +90,10 @@ export default function CoderDashboard({ user, onLogout }) {
         remarks:    returnForm.remarks.trim(),
       });
       if (res.data.success) { setReturnForm(null); fetchPatients(); }
-      else alert(res.data.message);
+      else showAlert(res.data.message);
     } finally { setActionId(null); }
   };
 
-  const openPatientInfo = async (p) => {
-    setViewPatient(p);
-    try {
-      const r = await api.get('/get_clearance_report.php?patient_id=' + p.id);
-      setViewClearances(r.data.success ? r.data.clearances : []);
-    } catch { setViewClearances([]); }
-  };
 
   const filtered = patients.filter(p => {
     const q = search.toLowerCase();
@@ -100,7 +112,7 @@ export default function CoderDashboard({ user, onLogout }) {
             <img src={`${import.meta.env.BASE_URL}GEAMH-LOGO.png`} alt="logo" className="w-7 h-7 object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] text-emerald-300 uppercase tracking-widest">Hospital Clearance System</p>
-              <p className="text-white font-semibold text-sm">Medical Coder</p>
+              <p className="text-white font-semibold text-sm">Coder</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -114,15 +126,14 @@ export default function CoderDashboard({ user, onLogout }) {
         <aside className="w-56 shrink-0 bg-white border-r border-gray-100 flex flex-col">
           <div className="px-5 py-4 border-b border-gray-100">
             <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Coding</p>
-            <p className="text-sm font-bold text-gray-800 mt-0.5">Medical Coder</p>
+            <p className="text-sm font-bold text-gray-800 mt-0.5">Coder</p>
           </div>
           <nav className="flex flex-col gap-1 p-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-1">Filter by Type</p>
             {[
               { value: '',           label: 'All Patients', dot: 'bg-gray-400'  },
-              { value: 'in-patient', label: 'In-Patient',   dot: 'bg-blue-400'  },
+              { value: 'in-patient', label: 'Admitted',     dot: 'bg-blue-400'  },
               { value: 'er',         label: 'ER',           dot: 'bg-red-400'   },
-              { value: 'opd',        label: 'OPD',          dot: 'bg-green-400' },
             ].map(t => (
               <button key={t.value} onClick={() => setTypeFilterP(t.value)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left w-full ${typeFilter === t.value ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'}`}>
@@ -184,7 +195,7 @@ export default function CoderDashboard({ user, onLogout }) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 text-left">
                       {['Hospital No.', 'Name of Patient', 'Service', 'Accommodation', 'Admit Date', 'Type', 'Status', 'Actions'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        <th key={h} className={`px-4 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap${(h === 'Service' || h === 'Accommodation') && typeFilter === 'er' ? ' hidden' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -198,9 +209,9 @@ export default function CoderDashboard({ user, onLogout }) {
                       return (
                         <tr key={p.id} onClick={() => openPatientInfo(p)} className="hover:bg-gray-50/70 transition-colors cursor-pointer">
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-400 whitespace-nowrap">{p.patient_no}</td>
-                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap">{p.full_name}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>
+                          <td className="px-4 py-3.5 font-semibold text-gray-800 whitespace-nowrap max-w-[200px]">{p.full_name}</td>
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.service_type || '—'}</td>}
+                          {typeFilter !== 'er' && <td className="px-4 py-3.5 text-gray-500 text-center whitespace-nowrap">{p.accom_type || '—'}</td>}
                           <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                             {p.admit_date ? new Date(p.admit_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </td>
@@ -241,7 +252,7 @@ export default function CoderDashboard({ user, onLogout }) {
         </main>
       </div>
 
-      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={() => { setViewPatient(null); setViewClearances([]); }} />
+      <PatientInfoModal patient={viewPatient} clearances={viewClearances} onClose={closePatientInfo} />
 
       {/* Proceed to Clearance Confirm Modal */}
       {proceedForm && (
@@ -312,7 +323,7 @@ export default function CoderDashboard({ user, onLogout }) {
                 className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors">
                 {actionId === proceedForm.patientId ? 'Processing...' : 'Confirm & Forward to Billing'}
               </button>
-              <button onClick={() => setProceedForm(null)}
+              <button onClick={handleProceedCancel}
                 className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-lg transition-colors">
                 Cancel
               </button>
@@ -350,6 +361,32 @@ export default function CoderDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      {/* Proceed Cancel Confirmation */}
+      {proceedCancelConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Unsaved Data</h3>
+            <p className="text-sm text-gray-500 mb-6">You have entered coding data. Are you sure you want to discard it?</p>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => { setProceedForm(null); setProceedCancelConfirm(false); }}
+                className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm rounded-xl transition-colors">
+                Discard & Close
+              </button>
+              <button onClick={() => setProceedCancelConfirm(false)}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm rounded-xl transition-colors">
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <AlertModal message={alertMsg} onClose={() => setAlertMsg(null)} type="error" />
       <ChatBox sender={user.costCenter} />
     </div>
   );

@@ -22,7 +22,7 @@ $sql = "
                 THEN CONCAT(TIMESTAMPDIFF(MONTH, p.patbdate, CURDATE()), 'mo')
             ELSE CONCAT(TIMESTAMPDIFF(DAY, p.patbdate, CURDATE()), 'd')
         END AS age,
-        p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type, p.service_type, p.accom_type,
+        p.ward, p.ward_name, p.room_bed, p.admitting_dx, p.admitting_dx AS admtxt, p.admit_date, p.patient_type, p.service_type, p.accom_type, p.patbdate,
         cr.id AS request_id,
         cr.nurse_status,
         cr.coder_status,
@@ -143,6 +143,8 @@ $filtered = array_filter($all, function($p) use ($role, $already_cleared, $windo
         default:
             if ($step !== 'cost_center_clearing') return false;
             if (in_array((int)$p['id'], $already_cleared)) return false;
+            // MAB only sees Pay patients
+            if ($role === 'MAB' && strtolower(trim($p['accom_type'] ?? '')) !== 'pay') return false;
             if (isset($window_map[$role])) {
                 return $p['patient_type'] === $window_map[$role];
             }
